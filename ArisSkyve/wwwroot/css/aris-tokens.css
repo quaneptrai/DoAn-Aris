@@ -1,0 +1,168 @@
+/**
+ * Aris Career Studio — Unified Design Tokens (Constellation System)
+ * Master token specifications across all surfaces.
+ * Aligned with docs/unified-theme/UI-PLAN-V2-CONSTELLATION.md
+ */
+
+:root {
+    /* -------------------------------------------------------------
+       1. MASTER STELLAR PALETTE (Used by both Auth & Workspace)
+       ------------------------------------------------------------- */
+    --star-void: #020409;            /* Sân khấu vũ trụ sâu nhất / Auth Stage */
+    --star-deep: #030611;            /* Nền workspace toàn cục (tối và sâu hơn) */
+    --star-ink: #070B18;             /* Panels, sidebars, composer wells */
+    --star-surface: #0B1224;         /* Card obsidian, dialogs, dropdowns */
+    --star-surface-glass: rgba(10, 16, 30, 0.84); /* Frosted glass card backing */
+    --star-surface-hover: #101933;   /* Hover state card */
+    --star-hairline: rgba(255, 255, 255, 0.08); /* Viền tóc tinh tế */
+    --star-hairline-bright: rgba(147, 197, 253, 0.22); /* Specular starlight rim */
+    --star-hairline-focus: rgba(59, 130, 246, 0.45);
+    
+    /* Brand & Celestial Lights */
+    --star-brand: #2F6FED;           /* CTA & Brand chính, một màu duy nhất */
+    --star-brand-hover: #3B82F6;     /* Luminous hover */
+    --star-brand-active: #1D4ED8;    /* Deep active press */
+    --star-brand-glow: rgba(47, 111, 237, 0.38);
+    --star-azure: #7EC8F5;           /* Accent lam ngọc sáng */
+    --star-cyan: #38BDF8;            /* Accent xanh băng */
+    --star-glow: rgba(126, 200, 245, 0.18);
+    
+    /* Typography / High-Contrast Readability */
+    --star-text: #E9EEF6;            /* Headings, title, high-contrast display */
+    --star-text-body: #BFCBDB;       /* Body copy, data readouts, options */
+    --star-text-muted: #8295B3;      /* Timestamps, secondary labels */
+    --star-text-faint: #5B6F8E;      /* Disabled, deep hints */
+
+    /* Semantics (Stellar Tints) */
+    --star-success: #34D399;
+    --star-success-soft: rgba(52, 211, 153, 0.12);
+    --star-success-border: rgba(52, 211, 153, 0.28);
+    --star-warning: #FBBF24;
+    --star-warning-soft: rgba(251, 191, 36, 0.12);
+    --star-warning-border: rgba(251, 191, 36, 0.28);
+    --star-danger: #F87171;
+    --star-danger-soft: rgba(248, 113, 113, 0.12);
+    --star-danger-border: rgba(248, 113, 113, 0.28);
+    --star-info: #38BDF8;
+    --star-info-soft: rgba(56, 189, 248, 0.12);
+    --star-info-border: rgba(56, 189, 248, 0.28);
+
+    /* -------------------------------------------------------------
+       2. MAPPED ARIS COMPONENT TOKENS
+       ------------------------------------------------------------- */
+    --aris-brand: var(--star-brand);
+    --aris-brand-hover: var(--star-brand-hover);
+    --aris-brand-active: var(--star-brand-active);
+    --aris-brand-soft: rgba(47, 111, 237, 0.12);
+    --aris-brand-soft-border: rgba(47, 111, 237, 0.28);
+    --aris-brand-ink: var(--star-azure);
+    --aris-brand-glow: var(--star-brand-glow);
+
+    --aris-ink: var(--star-void);
+    --aris-ink-deep: var(--star-void);
+    --aris-ink-panel: var(--star-ink);
+    --aris-ink-subtle: var(--star-surface);
+    --aris-ink-border: var(--star-hairline);
+    --aris-ink-border-hover: var(--star-hairline-bright);
+    --aris-on-ink: var(--star-text);
+    --aris-muted-on-ink: var(--star-text-muted);
+
+    --aris-canvas: var(--star-deep);
+    --aris-surface: var(--star-surface);
+    --aris-surface-subtle: rgba(255, 255, 255, 0.03);
+    --aris-surface-muted: rgba(255, 255, 255, 0.06);
+    --aris-surface-glass: var(--star-surface-glass);
+
+    --aris-text: var(--star-text);
+    --aris-text-heading: var(--star-text);
+    --aris-text-sub: var(--star-text-body);
+    --aris-text-muted: var(--star-text-muted);
+    --aris-text-hint: var(--star-text-faint);
+
+    --aris-border: var(--star-hairline);
+    --aris-border-subtle: rgba(255, 255, 255, 0.05);
+    --aris-border-strong: var(--star-hairline-bright);
+    --aris-control-border: rgba(255, 255, 255, 0.12);
+    --aris-control-border-focus: var(--star-brand);
+
+    --aris-success: var(--star-success);
+    --aris-success-soft: var(--star-success-soft);
+    --aris-success-border: var(--star-success-border);
+    --aris-warning: var(--star-warning);
+    --aris-warning-soft: var(--star-warning-soft);
+    --aris-warning-border: var(--star-warning-border);
+    --aris-danger: var(--star-danger);
+    --aris-danger-soft: var(--star-danger-soft);
+    --aris-danger-border: var(--star-danger-border);
+    --aris-info: var(--star-info);
+    --aris-info-soft: var(--star-info-soft);
+    --aris-info-border: var(--star-info-border);
+
+    /* -------------------------------------------------------------
+       3. UNIFIED TYPOGRAPHY: SPACE GROTESK (DISPLAY) + INTER (BODY)
+       ------------------------------------------------------------- */
+    --aris-font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    --aris-font-body: 'Inter', system-ui, -apple-system, sans-serif;
+
+    /* -------------------------------------------------------------
+       4. SPATIAL & SCALE SYSTEM
+       ------------------------------------------------------------- */
+    --aris-space-1: 4px;
+    --aris-space-2: 8px;
+    --aris-space-3: 12px;
+    --aris-space-4: 16px;
+    --aris-space-5: 20px;
+    --aris-space-6: 24px;
+    --aris-space-8: 32px;
+    --aris-space-10: 40px;
+    --aris-space-12: 48px;
+    --aris-space-16: 64px;
+
+    --aris-container-max: 1240px;
+    --aris-nav-height: 68px;
+
+    --aris-radius-xs: 6px;
+    --aris-radius-sm: 8px;
+    --aris-radius-control: 10px;
+    --aris-radius-card: 16px;
+    --aris-radius-feature: 20px;
+    --aris-radius-hero: 24px;
+    --aris-radius-pill: 9999px;
+
+    /* Elevation & Celestial Glow Shadows */
+    --aris-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --aris-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --aris-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 25px rgba(37, 99, 235, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    --aris-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 40px rgba(37, 99, 235, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    --aris-shadow-floating: 0 20px 50px rgba(0, 0, 0, 0.75), 0 0 50px rgba(47, 111, 237, 0.15);
+    --aris-shadow-brand: 0 0 24px rgba(47, 111, 237, 0.45);
+
+    /* -------------------------------------------------------------
+       5. MOTION SYSTEM: 3-TIER CONSTELLATION MICRO-PHYSICS
+       ------------------------------------------------------------- */
+    --aris-duration-micro: 160ms;
+    --aris-duration-fast: 220ms;
+    --aris-duration-panel: 320ms;
+    --aris-duration-enter: 600ms;
+    --aris-ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+    --aris-ease-bounce: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Layer Hierarchy */
+    --aris-z-base: 0;
+    --aris-z-sticky: 100;
+    --aris-z-nav: 1030;
+    --aris-z-dropdown: 1040;
+    --aris-z-backdrop: 1050;
+    --aris-z-modal: 1060;
+    --aris-z-lightbox: 1070;
+    --aris-z-toast: 1080;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --aris-duration-micro: 0.01ms;
+        --aris-duration-fast: 0.01ms;
+        --aris-duration-panel: 0.01ms;
+        --aris-duration-enter: 0.01ms;
+    }
+}

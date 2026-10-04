@@ -1,0 +1,93 @@
+@* Màn "Kiểm tra hộp thư" sau khi gửi liên kết đăng nhập — dùng chung cho Đăng nhập và Đăng ký *@
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+@{
+    var email = ViewBag.SubmittedEmail as string ?? "";
+    var returnUrl = ViewBag.ReturnUrl as string;
+    var returnView = ViewData["ReturnView"] as string ?? "Login";
+    var intent = ViewBag.Intent as string;
+    var devConfirmUrl = Env.IsDevelopment() ? ViewBag.DevConfirmUrl as string : null;
+    var mailSent = ViewBag.MailSent as bool? ?? true;
+    var domain = email.Contains('@') ? email.Split('@')[1].ToLowerInvariant() : "";
+    var (mailName, mailUrl) = domain switch
+    {
+        "gmail.com" or "googlemail.com" => ("Gmail", "https://mail.google.com/mail/u/0/#search/Aris"),
+        "outlook.com" or "hotmail.com" or "live.com" or "msn.com" => ("Outlook", "https://outlook.live.com/mail/0/"),
+        "yahoo.com" or "yahoo.com.vn" => ("Yahoo Mail", "https://mail.yahoo.com/"),
+        "icloud.com" or "me.com" => ("iCloud Mail", "https://www.icloud.com/mail"),
+        _ => ((string?)null, (string?)null)
+    };
+}
+
+<section class="auth-card auth-sent" aria-labelledby="sentTitle" aria-live="polite">
+    <div class="auth-sent__icon" aria-hidden="true">
+        <span class="auth-sent__ring"></span>
+        <i data-lucide="mail-check"></i>
+    </div>
+    <h1 class="auth-title" id="sentTitle">Kiểm tra hộp thư của bạn</h1>
+    <p class="auth-sub">
+        @if (mailSent)
+        {
+            <text>Chúng tôi vừa gửi liên kết @(returnView == "Register" ? "tạo tài khoản" : "đăng nhập") tới</text>
+        }
+        else
+        {
+            <text>Chưa gửi được email (môi trường phát triển không có máy chủ thư). Liên kết dành cho</text>
+        }
+    </p>
+    <div class="auth-sent__email"><i data-lucide="at-sign"></i><span>@email</span></div>
+
+    <ol class="auth-steps">
+        <li><span>1</span>Mở email từ <b>Aris</b> (xem cả mục Spam / Quảng cáo).</li>
+        <li><span>2</span>Bấm <b>Xác nhận</b> — liên kết có hiệu lực <b>30 phút</b> và chỉ dùng cho email này.</li>
+        <li><span>3</span>@(returnView == "Register" ? "Hoàn tất vài thông tin để Aris gợi ý việc phù hợp." : "Bạn được đưa thẳng vào Aris, không cần mật khẩu.")</li>
+    </ol>
+
+    @if (mailName != null)
+    {
+        <a class="a-btn a-btn--secondary auth-wide" href="@mailUrl" target="_blank" rel="noopener"><i data-lucide="inbox"></i>Mở @mailName</a>
+    }
+
+    @if (devConfirmUrl != null)
+    {
+        <div class="auth-dev">
+            <div class="auth-dev__head"><i data-lucide="flask-conical"></i>Chỉ ở môi trường phát triển</div>
+            <a class="a-btn a-btn--primary a-btn--sm auth-wide" href="@devConfirmUrl"><i data-lucide="shield-check"></i>Mở liên kết xác nhận</a>
+        </div>
+    }
+
+    <form asp-action="RequestMagicLink" method="post" class="auth-resend" id="resendForm">
+        <input type="hidden" name="email" value="@email" />
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <input type="hidden" name="returnView" value="@returnView" />
+        <input type="hidden" name="intent" value="@intent" />
+        <span>Chưa nhận được email?</span>
+        <button type="submit" class="auth-link" id="resendBtn" disabled data-wait="45">
+            <i data-lucide="refresh-cw"></i><span id="resendText">Gửi lại sau 45 giây</span>
+        </button>
+    </form>
+
+    <a class="auth-back" asp-action="@returnView" asp-route-returnUrl="@returnUrl"><i data-lucide="arrow-left"></i>Dùng email khác</a>
+</section>
+
+<script>
+    (function () {
+        var btn = document.getElementById('resendBtn');
+        var text = document.getElementById('resendText');
+        if (!btn || !text) return;
+        var left = +btn.dataset.wait || 45;
+        var t = setInterval(function () {
+            left--;
+            if (left <= 0) {
+                clearInterval(t);
+                btn.disabled = false;
+                text.textContent = 'Gửi lại liên kết';
+                return;
+            }
+            text.textContent = 'Gửi lại sau ' + left + ' giây';
+        }, 1000);
+        document.getElementById('resendForm').addEventListener('submit', function () {
+            btn.disabled = true;
+            text.textContent = 'Đang gửi lại…';
+        });
+    })();
+</script>

@@ -1,0 +1,19 @@
+.resume-editor .editor-markdown { display: flex; flex-direction: column; grid-column: 1 / -1; margin-bottom: 14px; }
+.resume-editor .editor-field-label { color: #35513c; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+.resume-editor .markdown-toolbar { display: flex; align-items: center; gap: 4px; border: 1px solid #c9d8cc; border-bottom: 0; border-radius: 8px 8px 0 0; padding: 5px; background: #f4f7f5; }
+.resume-editor .markdown-toolbar button { border: 1px solid transparent; border-radius: 4px; background: transparent; padding: 5px 9px; color: #243b2d; font-size: 12px; }
+.resume-editor .markdown-toolbar button:hover { border-color: #adbdaf; background: #fff; }
+.resume-editor .markdown-toolbar span { margin-left: auto; font-size: 10px; color: #647667; padding-right: 7px; }
+.resume-editor .editor-markdown textarea { border-radius: 0 0 8px 8px; margin: 0; min-height: 130px; }
+.resume-editor .entry-controls { display: flex; align-items: center; gap: 6px; padding-top: 10px; border-top: 1px solid #e4eae5; margin-top: 12px; }
+.resume-editor .entry-controls button, .resume-editor .editor-add-item { border: 1px solid #c9d8cc; background: #fff; color: #35513c; border-radius: 6px; padding: 6px 9px; font-size: 11px; }
+.resume-editor .entry-controls button:disabled { opacity: .4; cursor: default; }
+.resume-editor .entry-controls .delete-section { margin-left: auto; color: #9e3535; }
+.resume-editor .editor-skill-row { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1.4fr) minmax(65px,.7fr) 25px; gap: 8px; align-items: center; }
+.resume-editor .editor-metric-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) 25px; gap: 8px; align-items: center; }
+.resume-editor .editor-skill-row > button, .resume-editor .editor-metric-row > button { border: 0; background: none; color: #9e3535; }
+.resume-editor .editor-section-head h3, .resume-editor .editor-section-head h4 { margin: 12px 0; color: #35513c; font-size: 13px; }
+.resume-editor .editor-fields .custom-json { min-height: 170px; font: 12px/1.5 Consolas,monospace; }
+.resume-editor .editor-save-status { margin-right: auto; font-size: 12px; color: #286d42; align-self: center; }
+.resume-editor .editor-error { padding: 10px 12px; border: 1px solid #e0aaaa; background: #fff3f3; border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media(max-width:650px) { .resume-editor .editor-skill-row { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 25px; }.resume-editor .editor-skill-row > label:first-child { grid-column: span 2; }.resume-editor .editor-skill-row > button { grid-column: 3; grid-row: 1; }.resume-editor .editor-section-head { flex-wrap: wrap; } }

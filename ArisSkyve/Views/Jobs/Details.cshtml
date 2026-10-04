@@ -1,0 +1,622 @@
+@using Newtonsoft.Json
+@model ArisSkyve.Domain.Entities.JobPosting
+
+@{
+    Layout = "_AppLayout";
+    var biz = Model.BusinessAccount;
+    var companyDisplayName = biz?.CompanyName ?? (string.IsNullOrWhiteSpace(Model.Company) ? "Doanh nghiệp" : Model.Company);
+    ViewData["Title"] = $"{Model.Title} - {companyDisplayName}";
+    ViewData["ActiveNav"] = "Jobs";
+
+    List<string> ParseList(string data)
+    {
+        if (string.IsNullOrEmpty(data) || data == "[]") return new List<string>();
+        try
+        {
+            return JsonConvert.DeserializeObject<List<string>>(data) ?? new List<string>();
+        }
+        catch
+        {
+            return new List<string> { data };
+        }
+    }
+    // Cùng công thức với window.toneOf() / orgInitials() trong aris-shell.js
+    int Tone(string? name)
+    {
+        uint h = 0;
+        foreach (var ch in name ?? "") h = unchecked(h * 31 + ch);
+        return (int)(h % 6) + 1;
+    }
+    string OrgInitials(string? name)
+    {
+        var words = (name ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return "AR";
+        if (words.Length > 1) return (words[0][0].ToString() + words[1][0]).ToUpperInvariant();
+        return words[0].Substring(0, Math.Min(2, words[0].Length)).ToUpperInvariant();
+    }
+    bool HasImg(string? url) => !string.IsNullOrWhiteSpace(url) && !url.Contains("default-avatar.png") && !url.Contains("ui-avatars.com");
+    string Ago(DateTime utc)
+    {
+        var d = (int)Math.Max(0, (DateTime.UtcNow - utc).TotalDays);
+        return d == 0 ? "hôm nay" : d == 1 ? "hôm qua" : $"{d} ngày trước";
+    }
+
+    var companyLogo = HasImg(biz?.AvatarUrl) ? biz!.AvatarUrl : null;
+    var resList = ParseList(Model.Responsibilities);
+    var reqList = ParseList(Model.Requirements);
+    var benList = ParseList(Model.Benefits);
+    var tags = ParseList(Model.Hashtags).Select(t => t.Trim().TrimStart('#')).Where(t => t.Length > 0).Distinct().Take(12).ToList();
+    var locations = (Model.Locations ?? new List<ArisSkyve.Domain.Entities.JobLocation>()).Where(l => !string.IsNullOrWhiteSpace(l.City) || !string.IsNullOrWhiteSpace(l.Address)).ToList();
+    var primaryLocation = locations.FirstOrDefault()?.City ?? locations.FirstOrDefault()?.Address ?? "Toàn quốc";
+    var workMode = string.IsNullOrWhiteSpace(Model.WorkTime) ? "Toàn thời gian" : Model.WorkTime;
+    var salary = string.IsNullOrWhiteSpace(Model.Salary) ? "Thoả thuận" : Model.Salary;
+    var experience = string.IsNullOrWhiteSpace(Model.Experience) ? null : Model.Experience;
+    var isNew = Model.CreatedAt >= DateTime.UtcNow.AddDays(-3);
+    var tone = Tone(companyDisplayName);
+    var initials = OrgInitials(companyDisplayName);
+    var deadlineStr = Model.Deadline.HasValue ? Model.Deadline.Value.ToString("dd/MM/yyyy") : null;
+    var daysLeft = Model.Deadline.HasValue ? (int)Math.Ceiling((Model.Deadline.Value - DateTime.UtcNow).TotalDays) : (int?)null;
+    var appliedAt = ViewBag.AppliedAt as DateTime?;
+    var companyJobs = ViewBag.CompanyJobs as List<ArisSkyve.Domain.Entities.JobPosting> ?? new List<ArisSkyve.Domain.Entities.JobPosting>();
+    var similarJobs = ViewBag.SimilarJobs as List<ArisSkyve.Domain.Entities.JobPosting> ?? new List<ArisSkyve.Domain.Entities.JobPosting>();
+    var companyOpenJobs = (int)(ViewBag.CompanyOpenJobs ?? 0);
+    var companyHref = Model.BusinessAccountId.HasValue ? $"/Company/Details/{Model.BusinessAccountId}" : null;
+    var companySub = string.Join(" · ", new[] { biz?.Industry, string.IsNullOrWhiteSpace(biz?.CompanySize) ? null : (biz!.CompanySize!.Contains("nhân") ? biz.CompanySize : biz.CompanySize + " nhân sự") }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    var companyDesc = biz?.Description;
+    if (!string.IsNullOrWhiteSpace(companyDesc) && companyDesc.Length > 220) companyDesc = companyDesc.Substring(0, companyDesc.LastIndexOf(' ', 220) > 60 ? companyDesc.LastIndexOf(' ', 220) : 220) + "…";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/jobs.css" asp-append-version="true" />
+}
+
+<!-- Thanh gọn dính trên cùng khi cuộn -->
+<div class="jd-compact" id="jdCompact" aria-hidden="true">
+    <span class="a-logo a-logo--28" data-tone="@tone">@initials@if (companyLogo != null)
+        {
+            <img src="@companyLogo" alt="" onerror="this.remove()" />
+        }</span>
+    <div class="jd-compact__title">@Model.Title</div>
+    @if (Model.isActive)
+    {
+        <button class="a-btn a-btn--sunset a-btn--sm" type="button" data-apply tabindex="-1">@(appliedAt == null ? "Ứng tuyển" : "Ứng tuyển lại")</button>
+    }
+</div>
+
+<div class="jd-page-wrap">
+    <div class="jd-page-main">
+        <a href="/Jobs?job=@Model.Id" class="jd-back" id="backToJobsBtn"><i data-lucide="arrow-left"></i>Việc làm</a>
+
+        <div class="a-sheet jd-sheet">
+            <!-- Khối chi tiết dùng lại ở trang Việc làm (jobs.js lấy [data-job-detail]) -->
+            <div class="jd" data-job-detail data-job-id="@Model.Id">
+                <button class="jd-mobile-back a-btn a-btn--ghost a-btn--sm" type="button" data-back><i data-lucide="arrow-left"></i>Danh sách việc làm</button>
+
+                <header class="jd-head">
+                    @if (companyHref != null)
+                    {
+                        <a class="jd-head__logo" href="@companyHref" tabindex="-1" aria-hidden="true">
+                            <span class="fx-ring fx-ring--sq"><span class="a-logo a-logo--56" data-tone="@tone">@initials@if (companyLogo != null)
+                                {
+                                    <img src="@companyLogo" alt="" onerror="this.remove()" />
+                                }</span></span>
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="jd-head__logo"><span class="a-logo a-logo--56" data-tone="@tone">@initials</span></span>
+                    }
+                    <div class="jd-head__text">
+                        <div class="jd-company">
+                            @if (companyHref != null)
+                            {
+                                <a href="@companyHref">@companyDisplayName</a>
+                            }
+                            else
+                            {
+                                <span>@companyDisplayName</span>
+                            }
+                            @if (biz?.IsVerified == true)
+                            {
+                                <i data-lucide="badge-check" class="fx-verified" aria-label="Doanh nghiệp đã xác minh"></i>
+                            }
+                            <span class="jd-company__sep" aria-hidden="true">·</span>
+                            <span>@primaryLocation</span>
+                        </div>
+                        <h1 class="jd-title">@Model.Title</h1>
+                        <div class="jd-sub">
+                            @if (isNew)
+                            {
+                                <span class="jd-new">Mới</span>
+                            }
+                            <span>Đăng @Ago(Model.CreatedAt)</span>
+                            @if (deadlineStr != null)
+                            {
+                                <span class="jd-sub__dot" aria-hidden="true"></span>
+                                <span class="@(daysLeft is >= 0 and <= 7 ? "is-soon" : "")">Hạn nộp @deadlineStr@(daysLeft is >= 0 and <= 7 ? $" (còn {daysLeft} ngày)" : "")</span>
+                            }
+                        </div>
+                    </div>
+                </header>
+
+                <dl class="jd-facts">
+                    <div class="jd-fact jd-fact--salary">
+                        <dt><i data-lucide="wallet"></i>Mức lương</dt>
+                        <dd>@salary</dd>
+                    </div>
+                    <div class="jd-fact">
+                        <dt><i data-lucide="briefcase"></i>Hình thức</dt>
+                        <dd>@workMode</dd>
+                    </div>
+                    <div class="jd-fact">
+                        <dt><i data-lucide="map-pin"></i>Địa điểm</dt>
+                        <dd>@primaryLocation@(locations.Count > 1 ? $" +{locations.Count - 1}" : "")</dd>
+                    </div>
+                    <div class="jd-fact">
+                        @if (experience != null)
+                        {
+                            <dt><i data-lucide="award"></i>Kinh nghiệm</dt>
+                            <dd>@experience</dd>
+                        }
+                        else
+                        {
+                            <dt><i data-lucide="layers"></i>Lĩnh vực</dt>
+                            <dd>@(string.IsNullOrWhiteSpace(Model.Category) ? "Khác" : Model.Category)</dd>
+                        }
+                    </div>
+                </dl>
+
+                <div class="jd-actions" id="jdActions">
+                    @if (!Model.isActive)
+                    {
+                        <span class="a-status a-status--danger">Đã ngừng tuyển</span>
+                    }
+                    else if (appliedAt != null)
+                    {
+                        <span class="jd-applied"><i data-lucide="check-circle-2"></i>Đã ứng tuyển · @appliedAt.Value.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                        <button class="a-btn a-btn--secondary a-btn--lg" type="button" data-apply data-reapply id="mainApplyBtn">Ứng tuyển lại</button>
+                    }
+                    else
+                    {
+                        <button class="a-btn a-btn--sunset a-btn--lg jd-apply" type="button" data-apply id="mainApplyBtn">Ứng tuyển ngay<i data-lucide="arrow-right"></i></button>
+                    }
+                    <button class="a-btn a-btn--secondary a-btn--lg a-btn--icon" type="button" data-share-job="@Model.Id" data-tip="Sao chép liên kết" aria-label="Chia sẻ việc làm"><i data-lucide="share-2"></i></button>
+                    @if (appliedAt != null)
+                    {
+                        <a class="a-btn a-btn--ghost a-btn--lg" href="/JobApplications/MyApplications">Theo dõi đơn</a>
+                    }
+                </div>
+
+                <div class="jd-body">
+                    @if (!User.IsInRole("Business"))
+                    {
+                        <!-- Khối Aris AI Đối chiếu CV với tin tuyển dụng (P06, P07) -->
+                        <section class="jd-section cv-match-box" id="cvMatchBox" data-job-id="@Model.Id">
+                            <form id="cvMatchAntiforgeryForm" style="display:none">@Html.AntiForgeryToken()</form>
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="ai-eyebrow mb-0"><i data-lucide="sparkles"></i> Aris AI Match</span>
+                                    <h3 class="cv-match-box__title">Đối chiếu độ phù hợp với CV</h3>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 ms-auto" id="cvMatchControls">
+                                    <select id="cvSelect_@Model.Id" class="a-select cv-select">
+                                        <option value="">Đang nạp danh sách CV...</option>
+                                    </select>
+                                    <button type="button" class="a-btn a-btn--primary a-btn--sm btn-score-cv" data-job-id="@Model.Id">
+                                        <i data-lucide="scan-search" style="width:14px;height:14px"></i> Phân tích
+                                    </button>
+                                    <a href="/Resume" class="a-btn a-btn--ghost a-btn--sm" title="Quản lý và chỉnh sửa CV" target="_blank">
+                                        <i data-lucide="file-text" style="width:13px;height:13px"></i> CV
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div id="cvMatchResult_@Model.Id" class="cv-match-result">
+                                <div class="text-muted small py-2 d-flex align-items-center gap-2">
+                                    <i data-lucide="info" style="width:15px;height:15px;flex-shrink:0;"></i>
+                                    <span>Chọn CV và bấm <strong>Phân tích</strong> để AI đánh giá mức độ tương thích kỹ năng, kinh nghiệm và trích dẫn bằng chứng.</span>
+                                </div>
+                            </div>
+                        </section>
+                    }
+
+                    @if (resList.Any())
+                    {
+                        <section class="jd-section">
+                            <h2>Bạn sẽ làm gì</h2>
+                            <ul>
+                                @foreach (var item in resList)
+                                {
+                                    <li>@item</li>
+                                }
+                            </ul>
+                        </section>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(Model.FullText))
+                    {
+                        <section class="jd-section">
+                            <h2>Mô tả công việc</h2>
+                            <p style="white-space: pre-line;">@Model.FullText</p>
+                        </section>
+                    }
+
+                    @if (reqList.Any())
+                    {
+                        <section class="jd-section">
+                            <h2>Chúng tôi cần ở bạn</h2>
+                            <ul>
+                                @foreach (var item in reqList)
+                                {
+                                    <li>@item</li>
+                                }
+                            </ul>
+                        </section>
+                    }
+
+                    @if (benList.Any())
+                    {
+                        <section class="jd-section">
+                            <h2>Bạn nhận được</h2>
+                            <ul class="jd-benefits">
+                                @foreach (var item in benList)
+                                {
+                                    <li><i data-lucide="check"></i><span>@item</span></li>
+                                }
+                            </ul>
+                        </section>
+                    }
+
+                    @if (locations.Any())
+                    {
+                        <section class="jd-section">
+                            <h2>Nơi làm việc</h2>
+                            <ul class="jd-places">
+                                @foreach (var l in locations)
+                                {
+                                    <li><i data-lucide="map-pin"></i><span><b>@(string.IsNullOrWhiteSpace(l.City) ? "Địa điểm" : l.City)</b>@(string.IsNullOrWhiteSpace(l.Address) ? "" : " — " + l.Address)</span></li>
+                                }
+                            </ul>
+                        </section>
+                    }
+
+                    @if (tags.Any())
+                    {
+                        <section class="jd-section">
+                            <h2>Từ khoá</h2>
+                            <div class="jd-tags">
+                                @foreach (var t in tags)
+                                {
+                                    <a class="jd-tag" href="/Jobs?q=@Uri.EscapeDataString(t)">#@t</a>
+                                }
+                            </div>
+                        </section>
+                    }
+                </div>
+
+                @if (companyHref != null)
+                {
+                    <a class="jd-company-card" href="@companyHref">
+                        <span class="a-logo a-logo--44" data-tone="@tone">@initials@if (companyLogo != null)
+                            {
+                                <img src="@companyLogo" alt="" onerror="this.remove()" />
+                            }</span>
+                        <span class="jd-company-card__text">
+                            <span class="jd-company-card__name">@companyDisplayName@if (biz?.IsVerified == true)
+                                {
+                                    <i data-lucide="badge-check" class="fx-verified" aria-label="Đã xác minh"></i>
+                                }</span>
+                            <span class="jd-company-card__sub">@(string.IsNullOrWhiteSpace(companySub) ? "Doanh nghiệp trên Aris" : companySub)</span>
+                            @if (!string.IsNullOrWhiteSpace(companyDesc))
+                            {
+                                <span class="jd-company-card__desc">@companyDesc</span>
+                            }
+                        </span>
+                        <span class="jd-company-card__go">Xem công ty<i data-lucide="arrow-up-right"></i></span>
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột phải: công ty · việc khác · việc tương tự -->
+    <aside class="jd-page-rail" aria-label="Thông tin thêm">
+        <section class="fx-card jd-rail-card">
+            <div class="jd-rail-co">
+                <span class="a-logo a-logo--44" data-tone="@tone">@initials@if (companyLogo != null)
+                    {
+                        <img src="@companyLogo" alt="" onerror="this.remove()" />
+                    }</span>
+                <div class="jd-rail-co__text">
+                    <div class="jd-rail-co__name">@companyDisplayName</div>
+                    <div class="jd-rail-co__sub">@(string.IsNullOrWhiteSpace(companySub) ? primaryLocation : companySub)</div>
+                </div>
+            </div>
+            <dl class="jd-rail-facts">
+                @if (companyOpenJobs > 0)
+                {
+                    <div><dt>Đang tuyển</dt><dd>@companyOpenJobs vị trí</dd></div>
+                }
+                @if (biz?.FoundedYear != null)
+                {
+                    <div><dt>Thành lập</dt><dd>@biz.FoundedYear</dd></div>
+                }
+                @if (!string.IsNullOrWhiteSpace(biz?.CompanyAddress))
+                {
+                    <div><dt>Trụ sở</dt><dd>@biz.CompanyAddress</dd></div>
+                }
+            </dl>
+            <div class="jd-rail-actions">
+                @if (companyHref != null)
+                {
+                    <a class="a-btn a-btn--ink a-btn--sm" href="@companyHref">Trang công ty</a>
+                }
+                @if (biz != null)
+                {
+                    <a class="a-btn a-btn--secondary a-btn--sm" href="/Chat?userId=@biz.UserId"><i data-lucide="message-circle"></i>Nhắn tin</a>
+                }
+            </div>
+        </section>
+
+        @if (companyJobs.Any())
+        {
+            <section class="fx-card jd-rail-card">
+                <h2 class="jd-rail-title">Việc khác tại @companyDisplayName</h2>
+                <div class="jd-mini-list">
+                    @foreach (var j in companyJobs)
+                    {
+                        <a class="jd-mini" href="/Jobs/Details/@j.Id">
+                            <span class="jd-mini__title">@j.Title</span>
+                            <span class="jd-mini__meta"><b>@(string.IsNullOrWhiteSpace(j.Salary) ? "Thoả thuận" : j.Salary)</b>@(j.Locations?.FirstOrDefault()?.City is string c && c.Length > 0 ? " · " + c : "")</span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (similarJobs.Any())
+        {
+            <section class="fx-card jd-rail-card">
+                <h2 class="jd-rail-title">Việc tương tự</h2>
+                <div class="jd-mini-list">
+                    @foreach (var j in similarJobs)
+                    {
+                        var jc = j.BusinessAccount?.CompanyName ?? (string.IsNullOrWhiteSpace(j.Company) ? "Doanh nghiệp" : j.Company);
+                        <a class="jd-mini jd-mini--co" href="/Jobs/Details/@j.Id">
+                            <span class="a-logo a-logo--36" data-tone="@Tone(jc)">@OrgInitials(jc)@if (HasImg(j.BusinessAccount?.AvatarUrl))
+                                {
+                                    <img src="@j.BusinessAccount!.AvatarUrl" alt="" loading="lazy" onerror="this.remove()" />
+                                }</span>
+                            <span>
+                                <span class="jd-mini__title">@j.Title</span>
+                                <span class="jd-mini__meta">@jc · <b>@(string.IsNullOrWhiteSpace(j.Salary) ? "Thoả thuận" : j.Salary)</b></span>
+                            </span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+    </aside>
+</div>
+
+<!-- Hộp thoại ứng tuyển -->
+<form id="applyAntiforgeryForm" style="display:none">@Html.AntiForgeryToken()</form>
+<div class="a-scrim" id="applyScrim" hidden></div>
+<div class="a-dialog apply-dialog" id="applyDialog" role="dialog" aria-modal="true" aria-labelledby="applyTitle" hidden></div>
+
+@section Scripts {
+    <script>
+        const jobId = @Model.Id;
+        const jobTitle = "@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(Model.Title))";
+        const companyName = "@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(companyDisplayName))";
+        const companyTone = @tone;
+        const companyInitials = "@initials";
+
+        // Thanh gọn hiện khi cuộn qua phần đầu
+        window.addEventListener('scroll', () => {
+            const bar = document.getElementById('jdCompact');
+            if (bar) bar.classList.toggle('is-shown', window.scrollY > 220);
+        }, { passive: true });
+
+        // Ứng tuyển
+        const dlg = document.getElementById('applyDialog');
+        const scrim = document.getElementById('applyScrim');
+
+        async function openApply(confirmedReapply = false) {
+            try {
+                const res = await fetch(`/JobApplications/GetApplyModal?jobId=${jobId}`);
+                const data = await res.json();
+                if (!data.success) {
+                    if (window.ArisMotion?.toast) ArisMotion.toast(data.message || 'Không thể ứng tuyển.', { tone: 'danger' });
+                    else alert(data.message || 'Không thể ứng tuyển.');
+                    return;
+                }
+
+                if (data.alreadyApplied && !confirmedReapply) {
+                    const count = Math.max(1, Number(data.applicationCount) || 1);
+                    dlg.innerHTML = `
+                        <div class="a-dialog__head">
+                            <h2 class="a-dialog__title" id="applyTitle">Nộp lại hồ sơ?</h2>
+                            <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" data-close aria-label="Đóng"><i data-lucide="x"></i></button>
+                        </div>
+                        <div class="a-dialog__body">
+                            <p style="margin:0">Bạn đã có ${count} đơn chưa rút cho công việc này. Đơn mới sẽ hiện riêng với nhà tuyển dụng, vì vậy chỉ tiếp tục khi CV hoặc thông tin ứng tuyển của bạn đã thay đổi đáng kể.</p>
+                        </div>
+                        <div class="a-dialog__foot">
+                            <button class="a-btn a-btn--ghost" type="button" data-close>Quay lại</button>
+                            <button class="a-btn a-btn--sunset" type="button" id="confirmReapplyBtn">Tiếp tục nộp lại</button>
+                        </div>`;
+                    dlg.querySelector('#confirmReapplyBtn')?.addEventListener('click', () => openApply(true));
+                    if (window.lucide) lucide.createIcons();
+                    if (window.ArisMotion?.openDialog) ArisMotion.openDialog(dlg, scrim);
+                    else { dlg.hidden = false; scrim.hidden = false; }
+                    return;
+                }
+
+                const resumes = data.resumes || [];
+                const screeningQuestions = data.screeningQuestions || [];
+
+                dlg.innerHTML = `
+                    <div class="a-dialog__head">
+                        <h2 class="a-dialog__title" id="applyTitle">Ứng tuyển</h2>
+                        <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" data-close aria-label="Đóng"><i data-lucide="x"></i></button>
+                    </div>
+                    <div class="a-dialog__body" id="applyBody">
+                        <div class="apply-job">
+                            <span class="a-logo" data-tone="${companyTone}">${companyInitials}</span>
+                            <div>
+                                <div class="apply-job__title">${jobTitle}</div>
+                                <div class="apply-job__sub">${companyName}</div>
+                            </div>
+                        </div>
+
+                        <div class="a-label" id="cvLabel">Chọn CV gửi kèm</div>
+                        ${resumes.length === 0 ? `
+                            <div class="apply-nocv">
+                                <div>Bạn chưa có CV nào trong tài khoản.</div>
+                                <a href="/Resume" target="_blank" class="a-btn a-btn--secondary a-btn--sm">Tạo CV mới</a>
+                            </div>
+                        ` : `
+                            <div class="cv-pick" role="radiogroup" aria-labelledby="cvLabel">
+                                ${resumes.map((cv, i) => `
+                                    <label class="cv-card">
+                                        <input type="radio" name="cv" value="${cv.id}" ${i === 0 ? 'checked' : ''}>
+                                        <span class="cv-card__thumb" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                                        <span class="cv-card__text">
+                                            <span class="cv-card__name">${cv.name || 'CV của bạn'}</span>
+                                        </span>
+                                        <span class="cv-card__radio" aria-hidden="true"></span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        `}
+
+                        ${screeningQuestions.length > 0 ? `
+                            <div class="screening-section">
+                                <div class="a-label">Câu hỏi của nhà tuyển dụng</div>
+                                ${screeningQuestions.map((q) => `
+                                    <div class="a-field">
+                                        <label class="a-label">${q} *</label>
+                                        <textarea class="a-textarea screening-answer" rows="2" placeholder="Câu trả lời của bạn…" required></textarea>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+
+                        <div class="a-field">
+                            <label class="a-label" for="applyNote">Lời nhắn cho nhà tuyển dụng <span class="apply-optional">(không bắt buộc)</span></label>
+                            <textarea class="a-textarea" id="applyNote" rows="3" maxlength="500" placeholder="Vài dòng giới thiệu, hoặc ngày bạn có thể bắt đầu…"></textarea>
+                        </div>
+                    </div>
+                    <div class="a-dialog__foot" id="applyFoot">
+                        <button class="a-btn a-btn--ghost" type="button" data-close>Huỷ</button>
+                        <button class="a-btn a-btn--sunset" type="button" id="applySubmit" ${resumes.length === 0 ? 'disabled' : ''}>Gửi hồ sơ</button>
+                    </div>
+                `;
+
+                if (window.lucide) lucide.createIcons();
+
+                dlg.querySelector('#applySubmit')?.addEventListener('click', async (e) => {
+                    const selectedCv = dlg.querySelector('input[name="cv"]:checked')?.value;
+                    if (!selectedCv) return;
+
+                    const answers = [];
+                    let missingAnswer = false;
+                    dlg.querySelectorAll('.screening-answer').forEach(el => {
+                        const v = el.value.trim();
+                        if (!v) missingAnswer = true;
+                        answers.push(v);
+                    });
+
+                    if (missingAnswer) {
+                        if (window.ArisMotion?.toast) ArisMotion.toast('Vui lòng trả lời đầy đủ câu hỏi của nhà tuyển dụng.', { tone: 'danger' });
+                        else alert('Vui lòng trả lời đầy đủ câu hỏi của nhà tuyển dụng.');
+                        return;
+                    }
+
+                    const coverLetter = dlg.querySelector('#applyNote')?.value.trim() || '';
+                    const btn = e.currentTarget;
+                    if (window.ArisMotion?.morphButton) ArisMotion.morphButton(btn, 'loading');
+
+                    try {
+                        const submitRes = await fetch(`/JobApplications/Apply?jobId=${jobId}`, {
+                            method: 'POST',
+                            headers: (() => {
+                                const headers = { 'Content-Type': 'application/json' };
+                                const token = document.querySelector('#applyAntiforgeryForm input[name="__RequestVerificationToken"]')?.value;
+                                if (token) headers.RequestVerificationToken = token;
+                                return headers;
+                            })(),
+                            body: JSON.stringify({
+                                ResumeId: parseInt(selectedCv, 10),
+                                CoverLetter: coverLetter,
+                                ScreeningAnswers: answers
+                            })
+                        });
+                        const submitData = await submitRes.json();
+                        if (submitData.success) {
+                            if (window.ArisMotion?.morphButton) ArisMotion.morphButton(btn, 'success', { hold: true });
+                            dlg.querySelector('#applyBody').innerHTML = `
+                                <div class="apply-done">
+                                    <span class="apply-done__mark"><i data-lucide="check"></i></span>
+                                    <div class="apply-done__title">Đã gửi hồ sơ</div>
+                                    <p class="apply-done__text">${companyName} đã nhận được đơn của bạn. Mỗi khi đơn được xem hay có lịch phỏng vấn, Aris sẽ báo cho bạn.</p>
+                                </div>
+                            `;
+                            dlg.querySelector('#applyFoot').innerHTML = `
+                                <a class="a-btn a-btn--ghost" href="/JobApplications/MyApplications">Xem đơn ứng tuyển</a>
+                                <button class="a-btn a-btn--ink" type="button" data-close>Xong</button>
+                            `;
+                            if (window.lucide) lucide.createIcons();
+                            const mainBtn = document.getElementById('mainApplyBtn');
+                            if (mainBtn) {
+                                mainBtn.outerHTML = '<span class="jd-applied"><i data-lucide="check-circle-2"></i>Đã ứng tuyển · vừa xong</span>';
+                                if (window.lucide) lucide.createIcons();
+                            }
+                            document.querySelectorAll('.jd-compact [data-apply]').forEach(b => b.remove());
+                        } else {
+                            if (window.ArisMotion?.morphButton) ArisMotion.morphButton(btn, 'error');
+                            if (window.ArisMotion?.toast) ArisMotion.toast(submitData.message || 'Lỗi gửi hồ sơ.', { tone: 'danger' });
+                            else alert(submitData.message || 'Lỗi gửi hồ sơ.');
+                        }
+                    } catch (err) {
+                        if (window.ArisMotion?.morphButton) ArisMotion.morphButton(btn, 'error');
+                        if (window.ArisMotion?.toast) ArisMotion.toast('Lỗi kết nối khi gửi hồ sơ.', { tone: 'danger' });
+                        else alert('Lỗi kết nối khi gửi hồ sơ.');
+                    }
+                });
+
+                if (window.ArisMotion?.openDialog) {
+                    ArisMotion.openDialog(dlg, scrim);
+                } else {
+                    dlg.hidden = false;
+                    scrim.hidden = false;
+                }
+            } catch (err) {
+                console.error(err);
+                if (window.ArisMotion?.toast) ArisMotion.toast('Không thể mở form ứng tuyển. Vui lòng thử lại.', { tone: 'danger' });
+            }
+        }
+
+        document.querySelectorAll('[data-apply]').forEach(btn => btn.addEventListener('click', openApply));
+
+        function closeDialog() {
+            if (window.ArisMotion?.closeDialog) {
+                ArisMotion.closeDialog(dlg, scrim);
+            } else {
+                dlg.hidden = true;
+                scrim.hidden = true;
+            }
+        }
+
+        dlg.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) closeDialog(); });
+        scrim.addEventListener('click', closeDialog);
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !dlg.hidden) closeDialog(); });
+    </script>
+    <script src="~/js/pages/jobs.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.initCvMatcher) window.initCvMatcher(document);
+        });
+        if (window.initCvMatcher) window.initCvMatcher(document);
+    </script>
+}

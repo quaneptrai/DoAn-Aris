@@ -1,0 +1,325 @@
+[
+  {
+    "id": "tieu-chuan",
+    "title": "Tiêu chuẩn",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/default_v2",
+    "sourceImageUrl": "https://www.topcv.vn/cv/snapshot/template-cv/mau-cv-tieu-chuan-_BgoGAAMJAl4HAANQUgIDBFEMBQ5SAFJQV1ENDQd2e5.webp?t=1753327595&color=000000&template_name=default_v2&lang=vi",
+    "localImage": "tieu-chuan.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": [
+      "000000",
+      "404040",
+      "1F3F57",
+      "3A0912"
+    ]
+  },
+  {
+    "id": "tieu-chuan-it-kinh-nghiem",
+    "title": "Tiêu chuẩn (ít kinh nghiệm)",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/default_junior",
+    "sourceImageUrl": "https://www.topcv.vn/cv/snapshot/template-cv/mau-cv-tieu-chuan-it-kinh-nghiem-_AwMBBgcFDlZRVAYCWQwLUgBVB1ACUlQAAlsHUg57b4.webp?t=1763723169&color=F6F6F6&template_name=default_junior&lang=vi",
+    "localImage": "tieu-chuan-it-kinh-nghiem.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản",
+      "Chuyên nghiệp"
+    ],
+    "colors": [
+      "F6F6F6",
+      "EEF1E7",
+      "DBE9EC",
+      "F8EFE9"
+    ]
+  },
+  {
+    "id": "thanh-lich",
+    "title": "Thanh lịch",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/elegant",
+    "sourceImageUrl": "https://www.topcv.vn/cv/snapshot/template-cv/mau-cv-thanh-lich-_VAYKBV1YUQEAVgMCUFxTV1VQBANcUltXV1IFBw9153.webp?t=1753330233&color=B82A38&template_name=elegant&lang=vi",
+    "localImage": "thanh-lich.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản",
+      "Hiện đại"
+    ],
+    "colors": [
+      "B82A38",
+      "55669C",
+      "529163",
+      "E08F0B"
+    ]
+  },
+  {
+    "id": "senior",
+    "title": "Senior",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/senior_v2",
+    "sourceImageUrl": "https://www.topcv.vn/cv/snapshot/template-cv/mau-cv-senior-_B1tfBFEAUgALBAgBBl0MD1wECQBQAQFQAwIAAw44ec.webp?t=1756265781&color=000000&template_name=senior_v2&lang=vi",
+    "localImage": "senior.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản",
+      "Harvard"
+    ],
+    "colors": [
+      "000000"
+    ]
+  },
+  {
+    "id": "hien-dai-1",
+    "title": "Hiện Đại 1",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/modern_1_v2",
+    "sourceImageUrl": "https://www.topcv.vn/cv/snapshot/template-cv/mau-cv-hien-dai-1-_VAFaBAAJVw0CAQ4CUQECV1QABQcCAgkCVgNVCw391b.webp?t=1750134891&color=a94a4b&template_name=modern_1_v2&lang=vi",
+    "localImage": "hien-dai-1.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": [
+      "a94a4b",
+      "4B9DBC",
+      "F28B3D",
+      "24B35F"
+    ]
+  },
+  {
+    "id": "an-tuong-4",
+    "title": "Ấn tượng 4",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/onepage_impressive_3_v2",
+    "sourceImageUrl": "https://www.topcv.vn/cv/snapshot/template-cv/mau-cv-an-tuong-4-_BlQBAFNdXQRVVVNWWgQGAlEHUwYABVYAAAVQBw9a20.webp?t=1756267140&color=316160&template_name=onepage_impressive_3_v2&lang=vi",
+    "localImage": "an-tuong-4.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản",
+      "Hiện đại"
+    ],
+    "colors": [
+      "316160",
+      "1fbc8a",
+      "6A80B9",
+      "658A6F",
+      "897FCE"
+    ]
+  },
+  {
+    "id": "chuyen-gia",
+    "title": "Chuyên gia",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/experts",
+    "sourceImageUrl": "https://www.topcv.vn/cv/snapshot/template-cv/mau-cv-chuyen-gia-_AgQHWgAHVAQGAlAFAQhfVVIDVAZQVgdRUQMNAQd9ba.webp?t=1759200330&color=000000&template_name=experts&lang=vi",
+    "localImage": "chuyen-gia.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản",
+      "Harvard"
+    ],
+    "colors": [
+      "000000",
+      "003161",
+      "1D1B77"
+    ]
+  },
+  {
+    "id": "dong-thoi-gian",
+    "title": "Dòng Thời Gian",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/timeline_clean_v2",
+    "sourceImageUrl": "https://www.topcv.vn/cv/snapshot/template-cv/mau-cv-dong-thoi-gian-_VQANBFcDDgUAUFANBQMHAgRVVwFWWVtWAwNTUQ40fa.webp?t=1756027168&color=EC8F00&template_name=timeline_clean_v2&lang=vi",
+    "localImage": "dong-thoi-gian.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": [
+      "EC8F00",
+      "32A1B5",
+      "C44B4B",
+      "00A915",
+      "646D79"
+    ]
+  },
+  {
+    "id": "hien-dai-2",
+    "title": "Hiện Đại 2",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/modern_2_v2",
+    "sourceImageUrl": "https://www.topcv.vn/cv/snapshot/template-cv/mau-cv-hien-dai-2-_V1ZcVVNQBgEDUAIFVFIFAA4AUwBVBQNXXl1dUQa141.webp?t=1756283220&color=ef476f&template_name=modern_2_v2&lang=vi",
+    "localImage": "hien-dai-2.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": [
+      "ef476f",
+      "555555",
+      "38618c",
+      "118ab2",
+      "1a936f"
+    ]
+  },
+  {
+    "id": "ky-su-phan-mem",
+    "title": "Kỹ Sư Phần Mềm",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/software_engineer",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/software_engineer.webp?v=3.5&lang=vi",
+    "localImage": "ky-su-phan-mem.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  },
+  {
+    "id": "lap-trinh-vien-2",
+    "title": "Lập trình viên 2",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/dev_2",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/dev_2.webp?v=3.5&lang=vi",
+    "localImage": "lap-trinh-vien-2.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  },
+  {
+    "id": "senior-2",
+    "title": "Senior 2",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/senior_2",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/senior_2.webp?v=3.5&lang=vi",
+    "localImage": "senior-2.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản",
+      "Harvard"
+    ],
+    "colors": []
+  },
+  {
+    "id": "co-dien-1",
+    "title": "Cổ Điển 1",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/classic_1",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/classic_1.webp?v=3.5&lang=vi",
+    "localImage": "co-dien-1.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  },
+  {
+    "id": "mot-trang-co-dien",
+    "title": "Một Trang Cổ Điển",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/onepage_classic",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/onepage_classic.webp?v=3.5&lang=vi",
+    "localImage": "mot-trang-co-dien.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  },
+  {
+    "id": "mau-sac",
+    "title": "Màu sắc",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/cv_color",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/cv_color.webp?v=3.5&lang=vi",
+    "localImage": "mau-sac.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  },
+  {
+    "id": "sinh-vien",
+    "title": "Sinh Viên",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/tiny_1",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/tiny_1.webp?v=3.5&lang=vi",
+    "localImage": "sinh-vien.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  },
+  {
+    "id": "an-tuong-5",
+    "title": "Ấn tượng 5",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/impressive_5",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/impressive_5.webp?v=3.5&lang=vi",
+    "localImage": "an-tuong-5.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  },
+  {
+    "id": "basic-2",
+    "title": "Basic 2",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/basic_2",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/basic_2.webp?v=3.5&lang=vi",
+    "localImage": "basic-2.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  },
+  {
+    "id": "outstanding-2",
+    "title": "Outstanding 2",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/outstanding_2",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/outstanding_2.webp?v=3.5&lang=vi",
+    "localImage": "outstanding-2.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  },
+  {
+    "id": "lap-trinh-vien",
+    "title": "Lập Trình Viên",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/dev_1",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/dev_1.webp?v=3.5&lang=vi",
+    "localImage": "lap-trinh-vien.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  },
+  {
+    "id": "fresher",
+    "title": "Fresher",
+    "description": null,
+    "pageUrl": "https://www.topcv.vn/mau-cv-tieng-viet/fresher",
+    "sourceImageUrl": "https://www.topcv.vn/v4/image/cv-template/screenshots/thumbs/cv-template-thumbnails-v1.4/vi/fresher.webp?v=3.5&lang=vi",
+    "localImage": "fresher.webp",
+    "tags": [
+      "ATS",
+      "Đơn giản"
+    ],
+    "colors": []
+  }
+]

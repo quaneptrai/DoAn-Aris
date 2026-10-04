@@ -1,0 +1,137 @@
+.engine-root .resume { font-family: var(--body-font, Inter), Arial, sans-serif; overflow-wrap: anywhere; }
+.engine-root .resume h1, .engine-root .resume h2, .engine-root .resume h3 { font-family: var(--heading-font, Inter), Arial, sans-serif; }
+.engine-root .resume :is(.bento-grid > section, .bento-project, .timeline-card, .timeline-project, .showcase-project, .launch-project, .agency-project, .aurora-project) { border-radius: var(--theme-radius, 20px); }
+.engine-root .resume :where(main, section, article, aside, header, div) { min-width: 0; }
+.engine-root .resume-summary > :last-child { margin-bottom: 0; }
+.engine-root .resume-summary a { text-decoration: underline; }
+.engine-root .resume-summary code { font-family: monospace; background: var(--surface); padding: .1em .3em; }
+.engine-root .bento-about .resume-summary { font-size: 19px; line-height: 1.55; margin: 25px 0; }
+.engine-root .editorial-columns > aside > .resume-summary { font-family: var(--heading-font), Georgia, serif; font-size: 20px; }
+.engine-root .timeline-overview .resume-summary { font-size: 21px; }
+.engine-root .showcase-about .resume-summary { font-size: 25px; }
+.engine-root .launch-intro .resume-summary { font-size: 24px; }
+.engine-root .poster-about .resume-summary { font-family: var(--heading-font), Georgia, serif; font-size: 35px; }
+.engine-root .aurora-intro .resume-summary { font-size: 28px; }
+.engine-root .work-metrics { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 12px 0; font-size: 12px; }
+.engine-root .work-metrics > div { display: grid; gap: 2px; }
+.engine-root .work-metrics dt { color: inherit; opacity: .8; }
+.engine-root .work-metrics dd { margin: 0; font-weight: 700; }
+.engine-root .work-stack { margin-top: 12px; }
+.engine-root .skill-detail { display: block; font-size: .8em; opacity: .8; margin-top: 3px; }
+.engine-root .project-art > img { width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+.engine-root .canonical-contact { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; position: relative; z-index: 1; }
+.engine-root .bento-about .canonical-contact { margin-top: 16px; }
+.engine-root .print-url, .engine-root .project-references, .engine-root .agency-print-name { display: none; }
+.engine-root.mode-pdf .print-url { display: inline; }
+.engine-root.mode-pdf .project-references { display: grid; gap: 4px; font-size: 11px; margin: 8px 0; }
+.engine-root .custom-section dl { margin: 0; }
+.engine-root .custom-section dl > div { margin-bottom: 10px; }
+.engine-root .custom-section dt { font-weight: 700; }
+.engine-root .custom-section dd { margin-left: 0; }
+.engine-root .custom-badge { border: 1px solid var(--line); border-radius: var(--theme-radius, 8px); padding: 5px 10px; }
+.engine-root .custom-badge p { margin: 0; }
+.engine-root .custom-timeline { border-left: 2px solid var(--line); padding-left: 25px; }
+.engine-root .custom-timeline > li { padding: 8px 0; }
+.engine-root .ledger-heading, .engine-root .ledger-row { grid-template-columns: minmax(0,18fr) minmax(0,31fr) minmax(0,51fr); }
+dialog.preview-dialog { border: 0; padding: 0; }
+dialog.preview-dialog:not([open]) { display: none; }
+dialog.preview-dialog::backdrop { background: #071711c9; }
+dialog.preview-dialog .preview-note { margin: 10px 22px; font-size: 12px; }
+.engine-root .showcase-contact-trigger { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; }
+.engine-root dialog.contact-drawer { position: fixed; inset: 0 0 0 auto; width: min(460px, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; border: 0; border-left: 1px solid var(--line); border-radius: 0; background: var(--paper); color: var(--ink); overflow-y: auto; box-shadow: -15px 0 60px #0002; }
+.engine-root dialog.contact-drawer[open] { display: flex; flex-direction: column; animation: contact-drawer-enter 180ms ease-out; }
+.engine-root dialog.contact-drawer:not([open]) { display: none; }
+.engine-root dialog.contact-drawer::backdrop { background: #071711a8; }
+.engine-root dialog.contact-drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 24px 30px; border-bottom: 1px solid var(--line); }
+.engine-root dialog.contact-drawer > header > span { font-size: 11px; letter-spacing: .15em; font-weight: 700; }
+.engine-root dialog.contact-drawer > header > button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 50%; color: inherit; background: transparent; font-size: 18px; }
+.engine-root .contact-drawer-body { flex: 1; padding: 45px 30px; }
+.engine-root .contact-drawer-body h2 { font-size: 45px; letter-spacing: -.05em; line-height: 1.1; margin: 0 0 35px; }
+.engine-root .contact-drawer-body p { color: var(--muted); margin-bottom: 12px; }
+.engine-root .contact-drawer-body .contact-drawer-name { color: var(--ink); font-size: 20px; font-weight: 700; }
+.engine-root .contact-drawer-details { display: grid; gap: 15px; padding-top: 30px; margin-top: 25px; border-top: 1px solid var(--line); font-size: 14px; font-style: normal; overflow-wrap: anywhere; }
+.engine-root .contact-drawer-details a { text-decoration: underline; text-underline-offset: 4px; }
+.engine-root dialog.contact-drawer > footer { display: block; padding: 24px 30px max(24px, env(safe-area-inset-bottom)); margin: 0; border-top: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.engine-root dialog.contact-drawer .contact-drawer-email { display: block; border-radius: 12px; padding: 17px; text-align: center; background: var(--primary); color: #fff; font-size: 15px; font-weight: 700; text-decoration: none; }
+@keyframes contact-drawer-enter { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@media(max-width:650px) { .engine-root dialog.contact-drawer { width: 100%; }.engine-root dialog.contact-drawer > header, .engine-root .contact-drawer-body { padding: 22px; }.engine-root .contact-drawer-body h2 { font-size: 38px; }.engine-root dialog.contact-drawer > footer { padding-left: 22px; padding-right: 22px; } }
+@media(prefers-reduced-motion:reduce) { .engine-root dialog.contact-drawer[open] { animation: none; } }
+@media print { .engine-root dialog.contact-drawer, dialog.contact-drawer::backdrop { display: none !important; } }
+.engine-root .share-message { position: fixed; bottom: 95px; left: 50%; transform: translateX(-50%); width: min(420px,90%); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 15px; z-index: 5; }
+
+/* The PDF workspace uses the same compact reading order as the paged output. */
+@media screen {
+  .engine-root.mode-pdf { --paper: #fff; --ink: #111; --muted: #444; --line: #aaa; --surface: #fff; background: #fff; color: #111; }
+  .engine-root.mode-pdf .resume { width: 100%; max-width: none; min-height: 297mm; padding: 12mm 15mm; margin: 0; background: #fff; color: #111; font-size: 10pt; }
+  .engine-root.mode-pdf .resume * { color: #111 !important; background-color: transparent !important; box-shadow: none !important; animation: none !important; transition: none !important; filter: none !important; letter-spacing: normal !important; word-spacing: normal !important; opacity: 1 !important; }
+  .engine-root.mode-pdf .resume :where(header, main, section, article, aside, div) { min-height: 0 !important; max-width: 100%; overflow: visible; }
+  .engine-root.mode-pdf .resume :where(h1) { font-size: 27pt !important; line-height: 1.15; margin: 0 0 3mm; }
+  .engine-root.mode-pdf .resume :where(h2) { font-size: 14pt !important; line-height: 1.3; margin: 3mm 0; }
+  .engine-root.mode-pdf .resume :where(h3) { font-size: 11pt !important; line-height: 1.3; margin: 2mm 0; }
+  .engine-root.mode-pdf .resume .resume-summary, .engine-root.mode-pdf .resume .resume-summary p { font-size: 10pt; margin: 2mm 0; }
+  .engine-root.mode-pdf .resume :where(main, .bento-grid, .bento-project-grid, .duo-main, .editorial-columns, .editorial-content, .timeline-overview, .timeline-node, .timeline-work, .dense-columns, .showcase-about, .showcase-project, .showcase-section-head, .launch-intro, .launch-background, .casebook-career, .ledger-intro, .ledger-row, .ledger-lower, .poster header, .poster-about, .poster-bottom, .corporate-summary, .corporate-content, .aurora-intro, .aurora-milestones, .aurora-base, .launch-projects > div, .poster-work > div, .aurora-gallery > div:last-child) { display: block; padding: 0; }
+  .engine-root.mode-pdf .duo { display: block; }
+  .engine-root.mode-pdf .resume :where(main > section, main > aside, .duo-side, .duo-main > header, .dense-columns > *, .editorial-columns > aside, .showcase-work, .showcase-career, .terminal-body, .poster-title, .agency main > section, .aurora main > section) { padding: 0; border: 0; margin: 0 0 5mm; }
+  .engine-root.mode-pdf .resume :where(.bento-hero, .showcase-hero, .launchpad header, .agency-hero, .aurora > header) { padding: 0 !important; background: #fff !important; border-radius: 0; margin: 0 0 5mm; }
+  .engine-root.mode-pdf .resume :where(.project-copy, .terminal section, .timeline-card, .duo-project, .editorial-project, .casebook-project, .agency-project, .corporate-project, .bento-grid > section) { padding: 1mm 0 !important; margin: 0 0 3mm; border: 0; border-radius: 0; display: block; }
+  .engine-root.mode-pdf .resume :where(.bento-nav, .bento-footer, .bento-metrics, .hero-bottom, .duo-monogram, .duo-side > small, .editorial-mast, .editorial-number, .editorial-sub span:last-child, .timeline-big-number, .timeline-dot, .showcase-nav, .showcase-hero > h1, .showcase-overline, .showcase-hero-bottom a, .showcase footer, .terminal-bar, .terminal-line, .terminal .comment, .cursor, .project-art, .launch-badge, .poster-side-label, .poster-shape, .agency > header, .agency > footer, .agency-hero > small, .agency-hero > a, .aurora > header nav, .aurora-orb, .aurora-kicker, .casebook-index, .ledger-heading) { display: none !important; }
+  .engine-root.mode-pdf .resume .bento-hero::after, .engine-root.mode-pdf .resume .timeline-spine::before { display: none; }
+  .engine-root.mode-pdf .resume .timeline-date { text-align: left; }
+  .engine-root.mode-pdf .resume .timeline-date span { display: inline; margin-left: 3mm; }
+  .engine-root.mode-pdf .resume .agency-print-name { display: block; font-size: 27pt; font-weight: 700; }
+  .engine-root.mode-pdf .resume .skill-pill, .engine-root.mode-pdf .resume .skill-text, .engine-root.mode-pdf .resume .tags span { font-size: 9pt; padding: 1mm; border: 0; border-radius: 0; }
+  .engine-root.mode-pdf .resume .skill-detail { font-size: 7.5pt; }
+  .engine-root.mode-pdf .resume .work-item { margin: 0 0 3mm; }
+  .engine-root.mode-pdf .resume .work-metrics, .engine-root.mode-pdf .resume .project-references { font-size: 9pt; }
+  .engine-root.mode-pdf .resume .project-references { display: grid; }
+  .engine-root.mode-pdf .resume .is-dimmed { opacity: 1; }
+  .engine-root.mode-pdf .resume .terminal-window { border: 0; border-radius: 0; }
+  .engine-root.mode-pdf .resume .showcase-hero-bottom p { font-size: 16pt; }
+  .engine-root.mode-pdf .resume .showcase-hero-bottom p span { font-size: 11pt; }
+  .engine-root.mode-pdf .resume .work-top time { white-space: normal; }
+}
+
+@page { size: A4 portrait; margin: 12mm 15mm; }
+@media print {
+  html, body { width: auto !important; height: auto !important; overflow: visible !important; }
+  .engine-root, .engine-root.dark { width: auto !important; min-height: 0 !important; }
+  .engine-root .resume { font-size: 10pt !important; line-height: 1.4 !important; width: auto !important; min-height: 0 !important; overflow: visible !important; }
+  .engine-root .resume * { color: #111 !important; background-color: transparent !important; box-shadow: none !important; text-shadow: none !important; transition: none !important; animation: none !important; filter: none !important; backdrop-filter: none !important; overflow-wrap: anywhere !important; letter-spacing: normal !important; word-spacing: normal !important; opacity: 1 !important; }
+  .engine-root .resume :where(header, main, section, article, aside, div) { min-width: 0 !important; min-height: 0 !important; max-width: 100% !important; overflow: visible !important; }
+  .engine-root .resume h1 { font-size: 27pt !important; line-height: 1.15 !important; }
+  .engine-root .resume h2 { font-size: 14pt !important; line-height: 1.3 !important; break-after: avoid; }
+  .engine-root .resume h3 { font-size: 11pt !important; line-height: 1.3 !important; break-after: avoid; }
+  .engine-root .resume .resume-summary, .engine-root .resume .resume-summary p { font-size: 10pt !important; margin: 2mm 0 !important; }
+  .engine-root .resume :where(p, li) { orphans: 3; widows: 3; }
+  .engine-root .resume .is-dimmed { opacity: 1 !important; }
+  .engine-root .resume .page-break-avoid { break-inside: avoid; page-break-inside: avoid; }
+  .engine-root .resume .print-url { display: inline !important; font-size: 8pt !important; }
+  .engine-root .resume .project-references { display: grid !important; gap: 1mm !important; font-size: 8pt !important; margin: 2mm 0 !important; }
+  .engine-root .resume .work-stack, .engine-root .resume .project-stack, .engine-root .resume .custom-section .tags { display: flex !important; flex-wrap: wrap !important; gap: 1mm 2mm !important; }
+  .engine-root .resume .tags span, .engine-root .resume .skill-pill, .engine-root .resume .skill-text { padding: 1mm !important; font-size: 9pt !important; border: 0 !important; border-radius: 0 !important; }
+  .engine-root .resume .skill-list { gap: 1mm 3mm !important; }
+  .engine-root .resume .skill-detail { font-size: 7.5pt !important; }
+  .engine-root .resume .work-top time { white-space: normal !important; }
+  .engine-root .resume .work-metrics { font-size: 9pt !important; margin: 2mm 0 !important; }
+  .engine-root .resume .duo-side section, .engine-root .resume .duo-side .skill-group, .engine-root .resume .duo-side .education-item { display: block !important; }
+  .engine-root .resume .duo-side section { margin-top: 3mm !important; }
+  .engine-root .resume .duo-contact { flex-wrap: wrap !important; }
+  .engine-root .resume .editorial-contact, .engine-root .resume .editorial-skill-block { display: block !important; margin-top: 3mm !important; }
+  .engine-root .resume .editorial-contact > * { margin-right: 3mm !important; }
+  .engine-root .resume .canonical-contact { display: flex !important; flex-wrap: wrap !important; gap: 1mm 3mm !important; font-size: 8.5pt !important; margin: 2mm 0 !important; position: static !important; z-index: auto !important; }
+  .engine-root .resume .agency-print-name { display: block !important; font-size: 27pt !important; font-weight: 700 !important; }
+  .engine-root .resume .showcase-hero-bottom p { font-size: 16pt !important; }
+  .engine-root .resume .showcase-hero-bottom p span { font-size: 11pt !important; }
+  .engine-root .resume .showcase-hero > h1, .engine-root .resume .showcase-overline, .engine-root .resume .agency-hero > small, .engine-root .resume .agency-hero > a { display: none !important; }
+  .engine-root .resume .showcase-section-head { display: block !important; }
+  .engine-root .resume .showcase-section-head h2, .engine-root .resume .showcase-about h2 { margin: 2mm 0 !important; }
+  .engine-root .poster header, .engine-root .resume .launch-background, .engine-root .resume .casebook-career, .engine-root .resume .poster-bottom, .engine-root .resume .launch-projects > div, .engine-root .resume .poster-work > div { display: block !important; }
+  .engine-root .resume .poster-title { padding: 0 !important; }
+  .engine-root .resume .poster-about > div { grid-column: auto !important; }
+  .engine-root .resume .terminal-contact { flex-wrap: wrap !important; }
+  .engine-root .resume .cursor { display: none !important; }
+  .engine-root .resume .project-art, .engine-root .resume .project-actions { display: none !important; }
+  .engine-root .resume .custom-section { break-inside: auto !important; page-break-inside: auto !important; }
+  .engine-root .resume .custom-section dl > div, .engine-root .resume .custom-timeline > li { break-inside: avoid; }
+  .engine-root .interactive-only { display: none !important; }
+}

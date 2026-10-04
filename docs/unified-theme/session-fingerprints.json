@@ -1,0 +1,38 @@
+﻿[
+    {
+        "Path":  "ArisSkyve\\Views\\Account\\Login.cshtml",
+        "Sha256":  "0023E5B603969E37DA860DD64F20E9491F4B7A6A671FB7F9F8BD61EAFF4593B7",
+        "LastWriteTime":  "2026-09-18T21:21:41.6512577+07:00",
+        "Length":  8890
+    },
+    {
+        "Path":  "ArisSkyve\\Views\\Account\\Register.cshtml",
+        "Sha256":  "7F4676E4EC342CD7F31BBB24B455C5808DFF21E4A7CC3C3E20017035B84E8374",
+        "LastWriteTime":  "2026-09-18T21:21:53.2301345+07:00",
+        "Length":  8999
+    },
+    {
+        "Path":  "ArisSkyve\\Views\\Shared\\_AuthLayout.cshtml",
+        "Sha256":  "5BE29E4E949F137BBA3FA74170FAC73608F1122324B98A7A69AF0F91EDEF4488",
+        "LastWriteTime":  "2026-09-18T21:28:29.2847243+07:00",
+        "Length":  20617
+    },
+    {
+        "Path":  "docs\\design-lab\\aris-login-v5\\index.html",
+        "Sha256":  "BD713B8135D277DE06B90BFFA1D0A3A65958A31AAACF9D246CFBF0A600F0F701",
+        "LastWriteTime":  "2026-09-18T20:30:52.5070098+07:00",
+        "Length":  95635
+    },
+    {
+        "Path":  "docs\\unified-theme\\AGY-HANDOFF.md",
+        "Sha256":  "9F77B9E13943E85F16F95152AD0F2EE896528BFA70E768BA8AFBD038B6AAE3E3",
+        "LastWriteTime":  "2026-09-18T21:26:47.3216260+07:00",
+        "Length":  32621
+    },
+    {
+        "Path":  "docs\\unified-theme\\PLAN.md",
+        "Sha256":  "EBFAAD823327D2E4D5CA993F9FF6A0C77980F0C71953DAC18EA2AEA511793A9B",
+        "LastWriteTime":  "2026-09-18T21:26:47.3206264+07:00",
+        "Length":  25035
+    }
+]

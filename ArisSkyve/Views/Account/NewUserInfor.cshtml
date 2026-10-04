@@ -1,0 +1,349 @@
+@model ArisSkyve.Application.DTOs.NewUserInforDTO
+@{
+    Layout = "~/Views/Shared/_AuthLayout.cshtml";
+    ViewData["Title"] = "Thiết lập hồ sơ cá nhân — Aris";
+    var username = ViewBag.Username ?? "bạn";
+    var isStudent = Model?.IsStudent ?? false;
+}
+
+<div class="auth-card" style="max-width: 540px;" id="onboardingCard">
+    <!-- Progress Header -->
+    <div class="mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small fw-semibold" id="stepProgressLabel" style="color: var(--brand-text);">Bước 1/3 &bull; Về bạn</span>
+            <a asp-controller="Dashboard" asp-action="Index" class="small text-decoration-none" style="color: var(--text-3);">
+                Bỏ qua &rarr;
+            </a>
+        </div>
+        <div class="newuser-progress-bar">
+            <div class="newuser-progress-fill" id="newuserProgressFill" style="width: 33.3%;"></div>
+        </div>
+    </div>
+
+    <form asp-action="NewUserInfor" method="post" id="onboardingForm" novalidate>
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="UserId" value="@ViewBag.UserId" />
+
+        <!-- ================= STAGE 1: VỀ BẠN ================= -->
+        <div class="form-stage active" id="stage1">
+            <header class="mb-4">
+                <h2 class="fw-bold mb-1" style="font-size: var(--fs-18); color: var(--text);">Chào mừng @username đến với Aris!</h2>
+                <p class="small mb-0" style="color: var(--text-3);">Hãy chia sẻ thông tin cơ bản để AI đề xuất cơ hội việc làm phù hợp nhất.</p>
+            </header>
+
+            <!-- Location -->
+            <div class="mb-3">
+                <label for="locationSelect" class="a-label">Nơi bạn đang sinh sống / làm việc *</label>
+                <select id="locationSelect" class="a-select">
+                    <option value="">-- Chọn tỉnh / thành phố --</option>
+                    <option value="Hà Nội">Hà Nội</option>
+                    <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                    <option value="Đà Nẵng">Đà Nẵng</option>
+                    <option value="Hải Phòng">Hải Phòng</option>
+                    <option value="Cần Thơ">Cần Thơ</option>
+                    <option value="Bình Dương">Bình Dương</option>
+                    <option value="Đồng Nai">Đồng Nai</option>
+                    <option value="other">Tỉnh / Thành phố khác...</option>
+                </select>
+                <input type="text" asp-for="Location" id="locationInput" class="a-input mt-2 d-none" placeholder="Nhập địa điểm cụ thể (ví dụ: Nha Trang, Khánh Hòa)..." />
+                <div class="small text-danger mt-1 d-none" id="locationError">Vui lòng chọn hoặc nhập nơi bạn đang sinh sống.</div>
+            </div>
+
+            <!-- Role Branch: Student vs Professional -->
+            <div class="mb-3 p-3 rounded-3" style="background: var(--field); border: 1px solid var(--line-soft);">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="fw-semibold small" style="color: var(--text);">Tôi hiện là học sinh / sinh viên</div>
+                        <div class="small" style="font-size: var(--fs-12); color: var(--text-3);">Bật tùy chọn này nếu bạn chưa đi làm chính thức hoặc đang theo học.</div>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="isStudentToggle" asp-for="IsStudent" style="cursor: pointer; width: 38px; height: 20px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Working Professional Section -->
+            <div id="workingSection" class="@(isStudent ? "d-none" : "") mb-3">
+                <label asp-for="JobTitle" class="a-label">Chức danh nghề nghiệp hiện tại *</label>
+                <input asp-for="JobTitle" id="jobTitleInput" class="a-input" placeholder="Ví dụ: Lập trình viên Backend, Chuyên viên Marketing..." />
+                <div class="small text-danger mt-1 d-none" id="jobTitleError">Vui lòng nhập chức danh nghề nghiệp hiện tại.</div>
+            </div>
+
+            <!-- Student Section -->
+            <div id="studentSection" class="@(isStudent ? "" : "d-none") mb-3">
+                <div class="mb-3">
+                    <label asp-for="Education.School" class="a-label">Trường học của bạn *</label>
+                    <input asp-for="Education.School" id="schoolInput" class="a-input" placeholder="Ví dụ: Đại học Bách Khoa, Đại học Quốc Gia..." />
+                    <div class="small text-danger mt-1 d-none" id="schoolError">Vui lòng nhập tên trường học.</div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-7">
+                        <label asp-for="Education.Degree" class="a-label">Hệ đào tạo</label>
+                        <select asp-for="Education.Degree" class="a-select">
+                            <option value="Cử nhân">Cử nhân</option>
+                            <option value="Kỹ sư">Kỹ sư</option>
+                            <option value="Cao đẳng">Cao đẳng</option>
+                            <option value="Thạc sĩ">Thạc sĩ</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                    </div>
+                    <div class="col-5">
+                        <label asp-for="Education.StartYear" class="a-label">Năm bắt đầu</label>
+                        <input asp-for="Education.StartYear" type="number" class="a-input" min="2000" max="2030" value="@(Model?.Education?.StartYear > 0 ? Model.Education.StartYear : DateTime.UtcNow.Year - 1)" />
+                    </div>
+                </div>
+                <div>
+                    <label asp-for="Education.FieldOfStudy" class="a-label">Chuyên ngành đào tạo</label>
+                    <input asp-for="Education.FieldOfStudy" class="a-input" placeholder="Ví dụ: Khoa học máy tính, Quản trị kinh doanh..." />
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4 pt-2">
+                <button type="button" class="a-btn a-btn--primary px-4" id="btnNext1">
+                    Tiếp theo <i data-lucide="arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= STAGE 2: MỤC TIÊU CÔNG VIỆC ================= -->
+        <div class="form-stage d-none" id="stage2">
+            <header class="mb-4">
+                <h2 class="fw-bold mb-1" style="font-size: var(--fs-18); color: var(--text);">Mục tiêu nghề nghiệp</h2>
+                <p class="small mb-0" style="color: var(--text-3);">Định hình các cơ hội việc làm mà bạn đang quan tâm nhất.</p>
+            </header>
+
+            <div class="mb-3">
+                <label asp-for="JobSearchingStatus" class="a-label">Trạng thái tìm kiếm việc làm *</label>
+                <select asp-for="JobSearchingStatus" id="jobStatusSelect" class="a-select">
+                    <option value="Looking">Đang tích cực tìm việc mới</option>
+                    <option value="NotLooking">Chưa có nhu cầu chuyển việc</option>
+                </select>
+            </div>
+
+            <div class="mb-3 p-3 rounded-3" style="background: var(--field); border: 1px solid var(--line-soft);">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="fw-semibold small" style="color: var(--text);">Quan tâm công việc từ xa (Remote)</div>
+                        <div class="small" style="font-size: var(--fs-12); color: var(--text-3);">Nhận đề xuất các dự án và vị trí làm việc từ xa hoặc hybrid.</div>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" asp-for="IsRemoteJob" id="remoteCheck" style="cursor: pointer; width: 38px; height: 20px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="DesiredJobTitle" class="a-label">Vị trí / Chức danh mong muốn</label>
+                <input asp-for="DesiredJobTitle" id="desiredTitleInput" class="a-input" placeholder="Ví dụ: Senior .NET Developer, UI Designer..." />
+                <span class="a-help">Có thể để trống nếu bạn chưa có mục tiêu cụ thể.</span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="DesiredCompany" class="a-label">Công ty mong muốn (tùy chọn)</label>
+                <input asp-for="DesiredCompany" class="a-input" placeholder="Ví dụ: VinFast, FPT, VNG, Aris..." />
+            </div>
+
+            <div class="d-flex justify-content-between mt-4 pt-2">
+                <button type="button" class="a-btn a-btn--ghost" id="btnPrev2">Quay lại</button>
+                <button type="button" class="a-btn a-btn--primary px-4" id="btnNext2">
+                    Tiếp theo <i data-lucide="arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= STAGE 3: QUYỀN RIÊNG TƯ & HOÀN TẤT ================= -->
+        <div class="form-stage d-none" id="stage3">
+            <header class="mb-4">
+                <h2 class="fw-bold mb-1" style="font-size: var(--fs-18); color: var(--text);">Quyền riêng tư & Hoàn tất</h2>
+                <p class="small mb-0" style="color: var(--text-3);">Kiểm tra lại thông tin trước khi hoàn thành hồ sơ.</p>
+            </header>
+
+            <!-- Summary Card -->
+            <div class="p-3 rounded-3 mb-3" style="background: var(--field); border: 1px solid var(--line-soft);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small fw-semibold text-uppercase" style="font-size: var(--fs-11); color: var(--text-3); letter-spacing: .04em;">Tóm tắt hồ sơ</span>
+                    <button type="button" class="a-btn a-btn--ghost a-btn--sm p-0" id="btnEditStage1">Sửa</button>
+                </div>
+                <div class="d-flex flex-column gap-1 small">
+                    <div class="d-flex justify-content-between">
+                        <span style="color: var(--text-3);">Địa điểm:</span>
+                        <span class="fw-semibold" id="sumLocation" style="color: var(--text);">-</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span style="color: var(--text-3);">Chức danh:</span>
+                        <span class="fw-semibold" id="sumRole" style="color: var(--text);">-</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span style="color: var(--text-3);">Trạng thái:</span>
+                        <span class="fw-semibold" id="sumStatus" style="color: var(--text);">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy Option -->
+            <div class="mb-4 p-3 rounded-3" style="background: var(--brand-soft); border: 1px solid var(--line-soft);">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="fw-semibold small" style="color: var(--brand-text);">Cho phép nhà tuyển dụng xem hồ sơ</div>
+                        <div class="small" style="font-size: var(--fs-12); color: var(--text-2);">Hồ sơ của bạn sẽ hiển thị trong kết quả tìm kiếm của các doanh nghiệp đã xác thực trên Aris.</div>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" asp-for="ShareWithRecruiters" id="shareCheck" checked style="cursor: pointer; width: 38px; height: 20px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4 pt-2">
+                <button type="button" class="a-btn a-btn--ghost" id="btnPrev3">Quay lại</button>
+                <button type="submit" class="a-btn a-btn--primary px-4" id="btnSubmit">
+                    Vào Aris <i data-lucide="check"></i>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let currentStage = 1;
+
+            const locSelect = document.getElementById("locationSelect");
+            const locInput = document.getElementById("locationInput");
+            const locError = document.getElementById("locationError");
+
+            const savedLoc = '@(Model?.Location ?? "")';
+            if (savedLoc) {
+                let found = false;
+                for (let i = 0; i < locSelect.options.length; i++) {
+                    if (locSelect.options[i].value === savedLoc) {
+                        locSelect.selectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found && savedLoc) {
+                    locSelect.value = "other";
+                    locInput.value = savedLoc;
+                    locInput.classList.remove("d-none");
+                }
+            }
+
+            if (locSelect) {
+                locSelect.addEventListener("change", function () {
+                    if (this.value === "other") {
+                        locInput.classList.remove("d-none");
+                        locInput.focus();
+                    } else {
+                        locInput.classList.add("d-none");
+                        locInput.value = this.value;
+                    }
+                    if (locError) locError.classList.add("d-none");
+                });
+            }
+
+            // Student toggle
+            const isStudentToggle = document.getElementById("isStudentToggle");
+            const studentSection = document.getElementById("studentSection");
+            const workingSection = document.getElementById("workingSection");
+
+            if (isStudentToggle) {
+                isStudentToggle.addEventListener("change", function () {
+                    if (this.checked) {
+                        studentSection?.classList.remove("d-none");
+                        workingSection?.classList.add("d-none");
+                    } else {
+                        studentSection?.classList.add("d-none");
+                        workingSection?.classList.remove("d-none");
+                    }
+                });
+            }
+
+            function setStage(stage) {
+                currentStage = stage;
+                document.querySelectorAll(".form-stage").forEach((s, idx) => {
+                    s.classList.toggle("d-none", idx + 1 !== stage);
+                });
+
+                const fill = document.getElementById("newuserProgressFill");
+                const label = document.getElementById("stepProgressLabel");
+                const pct = (stage / 3) * 100;
+                if (fill) fill.style.width = pct + "%";
+
+                const labels = ["Bước 1/3 • Về bạn", "Bước 2/3 • Mục tiêu", "Bước 3/3 • Hoàn tất"];
+                if (label) label.innerText = labels[stage - 1];
+
+                if (stage === 3) {
+                    const loc = (locSelect.value === "other" ? locInput.value : locSelect.value) || "Chưa cập nhật";
+                    const isStu = isStudentToggle?.checked;
+                    const role = isStu
+                        ? (document.getElementById("schoolInput")?.value || "Sinh viên")
+                        : (document.getElementById("jobTitleInput")?.value || "Chuyên viên");
+                    const st = document.getElementById("jobStatusSelect")?.value === "Looking"
+                        ? "Đang tìm việc mới"
+                        : "Chưa có nhu cầu";
+
+                    document.getElementById("sumLocation").innerText = loc;
+                    document.getElementById("sumRole").innerText = role;
+                    document.getElementById("sumStatus").innerText = st;
+                }
+
+                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                    window.lucide.createIcons();
+                }
+            }
+
+            // Stage 1 Next
+            const btnNext1 = document.getElementById("btnNext1");
+            if (btnNext1) {
+                btnNext1.addEventListener("click", () => {
+                    const loc = locSelect.value === "other" ? locInput.value.trim() : locSelect.value;
+                    if (!loc) {
+                        locError?.classList.remove("d-none");
+                        return;
+                    }
+                    if (locError) locError.classList.add("d-none");
+
+                    const isStu = isStudentToggle?.checked;
+                    if (!isStu) {
+                        const jt = document.getElementById("jobTitleInput")?.value.trim();
+                        const jtErr = document.getElementById("jobTitleError");
+                        if (!jt) {
+                            jtErr?.classList.remove("d-none");
+                            return;
+                        }
+                        if (jtErr) jtErr.classList.add("d-none");
+                    } else {
+                        const sc = document.getElementById("schoolInput")?.value.trim();
+                        const scErr = document.getElementById("schoolError");
+                        if (!sc) {
+                            scErr?.classList.remove("d-none");
+                            return;
+                        }
+                        if (scErr) scErr.classList.add("d-none");
+                    }
+
+                    setStage(2);
+                });
+            }
+
+            // Stage 2 Nav
+            document.getElementById("btnPrev2")?.addEventListener("click", () => setStage(1));
+            document.getElementById("btnNext2")?.addEventListener("click", () => setStage(3));
+
+            // Stage 3 Nav
+            document.getElementById("btnPrev3")?.addEventListener("click", () => setStage(2));
+            document.getElementById("btnEditStage1")?.addEventListener("click", () => setStage(1));
+
+            // Enter key handling
+            document.getElementById("onboardingForm")?.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
+                    e.preventDefault();
+                    if (currentStage === 1) btnNext1?.click();
+                    else if (currentStage === 2) document.getElementById("btnNext2")?.click();
+                    else document.getElementById("btnSubmit")?.click();
+                }
+            });
+        });
+    </script>
+}

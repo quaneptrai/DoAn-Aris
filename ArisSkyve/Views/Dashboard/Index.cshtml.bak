@@ -1,0 +1,825 @@
+@model ArisSkyve.Domain.Entities.User
+
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Trang chủ";
+    ViewData["ActiveNav"] = "Home";
+    ViewData["UserRole"] = Model.Role;
+
+    var profile = Model.Profile;
+    var avatar = profile?.AvatarUrl ?? "/images/default-avatar.png";
+    var bio = string.IsNullOrWhiteSpace(profile?.Bio) ? "Chưa cập nhật phần giới thiệu" : profile.Bio;
+    var location = string.IsNullOrWhiteSpace(profile?.Location) ? "Việt Nam" : profile.Location;
+    var fullName = string.IsNullOrWhiteSpace(profile?.FullName) ? Model.Username : profile.FullName;
+    var firstName = fullName.Split(' ').LastOrDefault() ?? fullName;
+    var hourVn = DateTime.UtcNow.AddHours(7).Hour;
+    var greeting = hourVn < 11 ? "Chào buổi sáng" : hourVn < 14 ? "Chào buổi trưa" : hourVn < 18 ? "Chào buổi chiều" : "Chào buổi tối";
+
+    var posts = ViewBag.Posts as List<ArisSkyve.Domain.Entities.Post> ?? new List<ArisSkyve.Domain.Entities.Post>();
+    var likedPostIds = ViewBag.LikedPostIds as HashSet<int> ?? new HashSet<int>();
+    var recentJobs = ViewBag.RecentJobs as List<ArisSkyve.Domain.Entities.JobPosting> ?? new List<ArisSkyve.Domain.Entities.JobPosting>();
+    var upcomingInterview = ViewBag.UpcomingInterview as ArisSkyve.Domain.Entities.JobApplication;
+    bool hasCv = ViewBag.HasCv == true;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/aris-dashboard.css" asp-append-version="true" />
+}
+
+<div class="aris-container dashboard-page">
+    <header class="dashboard-heading">
+        <div class="dashboard-heading-main">
+            <p>@greeting, @firstName</p>
+            <h1>Không gian của bạn<span>.</span></h1>
+            <div class="d-flex align-items-center gap-3 flex-wrap mt-2">
+                <p class="dashboard-subtitle m-0">Những chia sẻ mới. Những cơ hội tiếp theo.</p>
+                <a href="/Jobs" class="dashboard-explore">Khám phá việc làm <i data-lucide="arrow-up-right"></i></a>
+            </div>
+        </div>
+    </header>
+    @if (upcomingInterview != null)
+    {
+        <a href="/JobApplications/MyApplications" class="dashboard-reminder"><i data-lucide="calendar"></i> Phỏng vấn sắp tới · @upcomingInterview.InterviewAt?.ToString("dd/MM · HH:mm") <i data-lucide="arrow-right"></i></a>
+    }
+
+    <!-- 3-Column Workspace Layout (248px / minmax(0,1fr) / 280px) -->
+    <div class="dash-workspace-grid">
+        <!-- Center Column: Composer, Feed & Posts -->
+        <section class="dash-center-feed" aria-label="Bảng tin hoạt động">
+            <!-- Composer Card -->
+            <div class="feed-composer-card stagger-in stagger-in-2">
+                <div class="composer-heading"><span>Chia sẻ với cộng đồng</span><button type="button" id="collapseComposer" class="composer-collapse" aria-label="Thu gọn ô viết bài"><i data-lucide="minus"></i></button></div>
+                <form id="postForm">
+                    <div class="d-flex align-items-start gap-3 mb-2">
+                        <img src="@avatar" class="rounded-circle border" width="44" height="44" style="object-fit: cover;" onerror="this.src='/images/default-avatar.png';">
+                        <div class="flex-grow-1">
+                            <!-- Optional Article Title -->
+                            <div id="articleTitleContainer" class="mb-2" style="display: none;">
+                                <input type="text" id="articleTitleInput" class="form-control fw-bold fs-6" placeholder="Tiêu đề bài viết..." style="border-radius: var(--aris-radius-control);">
+                            </div>
+                            <!-- Main Post Input -->
+                            <textarea id="postInput" aria-label="Nội dung bài đăng" class="composer-textarea" rows="1" placeholder="Bạn muốn chia sẻ điều gì, @firstName?"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Selected Media Preview Area -->
+                    <div id="mediaPreview" class="d-flex flex-wrap gap-2 mb-2"></div>
+
+                    <!-- Hidden Inputs for Files -->
+                    <input type="file" id="imgUpload" accept="image/*" multiple style="display: none;">
+                    <input type="file" id="vidUpload" accept="video/*" style="display: none;">
+
+                    <!-- Composer Toolbar -->
+                    <div class="composer-details" id="composerDetails" inert><div class="composer-details-inner"><div class="composer-toolbar">
+                        <div class="d-flex align-items-center gap-1">
+                            <button type="button" class="composer-attach-btn" id="btnUploadImg" title="Đính kèm hình ảnh">
+                                <i data-lucide="image" class="text-primary" style="width: 16px; height: 16px;"></i>
+                                <span>Ảnh</span>
+                            </button>
+                            <button type="button" class="composer-attach-btn" id="btnUploadVid" title="Đính kèm video">
+                                <i data-lucide="video" class="text-info" style="width: 16px; height: 16px;"></i>
+                                <span>Video</span>
+                            </button>
+                            <div class="form-check form-switch ms-2 d-inline-flex align-items-center gap-2 mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="modeToggle" style="cursor: pointer;">
+                                <label class="form-check-label small text-muted" for="modeToggle" style="cursor: pointer;">Bài viết dài</label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-composer-submit" id="postSubmitBtn">
+                            <i data-lucide="send" style="width: 14px; height: 14px;"></i>
+                            <span>Đăng bài</span>
+                        </button>
+                    </div>
+                    </div></div>
+                    <p class="composer-status" id="composerStatus" role="status" aria-live="polite"></p>
+                </form>
+            </div>
+
+            <!-- Feed Header Filter Bar -->
+            <div class="feed-header-bar stagger-in stagger-in-3">
+                <h2 class="feed-heading">Bảng tin</h2>
+                <div class="d-flex gap-2">
+                    <span class="feed-sort-label">Mới nhất</span>
+                </div>
+            </div>
+
+            <!-- News Feed Stream -->
+            <div id="newsFeed">
+                @if (posts != null && posts.Any())
+                {
+                    @foreach (var post in posts)
+                    {
+                        var isLiked = likedPostIds.Contains(post.Id);
+                        var postAvatar = post.User?.Profile?.AvatarUrl ?? "/images/default-avatar.png";
+                        var postUsername = post.User?.Username ?? "Thành viên";
+                        var postFullName = post.User?.Profile?.FullName ?? postUsername;
+                        var isAuthor = post.UserId == Model.Id;
+                        var timeDiff = DateTime.UtcNow - post.CreatedAt;
+                        string timeAgo = timeDiff.TotalMinutes < 60 ? $"{(int)timeDiff.TotalMinutes} phút trước" :
+                                         timeDiff.TotalHours < 24 ? $"{(int)timeDiff.TotalHours} giờ trước" :
+                                         $"{(int)timeDiff.TotalDays} ngày trước";
+
+                        var isArticle = !string.IsNullOrWhiteSpace(post.Title);
+
+                        <div class="post-card stagger-in" data-post-id="@post.Id"
+                             data-avatar="@postAvatar"
+                             data-username="@postFullName"
+                             data-time="@timeAgo"
+                             data-title="@(isArticle ? post.Title : "")"
+                             data-content="@post.Content"
+                             data-liked="@(isLiked ? "true" : "false")"
+                             data-like-count="@post.LikeCount"
+                             data-comment-count="@post.CommentCount">
+
+                            <!-- Post Author Header -->
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="@postAvatar" class="rounded-circle border" width="42" height="42" style="object-fit: cover;" onerror="this.src='/images/default-avatar.png';">
+                                    <div>
+                                        <a href="/Profile?id=@post.UserId" class="post-author-name">@postFullName</a>
+                                        <div class="d-flex align-items-center gap-2 small text-muted">
+                                            <span>@timeAgo</span>
+                                            @if (isArticle)
+                                            {
+                                                <span class="badge badge-aris-info py-0 px-2" style="font-size: 11px;">Bài viết</span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                @if (isAuthor)
+                                {
+                                    <button type="button" class="btn btn-sm btn-ghost text-muted btn-delete-post p-1" data-post-id="@post.Id" title="Xóa bài viết">
+                                        <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                                    </button>
+                                }
+                            </div>
+
+                            <!-- Post Content -->
+                            @if (isArticle)
+                            {
+                                <h3 class="h5 fw-bold text-dark mt-2 mb-1">@post.Title</h3>
+                            }
+                            <div class="post-content-body">
+                                @Html.Raw(Html.Encode(post.Content).Replace("\n", "<br/>"))
+                            </div>
+
+                            <!-- Post Media Grid -->
+                            @if (post.PostMedias != null && post.PostMedias.Any())
+                            {
+                                var mediaCount = post.PostMedias.Count;
+                                var gridClass = mediaCount == 1 ? "single" : mediaCount == 2 ? "double" : "multi";
+                                <div class="post-media-grid @gridClass mt-3">
+                                    @foreach (var m in post.PostMedias)
+                                    {
+                                        var isVideo = m.MediaType == "video";
+                                        <div class="post-media-item position-relative" style="cursor: pointer;" data-url="@m.MediaUrl" data-type="@m.MediaType">
+                                            @if (isVideo)
+                                            {
+                                                <video src="@m.MediaUrl" class="w-100 rounded-3" style="max-height: 360px; object-fit: cover;"></video>
+                                                <div class="position-absolute top-50 start-50 translate-middle bg-dark bg-opacity-75 rounded-circle p-2 text-white">
+                                                    <i data-lucide="play" style="width: 24px; height: 24px;"></i>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <img src="@m.MediaUrl" class="w-100 rounded-3" style="max-height: 360px; object-fit: cover;" alt="Media đính kèm" loading="lazy">
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            <!-- Post Actions Bar -->
+                            <div class="post-actions-row">
+                                <button type="button" class="btn-post-action btn-like @(isLiked ? "liked" : "")" aria-pressed="@(isLiked ? "true" : "false")">
+                                    <i data-lucide="heart" style="width: 16px; height: 16px;"></i>
+                                    <span class="like-label">@(isLiked ? "Đã thích" : "Thích")</span>
+                                    <span class="ms-1 like-count-text small fw-bold">@post.LikeCount</span>
+                                </button>
+
+                                <button type="button" class="btn-post-action btn-comment">
+                                    <i data-lucide="message-circle" style="width: 16px; height: 16px;"></i>
+                                    <span>Bình luận</span>
+                                    <span class="ms-1 comment-count-text small fw-bold">@post.CommentCount</span>
+                                </button>
+
+                                <button type="button" class="btn-post-action btn-share ms-auto">
+                                    <i data-lucide="share-2" style="width: 16px; height: 16px;"></i>
+                                    <span>Chia sẻ</span>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <!-- Bespoke Trajectory Empty State -->
+                    <div class="feed-empty-state stagger-in">
+                        <div class="feed-empty-icon">
+                            <i data-lucide="sparkles" style="width: 28px; height: 28px;"></i>
+                        </div>
+                        <h3 class="h5 fw-bold text-dark mb-2">Chưa có bài viết nào trong bảng tin</h3>
+                        <p class="text-muted small mb-4" style="max-width: 420px; margin: 0 auto;">
+                            Hãy là người đầu tiên chia sẻ góc nhìn nghề nghiệp, kinh nghiệm làm việc hoặc khám phá các cơ hội từ cộng đồng.
+                        </p>
+                        <button type="button" class="btn btn-primary rounded-pill px-4 fw-semibold" onclick="document.getElementById('postInput')?.focus()">
+                            <i data-lucide="edit-3" class="me-1" style="width: 15px; height: 15px;"></i>
+                            Tạo bài viết đầu tiên
+                        </button>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <!-- Right Column: Recommended Jobs & Network -->
+        <aside class="dash-right-rail" aria-label="Cơ hội gợi ý và kết nối">
+            <div class="dash-rail-sticky">
+                <div class="profile-rail-card stagger-in stagger-in-2">
+                    <div class="profile-rail-cover"></div>
+                    <div class="profile-rail-body">
+                        <img src="@avatar" alt="@fullName" class="profile-rail-avatar" onerror="this.src='/images/default-avatar.png';">
+                        <h2 class="profile-rail-name">@fullName</h2>
+                        <span class="profile-rail-title">@(profile?.JobTitle ?? "Thành viên Aris")</span>
+                        <p class="profile-rail-bio">@bio</p>
+
+                        <div class="profile-stat-box">
+                            <span class="text-muted">Đơn đã nộp:</span>
+                            <a href="/JobApplications/MyApplications" class="fw-bold text-primary text-decoration-none">
+                                @ViewBag.AppliedCount hồ sơ
+                            </a>
+                        </div>
+
+                        <a asp-controller="Profile" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill w-100 fw-semibold">
+                            Xem hồ sơ cá nhân
+                        </a>
+                    </div>
+                </div>
+
+                <nav class="workspace-links" aria-label="Không gian cá nhân">
+                    <a href="/Resume"><i data-lucide="file-text"></i> Hồ sơ &amp; CV <i data-lucide="chevron-right"></i></a>
+                    <a href="/JobApplications/MyApplications"><i data-lucide="layers"></i> Đơn ứng tuyển <span>@(ViewBag.AppliedCount ?? 0)</span></a>
+                    <a href="/Chat"><i data-lucide="message-square"></i> Tin nhắn <i data-lucide="chevron-right"></i></a>
+                </nav>
+
+                <!-- Recommended Jobs Card -->
+                <div class="jobs-rail-card stagger-in stagger-in-3">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h6 class="small text-uppercase fw-bold text-muted mb-0" style="letter-spacing: 0.05em;">Cơ hội gợi ý</h6>
+                        <a href="/Jobs" class="small fw-semibold text-primary text-decoration-none">Xem tất cả &rarr;</a>
+                    </div>
+
+                    @if (recentJobs != null && recentJobs.Any())
+                    {
+                        <div class="d-flex flex-column gap-1">
+                            @foreach (var job in recentJobs.Take(4))
+                            {
+                                var initial = string.IsNullOrWhiteSpace(job.Company) ? "A" : job.Company.Substring(0, 1).ToUpper();
+                                <a href="/Jobs?id=@job.Id" class="job-mini-item">
+                                    <div class="job-company-avatar">@initial</div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <div class="job-mini-title text-truncate">@job.Title</div>
+                                        <div class="small text-muted text-truncate">@job.Company</div>
+                                        @if (!string.IsNullOrWhiteSpace(job.Salary))
+                                        {
+                                            <span class="job-salary-pill">@job.Salary</span>
+                                        }
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-0 py-2">Hiện chưa có tin tuyển dụng mới.</p>
+                    }
+                </div>
+
+                <!-- Online Network Status Card -->
+                <div class="jobs-rail-card stagger-in stagger-in-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="dash-metric-dot"></span>
+                            <span class="small fw-semibold text-dark">Bạn bè trực tuyến</span>
+                        </div>
+                        <span class="badge badge-aris-neutral rounded-pill px-2 py-1" id="onlineFriendsCount">0</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<!-- Modal Confirm Delete Post -->
+<div class="modal fade" id="deletePostModal" tabindex="-1" aria-labelledby="deletePostModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-body text-center p-4">
+                <div class="d-inline-flex align-items-center justify-content-center bg-danger-subtle text-danger rounded-circle mb-3" style="width: 48px; height: 48px;">
+                    <i data-lucide="alert-triangle" style="width: 24px; height: 24px;"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Xóa bài viết?</h5>
+                <p class="small text-muted mb-4">Hành động này không thể hoàn tác. Bạn chắc chắn muốn xóa bài viết này?</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-light rounded-pill px-3 fw-medium" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-danger rounded-pill px-3 fw-medium" id="confirmDeleteBtn">Xóa bài viết</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Media & Comments Lightbox Modal -->
+<div class="media-lightbox" id="mediaLightbox" tabindex="-1" role="dialog" aria-modal="true">
+    <!-- Floating Backdrop Close Button in top right of viewport -->
+    <button type="button" class="lightbox-screen-close" id="lightboxClose" title="Đóng (Esc)" aria-label="Đóng">
+        <i data-lucide="x" style="width: 22px; height: 22px;"></i>
+    </button>
+
+    <div class="lightbox-container" id="lightboxContainer">
+        <!-- Media Stage (Only shown when image/video is active) -->
+        <div class="lightbox-stage" id="lightboxStage">
+            <img id="lightboxImg" class="img-fluid rounded-3" style="max-height: 85vh; display: none; object-fit: contain;" alt="Ảnh bài viết">
+            <video id="lightboxVideo" controls class="w-100 rounded-3" style="max-height: 85vh; display: none;"></video>
+        </div>
+
+        <!-- Comments & Post Details Panel -->
+        <div class="lightbox-panel" id="lightboxPanel" role="document">
+            <!-- Header with Author Info & Direct Close Button -->
+            <div class="lightbox-panel-header p-3 border-bottom d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-3 min-w-0">
+                    <img id="lbAvatar" class="rounded-circle border flex-shrink-0" width="40" height="40" style="object-fit: cover;" onerror="this.src='/images/default-avatar.png';">
+                    <div class="min-w-0">
+                        <div class="d-flex align-items-center gap-2">
+                            <strong id="lbUsername" class="d-block text-truncate fw-bold text-light" style="font-size: 15px;"></strong>
+                            <span id="lbBadge" class="badge badge-aris-info py-0 px-2 d-none" style="font-size: 11px;">Bài viết</span>
+                        </div>
+                        <span id="lbTime" class="x-small text-muted"></span>
+                    </div>
+                </div>
+                <!-- Direct Close Button on Panel -->
+                <button type="button" class="btn-panel-close flex-shrink-0" id="panelCloseBtn" title="Đóng (Esc)" aria-label="Đóng cửa sổ bình luận">
+                    <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                </button>
+            </div>
+
+            <!-- Post Content Section -->
+            <div id="lbContentWrapper" class="p-3 border-bottom lightbox-content-section">
+                <div id="lbContent" class="lightbox-post-text"></div>
+            </div>
+
+            <!-- Comments Title Bar -->
+            <div class="lightbox-comments-bar px-3 pt-3 pb-1 d-flex align-items-center justify-content-between">
+                <span class="small fw-semibold text-light text-uppercase tracking-wider d-flex align-items-center gap-1" style="font-size: 12px; letter-spacing: 0.04em;">
+                    <i data-lucide="message-square" style="width: 14px; height: 14px; color: #38BDF8;"></i>
+                    Bình luận (<span id="lbCommentsCount">0</span>)
+                </span>
+            </div>
+
+            <!-- Comments Scroll Area -->
+            <div id="lbComments" class="p-3 flex-grow-1 overflow-auto lightbox-comments-scroll"></div>
+
+            <!-- Comment Input Bar -->
+            <div class="lightbox-panel-footer p-3 border-top d-flex align-items-center gap-2">
+                <img src="@avatar" class="rounded-circle border flex-shrink-0 d-none d-sm-block" width="34" height="34" style="object-fit: cover;" onerror="this.src='/images/default-avatar.png';" alt="Avatar của bạn">
+                <div class="flex-grow-1">
+                    <input type="text" id="lbCommentInput" class="form-control rounded-pill px-3 lb-comment-input" placeholder="Viết bình luận của bạn... (Nhấn Enter để gửi)" autocomplete="off">
+                </div>
+                <button type="button" id="lbCommentSend" class="btn btn-primary rounded-pill px-3 py-2 d-inline-flex align-items-center gap-1 fw-semibold lb-btn-send flex-shrink-0">
+                    <i data-lucide="send" style="width: 15px; height: 15px;"></i>
+                    <span class="d-none d-sm-inline">Gửi</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script src="~/js/aris-dashboard.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Composer Logic
+            const postForm = document.getElementById("postForm");
+            const postInput = document.getElementById("postInput");
+            const articleTitleContainer = document.getElementById("articleTitleContainer");
+            const articleTitleInput = document.getElementById("articleTitleInput");
+            const modeToggle = document.getElementById("modeToggle");
+            const btnUploadImg = document.getElementById("btnUploadImg");
+            const btnUploadVid = document.getElementById("btnUploadVid");
+            const imgUpload = document.getElementById("imgUpload");
+            const vidUpload = document.getElementById("vidUpload");
+            const mediaPreview = document.getElementById("mediaPreview");
+            const newsFeed = document.getElementById("newsFeed");
+
+            let selectedMediaFiles = [];
+            let postIdToDelete = null;
+            let postCardToDelete = null;
+            const deleteModal = new bootstrap.Modal(document.getElementById("deletePostModal"));
+
+            modeToggle.addEventListener("change", function () {
+                if (this.checked) {
+                    articleTitleContainer.style.display = "block";
+                    articleTitleInput.focus();
+                } else {
+                    articleTitleContainer.style.display = "none";
+                }
+            });
+
+            btnUploadImg.addEventListener("click", () => imgUpload.click());
+            btnUploadVid.addEventListener("click", () => vidUpload.click());
+
+            function renderMediaPreview() {
+                mediaPreview.innerHTML = "";
+                selectedMediaFiles.forEach((file, index) => {
+                    const wrap = document.createElement("div");
+                    wrap.className = "position-relative d-inline-block";
+                    const isVid = file.type.startsWith("video/");
+                    wrap.innerHTML = `
+                        <div class="rounded-3 border overflow-hidden bg-light d-flex align-items-center justify-content-center" style="width: 72px; height: 72px;">
+                            ${isVid ? '<i data-lucide="video" class="text-primary"></i>' : `<img src="${URL.createObjectURL(file)}" style="width: 100%; height: 100%; object-fit: cover;">`}
+                        </div>
+                        <button type="button" class="btn btn-dark btn-sm rounded-circle position-absolute top-0 end-0 p-0 d-flex align-items-center justify-content-center media-preview-remove" data-index="${index}" style="width: 18px; height: 18px; transform: translate(30%, -30%);">
+                            &times;
+                        </button>
+                    `;
+                    mediaPreview.appendChild(wrap);
+                });
+                if (window.lucide) lucide.createIcons();
+            }
+
+            imgUpload.addEventListener("change", function () {
+                Array.from(this.files).forEach(f => selectedMediaFiles.push(f));
+                renderMediaPreview();
+                imgUpload.value = "";
+            });
+
+            vidUpload.addEventListener("change", function () {
+                if (this.files.length > 0) selectedMediaFiles.push(this.files[0]);
+                renderMediaPreview();
+                vidUpload.value = "";
+            });
+
+            mediaPreview.addEventListener("click", (e) => {
+                const removeBtn = e.target.closest(".media-preview-remove");
+                if (!removeBtn) return;
+                selectedMediaFiles.splice(parseInt(removeBtn.dataset.index), 1);
+                renderMediaPreview();
+            });
+
+            postForm.addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const isArticle = modeToggle.checked;
+                const content = postInput.value.trim();
+                const title = isArticle ? articleTitleInput.value.trim() : "";
+
+                if (!content && !title && selectedMediaFiles.length === 0) return;
+
+                const submitBtn = document.getElementById("postSubmitBtn");
+                submitBtn.disabled = true;
+                document.getElementById("composerStatus").textContent = "";
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang đăng...';
+
+                const formData = new FormData();
+                formData.append("content", content);
+                if (isArticle && title) formData.append("title", title);
+                selectedMediaFiles.forEach(file => formData.append("mediaFiles", file));
+
+                try {
+                    const response = await fetch('/Dashboard/CreatePost', { method: 'POST', body: formData });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        window.showToast?.("Đã đăng bài viết thành công!", "success");
+                        setTimeout(() => location.reload(), 600);
+                    } else {
+                        document.getElementById("composerStatus").textContent = result.message || "Chưa thể đăng bài. Nội dung của bạn vẫn được giữ lại.";
+                    }
+                } catch (err) {
+                    document.getElementById("composerStatus").textContent = "Mất kết nối. Nội dung vẫn được giữ lại, bạn có thể thử đăng lại.";
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i data-lucide="send" style="width: 14px; height: 14px;"></i> <span>Đăng bài</span>';
+                    if (window.lucide) lucide.createIcons();
+                }
+            });
+
+            newsFeed.addEventListener("click", function (e) {
+                const deleteBtn = e.target.closest(".btn-delete-post");
+                if (deleteBtn) {
+                    postIdToDelete = deleteBtn.getAttribute("data-post-id");
+                    postCardToDelete = deleteBtn.closest(".post-card");
+                    deleteModal.show();
+                    return;
+                }
+
+                const likeBtn = e.target.closest(".btn-like");
+                if (likeBtn) {
+                    const card = likeBtn.closest(".post-card");
+                    toggleLikePost(card.dataset.postId, likeBtn);
+                    return;
+                }
+
+                const mediaItem = e.target.closest(".post-media-item");
+                if (mediaItem) {
+                    openLightbox(mediaItem.closest(".post-card"), mediaItem.dataset.url, mediaItem.dataset.type);
+                    return;
+                }
+
+                const commentBtn = e.target.closest(".btn-comment");
+                if (commentBtn) {
+                    openLightbox(commentBtn.closest(".post-card"), null, null);
+                    return;
+                }
+
+                const shareBtn = e.target.closest(".btn-share");
+                if (shareBtn) {
+                    const card = shareBtn.closest(".post-card");
+                    const url = `${window.location.origin}/Dashboard/Index#post-${card.dataset.postId}`;
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(url).then(() => window.showToast?.("Đã sao chép liên kết bài viết!", "info"));
+                    } else {
+                        prompt("Sao chép link:", url);
+                    }
+                }
+            });
+
+            document.getElementById("confirmDeleteBtn").addEventListener("click", async function () {
+                if (!postIdToDelete) return;
+
+                try {
+                    const response = await fetch(`/Dashboard/DeletePost?id=${postIdToDelete}`, { method: 'DELETE' });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        deleteModal.hide();
+                        if (postCardToDelete) {
+                            const card = postCardToDelete;
+                            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) card.remove();
+                            else {
+                                card.style.height = `${card.offsetHeight}px`;
+                                card.style.overflow = 'hidden';
+                                card.animate([{ opacity: 1, height: `${card.offsetHeight}px`, marginBottom: '18px' }, { opacity: 0, height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', borderWidth: '0px' }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }).finished.then(() => card.remove());
+                            }
+                        }
+                        window.showToast?.("Đã xóa bài viết thành công.", "info");
+                    } else {
+                        alert("Lỗi: " + result.message);
+                    }
+                } catch (err) {
+                    alert("Không thể kết nối đến máy chủ.");
+                }
+            });
+
+            async function toggleLikePost(postId, btn) {
+                if (btn.disabled) return;
+                btn.disabled = true;
+                try {
+                    const res = await fetch(`/Dashboard/ToggleLike?postId=${postId}`, { method: "POST" });
+                    const result = await res.json();
+                    if (!result.success) return;
+
+                    document.querySelectorAll(`.post-card[data-post-id="${postId}"]`).forEach(card => {
+                        card.dataset.liked = result.liked ? "true" : "false";
+                        card.dataset.likeCount = result.likeCount;
+                        const cardBtn = card.querySelector(".btn-like");
+                        cardBtn.classList.toggle("liked", result.liked);
+                        cardBtn.setAttribute("aria-pressed", String(result.liked));
+                        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+                            cardBtn.querySelector("svg")?.animate([{ transform: "scale(1)" }, { transform: "scale(1.22)", offset: .4 }, { transform: "scale(1)" }], { duration: 280, easing: "cubic-bezier(.2,.8,.2,1)" });
+                        }
+                        const labelEl = cardBtn.querySelector(".like-label");
+                        if (labelEl) labelEl.textContent = result.liked ? "Đã thích" : "Thích";
+                        const countEl = card.querySelector(".like-count-text");
+                        if (countEl) countEl.textContent = result.likeCount;
+                    });
+                    if (window.lucide) lucide.createIcons();
+                } catch (err) { window.showToast?.("Chưa thể cập nhật lượt thích. Vui lòng thử lại.", "error"); }
+                finally { btn.disabled = false; }
+            }
+
+            // Lightbox & Comments Dialog functionality
+            const lightbox = document.getElementById("mediaLightbox");
+            if (lightbox && lightbox.parentElement !== document.body) {
+                document.body.appendChild(lightbox);
+            }
+            const lbStage = document.getElementById("lightboxStage");
+            const lbPanel = document.getElementById("lightboxPanel");
+            const lbImg = document.getElementById("lightboxImg");
+            const lbVid = document.getElementById("lightboxVideo");
+            const lbAvatar = document.getElementById("lbAvatar");
+            const lbUsername = document.getElementById("lbUsername");
+            const lbTime = document.getElementById("lbTime");
+            const lbContent = document.getElementById("lbContent");
+            const lbComments = document.getElementById("lbComments");
+            const lbCommentsCount = document.getElementById("lbCommentsCount");
+            const lbCommentInput = document.getElementById("lbCommentInput");
+            const lbBadge = document.getElementById("lbBadge");
+            let activeLbPostId = null;
+
+            function escapeHtml(text) {
+                if (!text) return "";
+                const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+                return String(text).replace(/[&<>"']/g, m => map[m]);
+            }
+
+            function formatCommentTime(dateStr) {
+                if (!dateStr) return "";
+                try {
+                    const d = new Date(dateStr);
+                    const now = new Date();
+                    const diffMs = now - d;
+                    const diffSec = Math.floor(diffMs / 1000);
+                    const diffMin = Math.floor(diffSec / 60);
+                    const diffHour = Math.floor(diffMin / 60);
+                    const diffDay = Math.floor(diffHour / 24);
+                    if (diffMin < 1) return "Vừa xong";
+                    if (diffMin < 60) return `${diffMin} phút trước`;
+                    if (diffHour < 24) return `${diffHour} giờ trước`;
+                    if (diffDay < 7) return `${diffDay} ngày trước`;
+                    return d.toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit' });
+                } catch {
+                    return "";
+                }
+            }
+
+            function openLightbox(card, url, type) {
+                if (!card) return;
+                activeLbPostId = card.dataset.postId;
+                lbAvatar.src = card.dataset.avatar || "/images/default-avatar.png";
+                lbUsername.textContent = card.dataset.username || "Thành viên";
+                lbTime.textContent = card.dataset.time || "";
+
+                const title = card.dataset.title;
+                const content = card.dataset.content || "";
+
+                if (lbBadge) {
+                    if (title && title.trim()) lbBadge.classList.remove("d-none");
+                    else lbBadge.classList.add("d-none");
+                }
+
+                let postHtml = "";
+                if (title && title.trim()) {
+                    postHtml += `<strong class="d-block mb-2 text-white h6 fw-bold">${escapeHtml(title)}</strong>`;
+                }
+                postHtml += `<div>${escapeHtml(content).replace(/\n/g, "<br>")}</div>`;
+
+                if (url) {
+                    lightbox.classList.add("has-media");
+                    if (type === "video") {
+                        lbVid.src = url;
+                        lbVid.style.display = "block";
+                        lbImg.style.display = "none";
+                    } else {
+                        lbImg.src = url;
+                        lbImg.style.display = "block";
+                        lbVid.style.display = "none";
+                    }
+                } else {
+                    lightbox.classList.remove("has-media");
+                    lbImg.style.display = "none";
+                    lbVid.style.display = "none";
+
+                    // If post has an image, render an inline preview inside post content so user sees the post context!
+                    const firstMediaImg = card.querySelector(".post-media-item img");
+                    if (firstMediaImg && firstMediaImg.src) {
+                        postHtml += `<div class="mt-3"><img src="${firstMediaImg.src}" class="w-100 rounded-3 border" style="max-height: 240px; object-fit: cover; border-color: rgba(178,212,255,0.18)!important;" alt="Media đính kèm"></div>`;
+                    }
+                }
+
+                lbContent.innerHTML = postHtml;
+
+                const count = card.dataset.commentCount || "0";
+                if (lbCommentsCount) lbCommentsCount.textContent = count;
+
+                loadComments(activeLbPostId);
+                lightbox.classList.add("show");
+                document.body.style.overflow = "hidden";
+                if (window.lucide) lucide.createIcons();
+
+                setTimeout(() => {
+                    lbCommentInput?.focus();
+                }, 150);
+            }
+
+            function closeLightbox() {
+                lightbox.classList.remove("show", "has-media");
+                document.body.style.overflow = "";
+                if (lbVid) {
+                    lbVid.pause();
+                    lbVid.src = "";
+                }
+                if (lbImg) lbImg.src = "";
+                activeLbPostId = null;
+                lbCommentInput.value = "";
+            }
+
+            // Exit 1: Click outside (backdrop or container empty space)
+            lightbox.addEventListener("click", function (e) {
+                const isInsidePanel = e.target.closest("#lightboxPanel");
+                const isMedia = e.target === lbImg || e.target === lbVid || e.target.closest("video");
+                if (!isInsidePanel && !isMedia) {
+                    closeLightbox();
+                }
+            });
+
+            // Exit 2: Top-right screen close button
+            document.getElementById("lightboxClose")?.addEventListener("click", closeLightbox);
+
+            // Exit 3: Header close button on panel
+            document.getElementById("panelCloseBtn")?.addEventListener("click", closeLightbox);
+
+            // Exit 4: Keyboard Escape
+            document.addEventListener("keydown", function (e) {
+                if (e.key === "Escape" && lightbox.classList.contains("show")) {
+                    closeLightbox();
+                }
+            });
+
+            // Enter key to send comment
+            lbCommentInput.addEventListener("keydown", function (e) {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    document.getElementById("lbCommentSend")?.click();
+                }
+            });
+
+            async function loadComments(postId) {
+                lbComments.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="spinner-border spinner-border-sm text-info me-2" role="status"></div>
+                        <span class="small text-muted">Đang tải bình luận...</span>
+                    </div>`;
+                try {
+                    const res = await fetch(`/Dashboard/GetComments?postId=${postId}`);
+                    const comments = await res.json();
+                    if (!comments || comments.length === 0) {
+                        lbComments.innerHTML = `
+                            <div class="text-center py-4 text-muted">
+                                <div class="mb-2" style="opacity: 0.6;">
+                                    <i data-lucide="message-circle" style="width: 32px; height: 32px; stroke: #38BDF8;"></i>
+                                </div>
+                                <div class="small fw-semibold text-light">Chưa có bình luận nào</div>
+                                <div class="x-small text-muted mt-1">Hãy là người đầu tiên chia sẻ suy nghĩ của bạn!</div>
+                            </div>`;
+                        if (window.lucide) lucide.createIcons();
+                        return;
+                    }
+
+                    if (lbCommentsCount) lbCommentsCount.textContent = comments.length;
+
+                    lbComments.innerHTML = comments.map(c => `
+                        <div class="d-flex gap-2 mb-3 align-items-start">
+                            <img src="${c.avatar || '/images/default-avatar.png'}" class="rounded-circle border flex-shrink-0 mt-1" width="34" height="34" style="object-fit:cover; border-color: rgba(178,212,255,0.2) !important;" onerror="this.src='/images/default-avatar.png';">
+                            <div class="lb-comment-bubble flex-grow-1 min-w-0">
+                                <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                    <strong class="lb-comment-user text-truncate">${escapeHtml(c.username)}</strong>
+                                    <span class="lb-comment-time flex-shrink-0">${formatCommentTime(c.createdAt)}</span>
+                                </div>
+                                <div class="lb-comment-text">${escapeHtml(c.content)}</div>
+                            </div>
+                        </div>`).join("");
+                    if (window.lucide) lucide.createIcons();
+                } catch (err) {
+                    lbComments.innerHTML = '<div class="text-danger small text-center py-3">Lỗi khi tải bình luận. Vui lòng thử lại sau.</div>';
+                }
+            }
+
+            document.getElementById("lbCommentSend").addEventListener("click", async function () {
+                const content = lbCommentInput.value.trim();
+                if (!content || !activeLbPostId) return;
+
+                const sendBtn = document.getElementById("lbCommentSend");
+                sendBtn.disabled = true;
+                lbCommentInput.value = "";
+
+                try {
+                    const res = await fetch("/Dashboard/AddComment", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: `postId=${encodeURIComponent(activeLbPostId)}&content=${encodeURIComponent(content)}`
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        loadComments(activeLbPostId);
+                        const card = document.querySelector(`.post-card[data-post-id="${activeLbPostId}"]`);
+                        if (card) {
+                            card.dataset.commentCount = result.commentCount;
+                            const countEl = card.querySelector(".comment-count-text");
+                            if (countEl) countEl.textContent = result.commentCount;
+                        }
+                        if (lbCommentsCount) lbCommentsCount.textContent = result.commentCount;
+                    } else {
+                        alert(result.message || "Không thể gửi bình luận.");
+                    }
+                } catch (err) {
+                    alert("Không thể gửi bình luận. Vui lòng kiểm tra kết nối.");
+                } finally {
+                    sendBtn.disabled = false;
+                    lbCommentInput.focus();
+                }
+            });
+        });
+    </script>
+}

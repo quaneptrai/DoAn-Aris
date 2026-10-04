@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tin nhắn — Aris (bản thiết kế V7)</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('aris-theme');
+        if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      } catch (e) { document.documentElement.dataset.theme = 'light'; }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="line.css">
+  <link rel="stylesheet" href="chat.css">
+</head>
+<body>
+<div class="a-app">
+
+  <!-- ======================= RAIL (dùng chung mọi trang) ======================= -->
+  <nav class="a-rail" aria-label="Điều hướng chính">
+    <a class="a-rail__logo" href="feed.html" aria-label="Aris — về Bảng tin">
+      <svg viewBox="0 0 200 200" aria-hidden="true"><path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30"/></svg>
+    </a>
+    <div class="a-rail__nav">
+      <span class="a-indicator" data-axis="y" data-inset="15"></span>
+      <a class="a-rail__item" href="feed.html" data-mobile><i data-lucide="home"></i><span>Bảng tin</span></a>
+      <a class="a-rail__item" href="jobs.html" data-mobile><i data-lucide="briefcase"></i><span>Việc làm</span></a>
+      <a class="a-rail__item" href="chat.html" data-mobile aria-current="page"><i data-lucide="message-circle"></i><span>Tin nhắn</span><span class="a-badge a-badge--accent a-num" id="railChatBadge">3</span></a>
+      <a class="a-rail__item" href="#applications"><i data-lucide="file-check"></i><span>Ứng tuyển</span></a>
+      <a class="a-rail__item" href="#cv"><i data-lucide="file-text"></i><span>CV</span></a>
+      <a class="a-rail__item" href="#companies"><i data-lucide="building-2"></i><span>Công ty</span></a>
+      <a class="a-rail__item a-rail__item--mobile" href="#notifications" data-mobile><i data-lucide="bell"></i><span>Thông báo</span></a>
+      <a class="a-rail__item a-rail__item--mobile" href="#me" data-mobile><i data-lucide="circle-user"></i><span>Tôi</span></a>
+    </div>
+    <div class="a-rail__foot">
+      <button class="a-rail__btn a-rail__create" type="button" data-action="compose" data-tip="Tạo bài viết" data-kbd="N" aria-label="Tạo bài viết"><i data-lucide="plus-square"></i></button>
+      <button class="a-rail__btn" type="button" data-action="palette" data-tip="Tìm nhanh" data-kbd="Ctrl K" aria-label="Tìm nhanh"><i data-lucide="search"></i></button>
+      <button class="a-rail__btn" type="button" data-action="notifications" data-tip="Thông báo" aria-label="Thông báo, 4 chưa đọc"><i data-lucide="bell"></i><span class="a-badge a-badge--accent a-num">4</span></button>
+      <button class="a-rail__btn" type="button" data-action="theme" data-tip="Giao diện sáng / tối" aria-label="Đổi giao diện sáng tối"><i data-lucide="moon"></i></button>
+      <button class="a-rail__btn" type="button" data-action="demo" data-tip="Bảng demo (chỉ có trong bản thiết kế)" aria-label="Bảng demo"><i data-lucide="flask-conical"></i></button>
+      <button class="a-rail__me" type="button" data-action="account" aria-label="Tài khoản của bạn"><span class="a-avatar a-avatar--32" data-tone="1">ĐK</span></button>
+    </div>
+  </nav>
+
+  <!-- ======================= CHAT ======================= -->
+  <main class="a-main chat" id="chat" data-view="list" data-drawer="closed">
+
+    <!-- Danh sách (nằm trên canvas) -->
+    <section class="chat-list" aria-label="Danh sách trò chuyện">
+      <header class="chat-list__head">
+        <h1 class="chat-list__title">Tin nhắn</h1>
+        <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" id="newChatBtn" data-tip="Cuộc trò chuyện mới" aria-label="Cuộc trò chuyện mới"><i data-lucide="square-pen"></i></button>
+      </header>
+
+      <label class="a-search chat-list__search">
+        <i data-lucide="search"></i>
+        <input class="a-input" type="search" id="userSearchInput" placeholder="Tìm người hoặc cuộc trò chuyện" autocomplete="off" aria-label="Tìm người hoặc cuộc trò chuyện">
+      </label>
+
+      <div class="a-seg chat-list__seg" role="tablist" aria-label="Chế độ danh sách" id="networkTabs">
+        <span class="a-seg__thumb" aria-hidden="true"></span>
+        <button class="a-seg__btn" type="button" role="tab" aria-selected="true" data-list="conversationList">Đoạn chat</button>
+        <button class="a-seg__btn" type="button" role="tab" aria-selected="false" data-list="friendsList">Bạn bè</button>
+        <button class="a-seg__btn" type="button" role="tab" aria-selected="false" data-list="requestsList">Lời mời <span class="a-badge a-badge--accent a-num" id="requestsBadge">2</span></button>
+      </div>
+
+      <div class="chat-list__scroll" id="listScroll">
+        <div class="a-list" id="conversationList" role="listbox" aria-label="Đoạn chat">
+          <span class="a-indicator" data-axis="y" data-inset="16"></span>
+        </div>
+        <div class="a-list" id="friendsList" hidden></div>
+        <div class="a-list" id="requestsList" hidden></div>
+      </div>
+    </section>
+
+    <!-- Hội thoại (tờ giấy chính) -->
+    <section class="chat-thread a-sheet" id="threadPane" aria-label="Hội thoại">
+
+      <div class="thread-empty" id="threadEmpty">
+        <div class="thread-empty__inner">
+          <div>
+            <h2 class="thread-empty__title">Chọn một cuộc trò chuyện</h2>
+            <p class="thread-empty__text">Hoặc nhắn ngay cho bạn bè đang hoạt động:</p>
+          </div>
+          <div class="thread-empty__people" id="onlinePeople"></div>
+          <p class="thread-empty__hint"><span class="a-kbd">Alt</span><span class="a-kbd">↓</span> chuyển nhanh giữa các cuộc trò chuyện</p>
+        </div>
+      </div>
+
+      <div class="thread-active" id="threadActive" hidden>
+        <header class="thread-head">
+          <button class="a-btn a-btn--ghost a-btn--icon thread-back" type="button" id="backToConversations" aria-label="Quay lại danh sách"><i data-lucide="chevron-left"></i></button>
+          <span class="a-avatar a-avatar--36" id="threadAvatar"></span>
+          <div class="thread-head__who">
+            <div class="thread-head__name" id="threadUsername"></div>
+            <div class="thread-head__status" id="threadStatus"></div>
+          </div>
+          <div class="thread-head__actions">
+            <button class="a-btn a-btn--ghost a-btn--icon" type="button" id="startCallBtn" data-tip="Gọi video" aria-label="Gọi video"><i data-lucide="video"></i></button>
+            <button class="a-btn a-btn--ghost a-btn--icon" type="button" id="drawerBtn" data-tip="Thông tin & tìm trong cuộc trò chuyện" aria-label="Thông tin cuộc trò chuyện" aria-pressed="false" aria-controls="chatDrawer"><i data-lucide="panel-right"></i></button>
+          </div>
+        </header>
+
+        <div class="a-collapse thread-banner" id="connBanner" data-open="false">
+          <div class="a-collapse__inner"><div class="thread-banner__msg" id="connBannerMsg"></div></div>
+        </div>
+
+        <div class="thread-body">
+          <div class="thread-messages" id="threadMessages" role="log" aria-live="polite" aria-label="Tin nhắn"></div>
+          <button class="thread-jump" type="button" id="jumpBtn" hidden aria-label="Xuống tin mới nhất"><i data-lucide="arrow-down"></i></button>
+        </div>
+
+        <footer class="thread-foot">
+          <div class="a-collapse" id="replyPreviewBar" data-open="false">
+            <div class="a-collapse__inner">
+              <div class="composer-preview">
+                <span class="composer-preview__bar" aria-hidden="true"></span>
+                <div class="composer-preview__text">
+                  <div class="composer-preview__title">Đang trả lời <span id="replyPreviewName"></span></div>
+                  <div class="composer-preview__snippet" id="replyPreviewSnippet"></div>
+                </div>
+                <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" id="replyPreviewCancel" aria-label="Huỷ trả lời" data-tip="Huỷ (Esc)"><i data-lucide="x"></i></button>
+              </div>
+            </div>
+          </div>
+          <div class="a-collapse" id="imagePreviewBar" data-open="false">
+            <div class="a-collapse__inner">
+              <div class="composer-preview">
+                <img class="composer-preview__thumb" id="imagePreviewThumb" alt="">
+                <div class="composer-preview__text">
+                  <div class="composer-preview__title">Ảnh đính kèm</div>
+                  <div class="composer-preview__snippet" id="imagePreviewName"></div>
+                </div>
+                <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" id="imagePreviewCancel" aria-label="Bỏ ảnh"><i data-lucide="x"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <form class="composer" id="composerForm" autocomplete="off">
+            <button class="a-btn a-btn--ghost a-btn--icon" type="button" id="imagePickerBtn" data-tip="Gửi ảnh" aria-label="Đính kèm ảnh"><i data-lucide="image"></i></button>
+            <input type="file" id="chatImageInput" accept="image/*" hidden>
+            <textarea class="composer__input" id="composerInput" rows="1" placeholder="Viết tin nhắn…" aria-label="Nội dung tin nhắn"></textarea>
+            <button class="a-btn a-btn--ghost a-btn--icon" type="button" id="emojiPickerBtn" data-tip="Biểu cảm" aria-label="Chọn biểu cảm"><i data-lucide="smile"></i></button>
+            <button class="composer__send" type="submit" id="sendBtn" disabled aria-label="Gửi tin nhắn"><i data-lucide="send-horizontal"></i></button>
+          </form>
+        </footer>
+      </div>
+    </section>
+
+    <!-- Ngăn thông tin -->
+    <aside class="chat-drawer" id="chatDrawer" aria-label="Thông tin cuộc trò chuyện">
+      <div class="chat-drawer__inner">
+        <div class="drawer-head">
+          <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" id="drawerClose" aria-label="Đóng ngăn thông tin"><i data-lucide="x"></i></button>
+        </div>
+        <div class="drawer-profile">
+          <span class="a-avatar a-avatar--72" id="drawerAvatar"></span>
+          <div class="drawer-profile__name" id="drawerName"></div>
+          <div class="drawer-profile__status" id="drawerStatus"></div>
+          <div class="drawer-profile__actions">
+            <button class="a-btn a-btn--secondary a-btn--sm" type="button" id="drawerCall"><i data-lucide="video"></i>Gọi video</button>
+          </div>
+        </div>
+        <div class="drawer-section">
+          <div class="drawer-section__title">Tìm trong cuộc trò chuyện</div>
+          <label class="a-search">
+            <i data-lucide="search"></i>
+            <input class="a-input" type="search" id="threadSearch" placeholder="Nhập từ khoá" aria-label="Tìm trong cuộc trò chuyện">
+          </label>
+          <div class="drawer-search__nav" id="threadSearchNav" hidden>
+            <span id="threadSearchCount"></span>
+            <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" id="threadSearchPrev" aria-label="Kết quả trước"><i data-lucide="chevron-up"></i></button>
+            <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" id="threadSearchNext" aria-label="Kết quả sau"><i data-lucide="chevron-down"></i></button>
+          </div>
+        </div>
+        <div class="drawer-section">
+          <div class="drawer-section__title">Ảnh đã chia sẻ <span id="drawerMediaCount"></span></div>
+          <div class="drawer-media" id="drawerMedia"></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- ======================= LỚP PHỦ ======================= -->
+
+<!-- Chuyển tiếp -->
+<div class="a-scrim" id="forwardScrim" hidden></div>
+<div class="a-dialog" id="forwardDialog" role="dialog" aria-modal="true" aria-labelledby="forwardTitle" hidden>
+  <div class="a-dialog__head">
+    <h2 class="a-dialog__title" id="forwardTitle">Chuyển tiếp tin nhắn</h2>
+    <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" data-close aria-label="Đóng"><i data-lucide="x"></i></button>
+  </div>
+  <div class="a-dialog__body">
+    <div class="composer-preview" style="margin-bottom:12px">
+      <span class="composer-preview__bar" aria-hidden="true"></span>
+      <div class="composer-preview__text"><div class="composer-preview__snippet" id="forwardSnippet"></div></div>
+    </div>
+    <label class="a-search" style="margin-bottom:8px">
+      <i data-lucide="search"></i>
+      <input class="a-input" type="search" id="forwardSearch" placeholder="Tìm bạn bè" aria-label="Tìm bạn bè để chuyển tiếp">
+    </label>
+    <div class="a-list" id="forwardTargetList"></div>
+  </div>
+</div>
+
+<!-- Cuộc gọi đến -->
+<div class="ring" id="incomingCallToast" role="alertdialog" aria-labelledby="incomingCallName" hidden>
+  <span class="a-avatar a-avatar--44" id="incomingCallAvatar"></span>
+  <div class="ring__text">
+    <div class="ring__name" id="incomingCallName"></div>
+    <div class="ring__sub">Cuộc gọi video đến</div>
+  </div>
+  <button class="a-btn a-btn--danger-ghost a-btn--icon" type="button" id="incomingCallDecline" data-tip="Từ chối" aria-label="Từ chối"><i data-lucide="phone-off"></i></button>
+  <button class="a-btn a-btn--icon ring__accept" type="button" id="incomingCallAccept" data-tip="Nghe máy" aria-label="Nghe máy"><i data-lucide="video"></i></button>
+</div>
+
+<!-- Đang gọi -->
+<div class="call" id="callOverlay" role="dialog" aria-modal="true" aria-label="Cuộc gọi video" hidden>
+  <div class="call__remote">
+    <div class="call__who">
+      <span class="a-avatar" id="callAvatar"></span>
+      <div class="call__name" id="callOverlayName"></div>
+      <div class="call__state" id="callOverlayStatus">Đang gọi…</div>
+    </div>
+  </div>
+  <div class="call__top"><span class="a-status" id="callLive" hidden>Đang kết nối</span></div>
+  <div class="call__pip" id="callPip"><span class="a-avatar a-avatar--48" data-tone="1">ĐK</span><span class="call__pip-label">Bạn</span></div>
+  <div class="call__bar">
+    <button class="call__btn" type="button" id="callToggleMicBtn" aria-pressed="false" data-tip="Tắt micro" data-tip-side="top" aria-label="Tắt micro"><i data-lucide="mic"></i></button>
+    <button class="call__btn" type="button" id="callToggleCamBtn" aria-pressed="false" data-tip="Tắt camera" data-tip-side="top" aria-label="Tắt camera"><i data-lucide="video"></i></button>
+    <button class="call__btn call__btn--end" type="button" id="callLeaveBtn" data-tip="Kết thúc" data-tip-side="top" aria-label="Kết thúc cuộc gọi"><i data-lucide="phone-off"></i></button>
+  </div>
+</div>
+
+<!-- Popover dùng chung -->
+<div class="a-pop emoji-pop" id="emojiPop" hidden role="dialog" aria-label="Biểu cảm">
+  <div class="emoji-pop__grid" id="emojiGrid"></div>
+  <div class="emoji-pop__hint">Mẹo: gõ <b>:</b> + tên biểu cảm, ví dụ <b>:smile</b></div>
+</div>
+<div class="a-pop" id="msgMenu" hidden role="menu"></div>
+<div class="a-pop" id="notifPop" hidden></div>
+<div class="a-pop" id="accountPop" hidden role="menu"></div>
+<div class="a-pop demo-pop" id="demoPop" hidden role="menu"></div>
+
+<div class="a-scrim" id="paletteScrim" hidden></div>
+<div class="a-palette" id="palette" role="dialog" aria-modal="true" aria-label="Tìm nhanh" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+<script src="motion.js"></script>
+<script src="shell.js"></script>
+<script src="chat-demo.js"></script>
+</body>
+</html>

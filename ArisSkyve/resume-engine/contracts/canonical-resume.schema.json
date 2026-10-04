@@ -1,0 +1,544 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "meta": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "version": {
+          "type": "string"
+        },
+        "theme": {
+          "type": "object",
+          "properties": {
+            "primaryColor": {
+              "type": "string"
+            },
+            "accentColor": {
+              "type": "string"
+            },
+            "fontHeading": {
+              "type": "string"
+            },
+            "fontBody": {
+              "type": "string"
+            },
+            "radius": {
+              "type": "string",
+              "enum": [
+                "none",
+                "sm",
+                "md",
+                "full"
+              ]
+            }
+          },
+          "required": [
+            "primaryColor",
+            "accentColor",
+            "fontHeading",
+            "fontBody",
+            "radius"
+          ]
+        },
+        "atsOptimized": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "slug",
+        "version",
+        "theme"
+      ]
+    },
+    "basics": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "headline": {
+          "type": "string"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "email",
+              "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            },
+            {
+              "type": "string",
+              "const": ""
+            }
+          ]
+        },
+        "phone": {
+          "type": "string"
+        },
+        "location": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            },
+            "remoteStatus": {
+              "type": "string",
+              "enum": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ]
+            }
+          },
+          "required": [
+            "city",
+            "country",
+            "remoteStatus"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "platform": {
+                "type": "string",
+                "enum": [
+                  "github",
+                  "linkedin",
+                  "x",
+                  "portfolio",
+                  "custom"
+                ]
+              },
+              "label": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "required": [
+              "platform",
+              "label",
+              "url"
+            ]
+          }
+        }
+      },
+      "required": [
+        "name",
+        "headline",
+        "email",
+        "phone",
+        "location",
+        "summary",
+        "links"
+      ]
+    },
+    "work": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isCurrent": {
+            "type": "boolean"
+          },
+          "highlights": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "value"
+              ]
+            }
+          },
+          "techStack": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "company",
+          "role",
+          "startDate",
+          "endDate",
+          "isCurrent",
+          "highlights",
+          "techStack"
+        ]
+      }
+    },
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "tagline": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "liveUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "repoUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "featured": {
+            "default": false,
+            "type": "boolean"
+          },
+          "stack": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "tagline",
+          "description",
+          "stack"
+        ]
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "beginner",
+                    "competent",
+                    "expert"
+                  ]
+                },
+                "yearsOfExperience": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          }
+        },
+        "required": [
+          "category",
+          "items"
+        ]
+      }
+    },
+    "education": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "institution": {
+            "type": "string"
+          },
+          "degree": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "gpa": {
+            "type": "string"
+          },
+          "honors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "institution",
+          "degree",
+          "field",
+          "startDate",
+          "endDate"
+        ]
+      }
+    },
+    "customSections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "heading": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "rich-text",
+              "key-value",
+              "timeline",
+              "badge-grid"
+            ]
+          },
+          "content": {}
+        },
+        "required": [
+          "id",
+          "heading",
+          "type",
+          "content"
+        ]
+      }
+    },
+    "importedLayout": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "sourceName": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "sourceId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "nameElementId": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "ocrReviewRequired": {
+          "type": "boolean"
+        },
+        "ocrReviewConfirmed": {
+          "type": "boolean"
+        },
+        "warnings": {
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "pages": {
+          "minItems": 1,
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "width": {
+                "type": "number",
+                "minimum": 10,
+                "maximum": 2000
+              },
+              "height": {
+                "type": "number",
+                "minimum": 10,
+                "maximum": 2000
+              },
+              "background": {
+                "type": "string",
+                "maxLength": 8000000,
+                "pattern": "^data:image\\/jpeg;base64,[A-Za-z0-9+/=]+$"
+              },
+              "elements": {
+                "maxItems": 1500,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "text": {
+                      "type": "string",
+                      "maxLength": 10000
+                    },
+                    "x": {
+                      "type": "number",
+                      "minimum": -2000,
+                      "maximum": 4000
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": -2000,
+                      "maximum": 4000
+                    },
+                    "width": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 4000
+                    },
+                    "height": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 4000
+                    },
+                    "fontSize": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 500
+                    },
+                    "fontFamily": {
+                      "type": "string",
+                      "maxLength": 150
+                    },
+                    "href": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "textEdited": {
+                      "type": "boolean"
+                    },
+                    "color": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    },
+                    "bold": {
+                      "type": "boolean"
+                    },
+                    "italic": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "text",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "fontSize",
+                    "fontFamily",
+                    "color",
+                    "bold",
+                    "italic"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "width",
+              "height",
+              "background",
+              "elements"
+            ]
+          }
+        }
+      },
+      "required": [
+        "version",
+        "sourceName",
+        "warnings",
+        "pages"
+      ]
+    }
+  },
+  "required": [
+    "meta",
+    "basics",
+    "work",
+    "projects",
+    "skills",
+    "education"
+  ],
+  "$id": "https://aris.local/contracts/canonical-resume.schema.json"
+}

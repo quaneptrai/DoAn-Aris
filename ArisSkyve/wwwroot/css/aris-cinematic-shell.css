@@ -1,0 +1,398 @@
+/* =========================================================================
+   ARIS CINEMATIC SHELL PASS — realistic constellation / astral
+   Loaded after aris-cosmos.css. Softens cartoon glow, raises glass weight
+   toward Login/auth DNA, adds shell gestures (nav progress, focus, depth).
+   ========================================================================= */
+
+/* ---- Photographic void depth (studio / cinematic, not neon) ---- */
+body.aris-app-shell {
+  background-color: #01030a !important;
+  background-image:
+    radial-gradient(ellipse 90% 60% at 50% -10%, rgba(30, 58, 138, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 38% 58%, rgba(40, 50, 90, 0.08) 0%, transparent 58%),
+    radial-gradient(ellipse 50% 40% at 12% 30%, rgba(14, 116, 144, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse 45% 35% at 88% 70%, rgba(37, 99, 235, 0.04) 0%, transparent 48%),
+    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(1, 3, 10, 0.92) 0%, transparent 60%) !important;
+}
+
+/* Soft volumetric haze — optical depth, no sparkle blobs */
+.aris-volumetric-haze {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(118deg, transparent 18%, rgba(40, 50, 90, 0.07) 42%, rgba(120, 100, 140, 0.04) 52%, transparent 78%),
+    radial-gradient(ellipse 55% 40% at 70% 18%, rgba(96, 165, 250, 0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 48% 42% at 42% 62%, rgba(70, 80, 130, 0.06) 0%, transparent 68%),
+    radial-gradient(ellipse 40% 35% at 20% 75%, rgba(56, 189, 248, 0.028) 0%, transparent 65%);
+  mix-blend-mode: screen;
+  opacity: 0.9;
+}
+
+body.aris-app-shell > .navbar,
+body.aris-app-shell > main,
+body.aris-app-shell > footer,
+body.aris-app-shell > .toast-container,
+body.aris-app-shell > .aris-nav-progress {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- Shell signature gesture: 2px nav progress ---- */
+.aris-nav-progress {
+  position: sticky;
+  top: var(--aris-nav-height, 68px);
+  left: 0;
+  width: 100%;
+  height: 2px;
+  z-index: 1029;
+  background: transparent;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aris-nav-progress__bar {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, transparent 0%, #2F6FED 20%, #7EC8F5 55%, #2F6FED 100%);
+  box-shadow: 0 0 8px rgba(47, 111, 237, 0.35);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.aris-nav-progress.is-active .aris-nav-progress__bar {
+  opacity: 1;
+  animation: arisNavProgressSweep 720ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes arisNavProgressSweep {
+  0%   { width: 0%; opacity: 0.9; }
+  70%  { width: 85%; opacity: 1; }
+  100% { width: 100%; opacity: 0; }
+}
+
+/* ---- Global focus-visible (keyboard language) ---- */
+.aris-app-shell a:focus-visible,
+.aris-app-shell button:focus-visible,
+.aris-app-shell input:focus-visible,
+.aris-app-shell textarea:focus-visible,
+.aris-app-shell select:focus-visible,
+.aris-app-shell .nav-link:focus-visible,
+.aris-app-shell .btn:focus-visible,
+.aris-app-shell .form-control:focus-visible,
+.aris-app-shell .form-select:focus-visible,
+.aris-app-shell .form-check-input:focus-visible,
+.aris-app-shell [tabindex]:not([tabindex="-1"]):focus-visible {
+  outline: 2px solid rgba(126, 200, 245, 0.85) !important;
+  outline-offset: 2px !important;
+  box-shadow:
+    0 0 0 4px rgba(15, 23, 42, 0.85),
+    0 0 0 6px rgba(47, 111, 237, 0.35) !important;
+}
+
+.aris-app-shell .btn-primary:focus-visible {
+  outline-color: rgba(191, 219, 254, 0.95) !important;
+}
+
+/* ---- Auth-weight glass panels (smoked glass + metallic rim) ---- */
+.aris-app-shell .card,
+.aris-app-shell .aris-card,
+.aris-app-shell .feed-composer-card,
+.aris-app-shell .profile-rail-card,
+.aris-app-shell .filter-sidebar-card,
+.aris-app-shell .jobs-rail-card,
+.aris-app-shell .post-card,
+.aris-app-shell .job-card,
+.aris-app-shell .modal-content {
+  background:
+    linear-gradient(155deg, rgba(14, 22, 40, 0.62) 0%, rgba(8, 12, 24, 0.74) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  border-top-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow:
+    0 18px 48px -16px rgba(0, 0, 0, 0.72),
+    0 0 0 1px rgba(47, 111, 237, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.14) !important;
+  backdrop-filter: blur(22px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(160%) !important;
+}
+
+.aris-app-shell .card:hover,
+.aris-app-shell .job-card:hover,
+.aris-app-shell .post-card:hover,
+.aris-app-shell .aris-card-interactive:hover,
+.aris-app-shell .cosmos-lift:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(147, 197, 253, 0.28) !important;
+  box-shadow:
+    0 22px 52px -14px rgba(0, 0, 0, 0.78),
+    0 0 28px -10px rgba(47, 111, 237, 0.28),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Soften cartoon icon bounce / rotate */
+.aris-app-shell .navbar .nav-link:hover svg {
+  transform: scale(1.06) !important;
+  filter: drop-shadow(0 0 6px rgba(126, 200, 245, 0.35)) !important;
+}
+.aris-app-shell .btn:hover svg {
+  transform: none !important;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.25)) !important;
+}
+.aris-app-shell .navbar .nav-item.active::after {
+  height: 2px !important;
+  bottom: -12px !important;
+  box-shadow: 0 0 8px rgba(126, 200, 245, 0.45) !important;
+}
+.aris-app-shell .constellation-name-label,
+.aris-app-shell main::after {
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.25) !important;
+  color: rgba(186, 210, 235, 0.55) !important;
+  letter-spacing: 0.22em !important;
+  font-weight: 600 !important;
+}
+.aris-app-shell main::before {
+  filter: drop-shadow(0 0 6px rgba(126, 200, 245, 0.22)) !important;
+  opacity: 0.45 !important;
+}
+.aris-app-shell hr::before,
+.aris-app-shell hr::after {
+  box-shadow: 0 0 3px rgba(147, 197, 253, 0.35) !important;
+  opacity: 0.55;
+}
+
+/* ---- Footer: quieter, studio ---- */
+.aris-app-shell .cosmos-app-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, transparent 0%, rgba(2, 4, 9, 0.55) 100%);
+  color: #6B7F9A;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+/* ---- Toast: smoked glass ---- */
+.aris-app-shell .toast {
+  background: rgba(12, 18, 34, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(16px);
+  color: #E9EEF6 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+.aris-app-shell .cosmos-toast-success {
+  border-left: 3px solid #34D399 !important;
+}
+.aris-app-shell .cosmos-toast-danger {
+  border-left: 3px solid #F87171 !important;
+}
+
+/* ---- Dashboard: hero weight + trajectory gesture ---- */
+.dashboard-page .dashboard-heading {
+  position: relative;
+  padding: 18px 20px 18px;
+  margin-bottom: 6px;
+  border-radius: 20px;
+  background:
+    linear-gradient(145deg, rgba(14, 22, 40, 0.55) 0%, rgba(8, 12, 24, 0.72) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-top-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 20px 50px -20px rgba(0, 0, 0, 0.65),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  overflow: hidden;
+}
+.dashboard-page .dashboard-heading::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 80% at 92% 20%, rgba(47, 111, 237, 0.12) 0%, transparent 55%);
+  pointer-events: none;
+}
+.dashboard-trajectory {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 200px;
+  height: 80px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+.dashboard-trajectory path {
+  fill: none;
+  stroke: rgba(126, 200, 245, 0.55);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-dasharray: 280;
+  stroke-dashoffset: 280;
+  animation: dashTrajectoryDraw 900ms cubic-bezier(0.22, 1, 0.36, 1) 200ms forwards;
+}
+.dashboard-trajectory circle {
+  fill: #7EC8F5;
+  opacity: 0;
+  animation: dashTrajectoryNode 400ms ease 900ms forwards;
+}
+@keyframes dashTrajectoryDraw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes dashTrajectoryNode {
+  to { opacity: 0.85; }
+}
+
+.dashboard-page .feed-composer-card,
+.dashboard-page .post-card,
+.dashboard-page .profile-rail-card {
+  animation: arisShellEnter 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.dashboard-page .feed-composer-card { animation-delay: 80ms; }
+.dashboard-page .feed-header-bar { animation: arisShellEnter 560ms cubic-bezier(0.22, 1, 0.36, 1) 140ms both; }
+
+@keyframes arisShellEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---- Jobs: card hierarchy + search weight ---- */
+.jobs-search-box {
+  background: rgba(11, 17, 32, 0.78) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-top-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow:
+    0 20px 48px -16px rgba(0, 0, 0, 0.7),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+}
+.job-card {
+  position: relative;
+}
+.job-card .job-title-link,
+.job-card h6.job-title-link {
+  color: #F1F5F9 !important;
+  font-family: 'Plus Jakarta Sans', 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+.job-card .job-meta-pill {
+  background: rgba(255, 255, 255, 0.035) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #8BA0BC !important;
+}
+.job-card .salary-tag {
+  font-family: 'Plus Jakarta Sans', 'Space Grotesk', system-ui, sans-serif;
+}
+.job-card.is-entering {
+  animation: arisShellEnter 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ---- Settings / Profile light shell polish ---- */
+.settings-page .card,
+.profile-page .card,
+body:has(.settings-shell) .card {
+  border-radius: 16px !important;
+}
+
+/* ---- Skeleton already in cosmos; ensure contrast ---- */
+.aris-app-shell .aris-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(147, 197, 253, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  ) !important;
+  background-size: 200% 100% !important;
+  border-radius: 8px;
+}
+
+@media (max-width: 991px) {
+  .dashboard-trajectory { display: none; }
+  .dashboard-page .dashboard-heading { padding: 16px 14px; }
+}
+
+/* ---- Density pass: hug edges, less empty gutters (desktop) ---- */
+@media (min-width: 1200px) {
+  .aris-app-shell .dashboard-page,
+  .aris-app-shell .jobs-page,
+  .aris-app-shell main > .container,
+  .aris-app-shell main > .container-lg,
+  .aris-app-shell main > .container-xl,
+  .aris-app-shell main > .container-xxl,
+  .aris-app-shell .cosmos-page-container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .aris-app-shell .dashboard-page {
+    padding-top: 14px !important;
+    padding-bottom: 28px !important;
+  }
+  .aris-app-shell .jobs-page,
+  .aris-app-shell .cosmos-page-head {
+    padding-top: 16px !important;
+  }
+  .aris-app-shell .dashboard-page .row,
+  .aris-app-shell .jobs-page .row {
+    --bs-gutter-x: 1rem;
+  }
+  .aris-app-shell .feed-composer-card,
+  .aris-app-shell .post-card,
+  .aris-app-shell .job-card {
+    margin-bottom: 14px !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .aris-app-shell .dashboard-page,
+  .aris-app-shell .jobs-page {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .aris-app-shell .dashboard-page .dashboard-heading { padding: 14px 12px; }
+}
+
+/* Soften leftover neon glow intensity */
+.aris-app-shell .card:hover,
+.aris-app-shell .job-card:hover,
+.aris-app-shell .post-card:hover {
+  box-shadow:
+    0 18px 44px -14px rgba(0, 0, 0, 0.72),
+    0 0 18px -12px rgba(47, 111, 237, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.14) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aris-nav-progress__bar,
+  .dashboard-trajectory path,
+  .dashboard-trajectory circle,
+  .dashboard-page .feed-composer-card,
+  .dashboard-page .post-card,
+  .dashboard-page .profile-rail-card,
+  .dashboard-page .feed-header-bar,
+  .job-card.is-entering {
+    animation: none !important;
+  }
+  .dashboard-trajectory path { stroke-dashoffset: 0; }
+  .dashboard-trajectory circle { opacity: 0.7; }
+  .aris-app-shell .card:hover,
+  .aris-app-shell .job-card:hover,
+  .aris-app-shell .post-card:hover {
+    transform: none !important;
+  }
+}
+
+
+/* ---- Living cosmos canvas stacking (do not bury planets) ---- */
+body.aris-app-shell > #arisCosmicCanvas,
+body.aris-app-shell > canvas.aris-cosmos-canvas {
+  position: fixed !important;
+  z-index: 0 !important;
+}
+body.aris-app-shell > #arisCosmicConstellationStage {
+  position: fixed !important;
+  z-index: 40 !important;
+  pointer-events: none !important;
+}
+body.aris-home-earth-stage > #arisCosmicConstellationStage {
+  z-index: 60 !important;
+}
+body.aris-home-earth-stage > #arisCosmicCanvas {
+  display: none !important;
+}

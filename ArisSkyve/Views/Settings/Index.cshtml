@@ -1,0 +1,447 @@
+@model ArisSkyve.Domain.Entities.User
+@{
+    var profile = Model.Profile;
+    var avatar = !string.IsNullOrWhiteSpace(profile?.AvatarUrl) ? profile.AvatarUrl : "/images/default-avatar.png";
+
+    ViewData["Title"] = "Cài đặt tài khoản";
+    ViewData["ActiveNav"] = "Settings";
+    Layout = "_AppLayout";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/settings.css" asp-append-version="true" />
+}
+
+<form id="settingsAntiforgeryForm" style="display:none">@Html.AntiForgeryToken()</form>
+
+<div class="settings-page">
+    <!-- Header -->
+    <header class="a-pagehead">
+        <div class="a-pagehead__eyebrow">
+            <i data-lucide="settings"></i> Thiết lập hệ thống
+        </div>
+        <div class="a-pagehead__title-row">
+            <h1 class="a-pagehead__title">Cài đặt tài khoản</h1>
+        </div>
+        <p class="a-pagehead__sub">Quản lý thông tin định danh, quyền riêng tư, tùy chọn hiển thị và phiên làm việc.</p>
+    </header>
+
+    <div class="settings-grid">
+        <!-- Sticky Navigation -->
+        <nav class="settings-nav" aria-label="Mục cài đặt">
+            <a href="#sec-account" class="settings-nav__item is-active">
+                <i data-lucide="user"></i> Tài khoản
+            </a>
+            <a href="#sec-privacy" class="settings-nav__item">
+                <i data-lucide="shield"></i> Quyền riêng tư
+            </a>
+            <a href="#sec-appearance" class="settings-nav__item">
+                <i data-lucide="sun-moon"></i> Giao diện
+            </a>
+            @if (Model.Role == "Business")
+            {
+                <a href="#sec-rejection" class="settings-nav__item">
+                    <i data-lucide="mail"></i> Mẫu từ chối
+                </a>
+                <a href="#sec-social" class="settings-nav__item">
+                    <i data-lucide="share-2"></i> Kênh liên kết
+                </a>
+            }
+            <a href="#sec-session" class="settings-nav__item">
+                <i data-lucide="log-out"></i> Đăng xuất
+            </a>
+        </nav>
+
+        <!-- Content Sections -->
+        <main class="settings-content">
+            <!-- 1. Hồ sơ & Tài khoản -->
+            <section class="settings-sec" id="sec-account">
+                <div class="settings-sec__head">
+                    <h2 class="settings-sec__title">Hồ sơ & Tài khoản</h2>
+                    <p class="settings-sec__desc">Ảnh đại diện và tên người dùng hiển thị với các thành viên khác trên Aris.</p>
+                </div>
+
+                <!-- Avatar Upload Row -->
+                <div class="settings-row">
+                    <div class="d-flex align-items-center gap-4">
+                        <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0;">
+                            <img id="avatarPreview" src="@avatar" alt="@Model.Username" class="rounded-circle" style="width: 80px; height: 80px; object-fit: cover; border: 2px solid var(--line); box-shadow: var(--shadow-1);" />
+                            <label for="avatarInput" class="position-absolute bottom-0 end-0 d-grid place-items-center rounded-circle" style="width: 28px; height: 28px; background: var(--brand); color: #fff; cursor: pointer; box-shadow: var(--shadow-2); border: 2px solid var(--surface);" title="Đổi ảnh đại diện">
+                                <i data-lucide="camera" style="width: 14px; height: 14px;"></i>
+                            </label>
+                            <input type="file" id="avatarInput" accept="image/png,image/jpeg,image/webp,image/gif" class="d-none" />
+                        </div>
+                        <div>
+                            <div class="fw-bold" style="font-size: var(--fs-16); color: var(--text);" id="avatarUsernameDisplay">@Model.Username</div>
+                            <div class="small" style="color: var(--text-3);">@Model.Email</div>
+                            <div class="small fw-medium mt-1" id="avatarStatus"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Username Form -->
+                <div>
+                    <label class="a-label" for="usernameInput">Tên người dùng (Username)</label>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="usernameInput" class="a-input flex-grow-1" value="@Model.Username" maxlength="50" />
+                        <button type="button" id="saveUsernameBtn" class="a-btn a-btn--primary">
+                            Lưu tên
+                        </button>
+                    </div>
+                    <div class="small fw-medium mt-1" id="usernameStatus"></div>
+                </div>
+
+                <!-- Email Display -->
+                <div>
+                    <label class="a-label">Địa chỉ Email</label>
+                    <input type="text" class="a-input" value="@Model.Email" disabled style="opacity: 0.7; cursor: not-allowed;" />
+                    <span class="a-help">Email liên kết với tài khoản đăng nhập và không thể thay đổi tại đây.</span>
+                </div>
+            </section>
+
+            <!-- 2. Quyền riêng tư & Trạng thái -->
+            <section class="settings-sec" id="sec-privacy">
+                <div class="settings-sec__head">
+                    <h2 class="settings-sec__title">Quyền riêng tư & Trạng thái</h2>
+                    <p class="settings-sec__desc">Kiểm soát thông tin người khác có thể nhìn thấy về hoạt động của bạn.</p>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row__text">
+                        <div class="settings-row__label">Hiển thị khi bạn đang trực tuyến</div>
+                        <div class="settings-row__sub">Cho phép bạn bè và nhà tuyển dụng nhìn thấy chấm xanh khi bạn hoạt động trên Aris.</div>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="activeStatusToggle" @(Model.ShowActiveStatus ? "checked" : "") style="cursor: pointer; width: 40px; height: 22px;">
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Giao diện & Chủ đề -->
+            <section class="settings-sec" id="sec-appearance">
+                <div class="settings-sec__head">
+                    <h2 class="settings-sec__title">Giao diện & Chủ đề</h2>
+                    <p class="settings-sec__desc">Tùy biến hiển thị theo sở thích cá nhân hoặc điều kiện ánh sáng.</p>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row__text">
+                        <div class="settings-row__label">Chế độ màu</div>
+                        <div class="settings-row__sub">Chọn chủ đề Sáng, Tối hoặc Tự động theo hệ điều hành.</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="a-btn a-btn--secondary a-btn--sm theme-btn" data-theme-val="light">
+                            <i data-lucide="sun" style="width: 14px; height: 14px;"></i> Sáng
+                        </button>
+                        <button type="button" class="a-btn a-btn--secondary a-btn--sm theme-btn" data-theme-val="dark">
+                            <i data-lucide="moon" style="width: 14px; height: 14px;"></i> Tối
+                        </button>
+                        <button type="button" class="a-btn a-btn--secondary a-btn--sm theme-btn" data-theme-val="auto">
+                            <i data-lucide="monitor" style="width: 14px; height: 14px;"></i> Tự động
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            @if (Model.Role == "Business")
+            {
+                <!-- 4. Mẫu từ chối ứng viên (Doanh nghiệp) -->
+                <section class="settings-sec" id="sec-rejection">
+                    <div class="settings-sec__head">
+                        <h2 class="settings-sec__title">Mẫu phản hồi từ chối ứng viên</h2>
+                        <p class="settings-sec__desc">Các mẫu phản hồi nhanh được lưu sẵn để chọn nhanh khi gửi thư từ chối đến ứng viên.</p>
+                    </div>
+
+                    <div id="rejectionTemplateList" class="d-flex flex-column gap-2 mb-2"></div>
+
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top" style="border-color: var(--line-soft) !important;">
+                        <button type="button" id="addTemplateBtn" class="a-btn a-btn--secondary a-btn--sm">
+                            <i data-lucide="plus" style="width: 14px; height: 14px;"></i> Thêm mẫu mới
+                        </button>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" id="saveTemplatesBtn" class="a-btn a-btn--primary a-btn--sm">
+                                Lưu mẫu
+                            </button>
+                            <span id="templatesStatus" class="small fw-medium"></span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Kênh liên kết xã hội -->
+                <section class="settings-sec" id="sec-social">
+                    <div class="settings-sec__head">
+                        <h2 class="settings-sec__title">Kênh tuyển dụng liên kết</h2>
+                        <p class="settings-sec__desc">Kết nối Fanpage Facebook và Zalo OA để tự động phân phối tin tuyển dụng.</p>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="settings-row__text">
+                            <div class="settings-row__label">Fanpage Facebook</div>
+                            <div class="settings-row__sub">Tự động chia sẻ tin tuyển dụng khi phê duyệt và đăng bài mới.</div>
+                        </div>
+                        <a asp-controller="SocialConnect" asp-action="SelectFacebookPage" class="a-btn a-btn--secondary a-btn--sm">
+                            <i data-lucide="facebook" style="width: 14px; height: 14px;"></i> Quản lý kết nối
+                        </a>
+                    </div>
+                </section>
+            }
+
+            <!-- 6. Phiên đăng nhập -->
+            <section class="settings-sec" id="sec-session" style="border-color: var(--line);">
+                <div class="settings-sec__head">
+                    <h2 class="settings-sec__title" style="color: var(--danger, #dc2626);">Phiên đăng nhập</h2>
+                    <p class="settings-sec__desc">Đăng xuất tài khoản khỏi thiết bị và trình duyệt hiện tại.</p>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row__text">
+                        <div class="settings-row__label">Đăng xuất tài khoản</div>
+                        <div class="settings-row__sub">Kết thúc phiên làm việc an toàn trên trình duyệt này.</div>
+                    </div>
+                    <form asp-controller="Account" asp-action="Logout" method="post" id="logoutForm">
+                        @Html.AntiForgeryToken()
+                        <button type="button" class="a-btn a-btn--ghost text-danger" id="logoutBtn">
+                            <i data-lucide="log-out" style="width: 14px; height: 14px;"></i> Đăng xuất
+                        </button>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const avatarInput = document.getElementById("avatarInput");
+            const avatarPreview = document.getElementById("avatarPreview");
+            const avatarStatus = document.getElementById("avatarStatus");
+            const usernameInput = document.getElementById("usernameInput");
+            const saveUsernameBtn = document.getElementById("saveUsernameBtn");
+            const usernameStatus = document.getElementById("usernameStatus");
+            const avatarUsernameDisplay = document.getElementById("avatarUsernameDisplay");
+            const activeStatusToggle = document.getElementById("activeStatusToggle");
+
+            function antiForgeryHeaders(headers = {}) {
+                const token = document.querySelector('#settingsAntiforgeryForm input[name="__RequestVerificationToken"]')?.value;
+                return token ? { ...headers, RequestVerificationToken: token } : headers;
+            }
+
+            function flashStatus(el, text, isError) {
+                if (!el) return;
+                el.textContent = text;
+                el.className = isError ? "small fw-medium text-danger mt-1" : "small fw-medium text-success mt-1";
+                if (window.showToast) {
+                    window.showToast(text, isError ? "danger" : "success");
+                }
+                setTimeout(() => { el.textContent = ""; }, 2500);
+            }
+
+            // Avatar upload
+            if (avatarInput) {
+                avatarInput.addEventListener("change", async () => {
+                    const file = avatarInput.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append("avatar", file);
+
+                    if (avatarStatus) {
+                        avatarStatus.textContent = "Đang tải ảnh...";
+                        avatarStatus.className = "small fw-medium text-primary mt-1";
+                    }
+
+                    try {
+                        const res = await fetch("/Settings/UpdateAvatar", { method: "POST", headers: antiForgeryHeaders(), body: formData });
+                        const result = await res.json();
+                        if (result.success) {
+                            if (avatarPreview) avatarPreview.src = result.avatarUrl;
+                            flashStatus(avatarStatus, "Đã cập nhật ảnh đại diện!", false);
+                        } else {
+                            flashStatus(avatarStatus, result.message || "Tải ảnh thất bại.", true);
+                        }
+                    } catch {
+                        flashStatus(avatarStatus, "Không thể kết nối máy chủ.", true);
+                    }
+                });
+            }
+
+            // Save username
+            if (saveUsernameBtn && usernameInput) {
+                saveUsernameBtn.addEventListener("click", async () => {
+                    const username = usernameInput.value.trim();
+                    if (!username) return;
+
+                    const formData = new FormData();
+                    formData.append("username", username);
+
+                    try {
+                        const res = await fetch("/Settings/UpdateUsername", { method: "POST", headers: antiForgeryHeaders(), body: formData });
+                        const result = await res.json();
+                        if (result.success) {
+                            if (avatarUsernameDisplay) avatarUsernameDisplay.textContent = result.username;
+                            flashStatus(usernameStatus, "Đã lưu tên hiển thị!", false);
+                        } else {
+                            flashStatus(usernameStatus, result.message || "Không thể lưu tên hiển thị.", true);
+                        }
+                    } catch {
+                        flashStatus(usernameStatus, "Không thể kết nối máy chủ.", true);
+                    }
+                });
+            }
+
+            // Toggle active status
+            if (activeStatusToggle) {
+                activeStatusToggle.addEventListener("change", async () => {
+                    const enabled = activeStatusToggle.checked;
+                    const formData = new FormData();
+                    formData.append("enabled", enabled);
+
+                    try {
+                        const res = await fetch("/Settings/UpdateActiveStatus", { method: "POST", headers: antiForgeryHeaders(), body: formData });
+                        const result = await res.json();
+                        if (!result.success) {
+                            activeStatusToggle.checked = !enabled;
+                        } else {
+                            if (window.showToast) {
+                                window.showToast(enabled ? "Đã bật hiển thị trạng thái trực tuyến." : "Đã tắt hiển thị trạng thái trực tuyến.", "info");
+                            }
+                        }
+                    } catch {
+                        activeStatusToggle.checked = !enabled;
+                    }
+                });
+            }
+
+            // Theme Switcher Buttons
+            const themeBtns = document.querySelectorAll(".theme-btn");
+            const currentTheme = localStorage.getItem("aris-theme") || "auto";
+            themeBtns.forEach(btn => {
+                if (btn.getAttribute("data-theme-val") === currentTheme) {
+                    btn.classList.add("a-btn--primary");
+                    btn.classList.remove("a-btn--secondary");
+                }
+                btn.addEventListener("click", function () {
+                    const val = this.getAttribute("data-theme-val");
+                    themeBtns.forEach(b => {
+                        b.classList.remove("a-btn--primary");
+                        b.classList.add("a-btn--secondary");
+                    });
+                    this.classList.add("a-btn--primary");
+                    this.classList.remove("a-btn--secondary");
+
+                    localStorage.setItem("aris-theme", val);
+                    if (val === "auto") {
+                        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                        document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
+                    } else {
+                        document.documentElement.setAttribute("data-theme", val);
+                    }
+                    if (window.showToast) window.showToast("Đã đổi chủ đề giao diện.", "info");
+                });
+            });
+
+            // Rejection templates for Business accounts
+            const templateList = document.getElementById("rejectionTemplateList");
+            if (templateList) {
+                const addTemplateBtn = document.getElementById("addTemplateBtn");
+                const saveTemplatesBtn = document.getElementById("saveTemplatesBtn");
+                const templatesStatus = document.getElementById("templatesStatus");
+
+                function addTemplateRow(text) {
+                    const row = document.createElement("div");
+                    row.className = "d-flex gap-2 rejection-template-row";
+                    row.innerHTML = `
+                        <textarea class="a-textarea flex-grow-1" rows="2" placeholder="Nhập nội dung mẫu phản hồi..."></textarea>
+                        <button type="button" class="a-btn a-btn--ghost a-btn--sm text-danger remove-template-btn flex-shrink-0" style="height: 42px;" title="Xóa mẫu">
+                            <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+                        </button>`;
+                    row.querySelector("textarea").value = text || "";
+                    templateList.appendChild(row);
+                    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                        window.lucide.createIcons();
+                    }
+                }
+
+                templateList.addEventListener("click", (e) => {
+                    const btn = e.target.closest(".remove-template-btn");
+                    if (btn) btn.closest(".rejection-template-row").remove();
+                });
+
+                if (addTemplateBtn) {
+                    addTemplateBtn.addEventListener("click", () => addTemplateRow(""));
+                }
+
+                if (saveTemplatesBtn) {
+                    saveTemplatesBtn.addEventListener("click", async () => {
+                        const templates = Array.from(templateList.querySelectorAll("textarea"))
+                            .map(t => t.value.trim())
+                            .filter(t => t);
+
+                        try {
+                            const res = await fetch("/Settings/UpdateRejectionTemplates", {
+                                method: "POST",
+                                headers: antiForgeryHeaders({ "Content-Type": "application/json" }),
+                                body: JSON.stringify({ templates })
+                            });
+                            const result = await res.json();
+                            if (result.success) {
+                                flashStatus(templatesStatus, "Đã lưu mẫu thành công!", false);
+                            } else {
+                                flashStatus(templatesStatus, result.message || "Không thể lưu.", true);
+                            }
+                        } catch {
+                            flashStatus(templatesStatus, "Không thể kết nối máy chủ.", true);
+                        }
+                    });
+                }
+
+                (async function loadTemplates() {
+                    try {
+                        const res = await fetch("/Settings/GetRejectionTemplates");
+                        const result = await res.json();
+                        if (result.success && result.templates && result.templates.length > 0) {
+                            result.templates.forEach(addTemplateRow);
+                        } else {
+                            addTemplateRow("Cảm ơn bạn đã quan tâm đến vị trí tại công ty. Sau khi xem xét kỹ lưỡng hồ sơ, chúng tôi rất tiếc chưa thể đồng hành cùng bạn vào thời điểm hiện tại.");
+                        }
+                    } catch {
+                        addTemplateRow("");
+                    }
+                })();
+            }
+
+            // Logout Confirmation
+            const logoutBtn = document.getElementById("logoutBtn");
+            const logoutForm = document.getElementById("logoutForm");
+            if (logoutBtn && logoutForm) {
+                logoutBtn.addEventListener("click", () => {
+                    if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi Aris?")) {
+                        logoutForm.submit();
+                    }
+                });
+            }
+
+            // Scrollspy for settings nav
+            const navLinks = document.querySelectorAll(".settings-nav__item");
+            const sections = document.querySelectorAll(".settings-sec");
+            window.addEventListener("scroll", () => {
+                let current = "";
+                sections.forEach(sec => {
+                    const top = sec.offsetTop;
+                    if (window.scrollY >= top - 120) {
+                        current = sec.getAttribute("id");
+                    }
+                });
+                if (current) {
+                    navLinks.forEach(link => {
+                        link.classList.remove("is-active");
+                        if (link.getAttribute("href") === "#" + current) {
+                            link.classList.add("is-active");
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+}

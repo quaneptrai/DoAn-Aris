@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aris Career Studio — Login V5: Particle Wordmark (ARIS)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink-base: #070B14;
+      --ink-depth: #0B1120;
+      --pearl-bay: #F0EEE8;
+      --pearl-border: #E2DFD7;
+      --text-dark: #172031;
+      --text-muted: #64748B;
+      --text-light-sub: #94A3B8;
+      --cobalt: #355CFF;
+      --cobalt-hover: #2348E0;
+      --font-display: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      --font-body: 'Inter', -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: var(--font-body);
+      background-color: var(--ink-base);
+      color: var(--text-dark);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Fullscreen Split Architecture */
+    .page-layout {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* -------------------------------------------------------------
+       LEFT REGION (~62%): IMMERSIVE INK SCENE & 3D ARIS WORDMARK
+       ------------------------------------------------------------- */
+    .stage-dark-scene {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(ellipse at 30% 45%, rgba(47, 85, 237, 0.16) 0%, transparent 60%),
+                  radial-gradient(ellipse at 80% 85%, rgba(11, 17, 32, 0.9) 0%, transparent 70%),
+                  var(--ink-base);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* Header in Dark Stage */
+    .dark-header {
+      height: 80px;
+      padding: 0 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 30;
+    }
+
+    .brand-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .brand-svg {
+      width: 32px;
+      height: 32px;
+    }
+    .brand-name {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.02em;
+    }
+
+    .header-motion-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-light-sub);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .header-motion-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #FFFFFF;
+    }
+    .header-motion-btn.active {
+      border-color: var(--cobalt);
+      color: #93C5FD;
+    }
+
+    /* 3D WebGL Canvas Layer (The Assembled ARIS Wordmark) */
+    .canvas-container {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      overflow: hidden;
+    }
+    #resonanceCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Dark Stage Bottom Credits */
+    .dark-footer {
+      height: 52px;
+      padding: 0 48px;
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      color: rgba(148, 163, 184, 0.6);
+      position: relative;
+      z-index: 30;
+    }
+
+    /* -------------------------------------------------------------
+       RIGHT REGION (~38%): STRUCTURAL FULL-HEIGHT WARM PEARL BAY
+       ------------------------------------------------------------- */
+    .bay-pearl-auth {
+      width: 460px;
+      min-width: 460px;
+      max-width: 460px;
+      height: 100vh;
+      background: var(--pearl-bay);
+      border-left: 1px solid rgba(53, 92, 255, 0.22);
+      box-shadow: -16px 0 48px rgba(0, 0, 0, 0.35);
+      position: relative;
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px 44px 32px 44px;
+      overflow-y: auto;
+    }
+
+    .bay-pearl-auth::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 2px;
+      background: linear-gradient(180deg, rgba(53, 92, 255, 0) 0%, rgba(53, 92, 255, 0.6) 35%, rgba(142, 197, 252, 0.7) 65%, rgba(53, 92, 255, 0) 100%);
+      pointer-events: none;
+    }
+
+    .auth-inner-column {
+      width: 100%;
+      max-width: 372px;
+      margin: 0 auto;
+    }
+
+    /* Bay Header */
+    .bay-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 36px;
+    }
+    .bay-brand-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+    .bay-brand-tag svg { width: 20px; height: 20px; }
+
+    .bay-mode-badge {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Editorial Greeting */
+    .auth-greeting-group {
+      margin-bottom: 24px;
+    }
+    .auth-greeting {
+      font-family: var(--font-display);
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1.15;
+      color: var(--text-dark);
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .auth-subline {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .form-instruction {
+      font-size: 14px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 16px;
+    }
+
+    /* Form Fields & Controls */
+    .field-wrap {
+      margin-bottom: 18px;
+    }
+    .field-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+    .field-input-inset {
+      width: 100%;
+      height: 54px;
+      background: #FFFFFF;
+      border: 1px solid var(--pearl-border);
+      border-radius: 10px;
+      padding: 0 18px;
+      font-family: var(--font-body);
+      font-size: 16px;
+      color: var(--text-dark);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
+      transition: all 0.2s ease;
+    }
+    .field-input-inset:focus {
+      outline: none;
+      border-color: var(--cobalt);
+      box-shadow: 0 0 0 3px rgba(53, 92, 255, 0.16), inset 0 1px 2px rgba(0, 0, 0, 0.02);
+      background: #FFFFFF;
+    }
+    .field-input-inset.has-error {
+      border-color: #DC2626;
+      background: #FEF2F2;
+    }
+    .field-error-notice {
+      display: none;
+      font-size: 12px;
+      font-weight: 500;
+      color: #DC2626;
+      margin-top: 6px;
+    }
+    .field-error-notice.visible { display: block; }
+
+    /* Primary Submit CTA */
+    .btn-submit-cta {
+      width: 100%;
+      height: 54px;
+      background: var(--cobalt);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 10px;
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 22px;
+      box-shadow: 0 4px 14px rgba(53, 92, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transition: all 0.2s ease;
+    }
+    .btn-submit-cta:hover {
+      background: var(--cobalt-hover);
+      box-shadow: 0 6px 18px rgba(53, 92, 255, 0.38);
+      transform: translateY(-1px);
+    }
+    .btn-submit-cta:active {
+      transform: translateY(1px);
+    }
+    .btn-submit-cta:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .cta-label-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cta-arrow-box {
+      width: 28px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
+    }
+    .btn-submit-cta:hover .cta-arrow-box {
+      transform: translateX(2px);
+    }
+
+    .auth-helper-note {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    /* Divider */
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      margin: 22px 0 18px 0;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid var(--pearl-border);
+    }
+    .auth-divider span {
+      padding: 0 14px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: lowercase;
+    }
+
+    /* Full-Width Social Buttons */
+    .social-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-social-full {
+      width: 100%;
+      height: 48px;
+      background: #FFFFFF;
+      border: 1px solid var(--pearl-border);
+      border-radius: 10px;
+      color: #1E293B;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      transition: all 0.2s ease;
+    }
+    .btn-social-full:hover {
+      background: #FAFAFA;
+      border-color: #CBD5E1;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Accepted / Check Email State View */
+    .state-accepted-bay {
+      display: none;
+      padding: 16px 0;
+      text-align: center;
+    }
+    .state-accepted-bay.active { display: block; }
+
+    .check-circle-icon {
+      width: 60px;
+      height: 60px;
+      background: rgba(53, 92, 255, 0.1);
+      border: 1px solid rgba(53, 92, 255, 0.25);
+      color: var(--cobalt);
+      border-radius: 50%;
+      margin: 0 auto 20px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .check-greeting {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .check-subtext {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .check-email-pill {
+      background: #FFFFFF;
+      border: 1px solid var(--pearl-border);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin: 16px 0 20px 0;
+      word-break: break-all;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    }
+    .btn-return-link {
+      background: transparent;
+      border: none;
+      color: var(--cobalt);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* Bay Footer */
+    .bay-foot {
+      padding-top: 24px;
+      border-top: 1px solid rgba(226, 223, 215, 0.7);
+      text-align: center;
+    }
+    .register-line {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .register-line a {
+      color: var(--cobalt);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .bay-legal-links {
+      font-size: 12px;
+      color: #94A3B8;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    /* Dev Review Dock */
+    .review-dock {
+      position: fixed;
+      bottom: 18px;
+      left: 31%;
+      transform: translateX(-50%);
+      background: rgba(7, 11, 20, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+    }
+    .review-dock.hidden { display: none; }
+    .dock-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94A3B8;
+      margin-right: 4px;
+    }
+    .btn-tab {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #CBD5E1;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-tab:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.08); }
+    .btn-tab.active {
+      background: rgba(53, 92, 255, 0.3);
+      border-color: rgba(53, 92, 255, 0.6);
+      color: #93C5FD;
+    }
+
+    /* Responsive Design (390px & 320px) */
+    @media (max-width: 960px) {
+      .page-layout {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+      }
+      .stage-dark-scene {
+        min-height: 360px;
+        height: 44vh;
+        flex: none;
+      }
+      .dark-header { padding: 0 24px; height: 64px; }
+      .dark-footer { display: none; }
+
+      .bay-pearl-auth {
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+        height: auto;
+        border-left: none;
+        border-top: 2px solid var(--cobalt);
+        padding: 40px 24px 32px 24px;
+        box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.3);
+      }
+      .bay-pearl-auth::before { display: none; }
+      .auth-inner-column { max-width: 100%; }
+      .auth-greeting { font-size: 34px; }
+      .review-dock { left: 50%; bottom: 12px; width: 92%; overflow-x: auto; justify-content: center; }
+    }
+
+    @media (max-width: 480px) {
+      .auth-greeting { font-size: 30px; }
+      .field-input-inset, .btn-submit-cta { height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-layout">
+    
+    <!-- LEFT: IMMERSIVE INK SCENE (3D PARTICLES ASSEMBLE INTO ARIS) -->
+    <main class="stage-dark-scene">
+      
+      <!-- Top Bar in Dark Scene -->
+      <header class="dark-header">
+        <a href="#" class="brand-group">
+          <!-- Official Aris Trajectory Brand Mark -->
+          <svg class="brand-svg" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="arisLogoGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#2F6FED"/>
+                <stop offset="100%" stop-color="#7EC8F5"/>
+              </linearGradient>
+            </defs>
+            <path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30" stroke="url(#arisLogoGrad)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="brand-name">Aris</span>
+        </a>
+
+        <button class="header-motion-btn" id="btnPauseMotion" onclick="togglePause()" title="Bật/Tắt chuyển động">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          <span id="txtPauseMotion">Tạm dừng</span>
+        </button>
+      </header>
+
+      <!-- 3D Interactive WebGL Stage -->
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="resonanceCanvas"></canvas>
+      </div>
+
+      <!-- Dark Stage Bottom Credits -->
+      <footer class="dark-footer">
+        <span>© 2026 Aris Career Platform. Trường cộng hưởng tương lai.</span>
+      </footer>
+    </main>
+
+    <!-- RIGHT: STRUCTURAL FULL-HEIGHT WARM PEARL AUTH BAY -->
+    <aside class="bay-pearl-auth" id="pearlAuthBay">
+      
+      <div class="auth-inner-column">
+        
+        <!-- Bay Header -->
+        <div class="bay-top-bar">
+          <div class="bay-brand-tag">
+            <svg viewBox="0 0 200 200" fill="none">
+              <path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30" stroke="#355CFF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Aris Studio</span>
+          </div>
+          <span class="bay-mode-badge">Đăng nhập nhanh</span>
+        </div>
+
+        <!-- State 1: Active Login Form -->
+        <div id="formViewSection">
+          
+          <div class="auth-greeting-group">
+            <h2 class="auth-greeting">Chào bạn.</h2>
+            <p class="auth-subline">Cơ hội tiếp theo bắt đầu từ đây.</p>
+          </div>
+
+          <p class="form-instruction">Nhập email để nhận liên kết đăng nhập.</p>
+
+          <form id="v5AuthForm" onsubmit="submitForm(event)">
+            
+            <div class="field-wrap">
+              <label class="field-label" for="userEmail">Email của bạn</label>
+              <input type="email" id="userEmail" class="field-input-inset" placeholder="ten@vidu.com" required autocomplete="email" onfocus="handleFocus(true)" onblur="handleFocus(false)">
+              <p class="field-error-notice" id="errMail">Vui lòng nhập địa chỉ email hợp lệ (ví dụ: ban@vidu.com).</p>
+            </div>
+
+            <button type="submit" class="btn-submit-cta" id="btnSubmit">
+              <span class="cta-label-wrap">
+                <span id="lblSubmit">Gửi liên kết đăng nhập</span>
+              </span>
+              <span class="cta-arrow-box">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </span>
+            </button>
+
+            <p class="auth-helper-note">Không cần mật khẩu.</p>
+
+            <div class="auth-divider"><span>hoặc</span></div>
+
+            <!-- Full-Width Social Buttons -->
+            <div class="social-stack">
+              <button type="button" class="btn-social-full">
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z"/></svg>
+                <span>Tiếp tục với Google</span>
+              </button>
+              <button type="button" class="btn-social-full">
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#1877F2" d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.31V9h2.284V7.017c0-2.255 1.343-3.501 3.4-3.501.985 0 2.014.176 2.014.176v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.497l-.4 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z"/></svg>
+                <span>Tiếp tục với Facebook</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- State 2: Check Email Accepted View -->
+        <div class="state-accepted-bay" id="stateAcceptedBay">
+          <div class="check-circle-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+            </svg>
+          </div>
+          <h3 class="check-greeting">Kiểm tra email của bạn</h3>
+          <p class="check-subtext">Chúng tôi đã gửi liên kết đăng nhập an toàn đến:</p>
+          <div class="check-email-pill" id="dispSentEmail">ban@vidu.com</div>
+          <p class="check-subtext" style="margin-bottom: 22px;">Nhấp vào liên kết trong email để đăng nhập ngay mà không cần mật khẩu.</p>
+          <button type="button" class="btn-return-link" onclick="backToLogin()">← Nhập lại địa chỉ email</button>
+        </div>
+
+      </div>
+
+      <!-- Bay Footer -->
+      <footer class="bay-foot">
+        <p class="register-line">Chưa có tài khoản? <a href="#">Đăng ký ngay</a></p>
+        <div class="bay-legal-links">
+          <span>Bảo mật</span>
+          <span>•</span>
+          <span>Điều khoản</span>
+          <span>•</span>
+          <span>Trợ giúp</span>
+        </div>
+      </footer>
+    </aside>
+
+  </div>
+
+  <!-- Dev Review Dock -->
+  <aside class="review-dock" id="reviewDock">
+    <span class="dock-title">Wordmark Review:</span>
+    <button class="btn-tab active" onclick="setScreenState('default')">Mặc định</button>
+    <button class="btn-tab" onclick="setScreenState('loading')">Đang gửi</button>
+    <button class="btn-tab" onclick="setScreenState('check-email')">Hộp thư</button>
+    <button class="btn-tab" onclick="setScreenState('error')">Báo lỗi</button>
+    <span style="opacity:0.3; color:#FFFFFF;">|</span>
+    <button class="btn-tab" onclick="replayAssembly()">Hội tụ (Replay)</button>
+  </aside>
+
+  <!-- Locally Pinned Three.js -->
+  <script src="vendor/three.min.js"></script>
+
+  <script>
+    /* =========================================================================
+       ARIS — PARTICLE WORDMARK (V5 Pure 3D Body Assembly Experience)
+       - 4,000 continuous-curvature PBR spheres assemble over 2.4s into uppercase ARIS
+       - Stable glyph targets with open A and R counters and generous stroke thickness
+       - Genuine local pointer breakup with inertia, velocity wake, and smooth spring return
+       - Environment-mapped reflections with PMREM equirectangular lighting
+       - Zero fake text layers: the 3D particles themselves ARE the wordmark
+       ========================================================================= */
+
+    let scene, camera, renderer;
+    let instancedMesh;
+    let deepDust;
+    let cobaltPointLight, apricotPointLight;
+
+    const NUM_BODIES = 4000;
+    const NUM_DUST = 1800;
+
+    // Particle Buffers (Current state)
+    const pX = new Float32Array(NUM_BODIES);
+    const pY = new Float32Array(NUM_BODIES);
+    const pZ = new Float32Array(NUM_BODIES);
+    const vX = new Float32Array(NUM_BODIES);
+    const vY = new Float32Array(NUM_BODIES);
+    const vZ = new Float32Array(NUM_BODIES);
+
+    // Stable Glyph Target Coordinates for each body
+    const targetX = new Float32Array(NUM_BODIES);
+    const targetY = new Float32Array(NUM_BODIES);
+    const targetZ = new Float32Array(NUM_BODIES);
+
+    // Initial Dispersed Swarm Coordinates
+    const initX = new Float32Array(NUM_BODIES);
+    const initY = new Float32Array(NUM_BODIES);
+    const initZ = new Float32Array(NUM_BODIES);
+
+    const sizeScale = new Float32Array(NUM_BODIES);
+    const dummy = new THREE.Object3D();
+
+    // Interaction & Animation State
+    let animClock = 0;
+    let isPaused = false;
+    let isTyping = false;
+    let typingDamp = 1.0;
+    let isSurging = false;
+    let surgeFactor = 0.0;
+    let isStatePulse = false;
+    let statePulseTime = 0;
+
+    // 3D Pointer World Coordinates & Velocity
+    const pointer3D = new THREE.Vector3(999, 999, 0);
+    const prevPointer3D = new THREE.Vector3(999, 999, 0);
+    const pointerVel = new THREE.Vector3(0, 0, 0);
+    let isPointerInArt = false;
+    let isPointerPressed = false;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function initResonanceEngine() {
+      const container = document.getElementById('canvasContainer');
+      const canvas = document.getElementById('resonanceCanvas');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      // 1. Scene & Camera
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+
+      // 2. High-Performance WebGL Renderer
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance'
+      });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.25;
+
+      // 3. PMREM Environmental Reflection Lighting
+      const pmremGenerator = new THREE.PMREMGenerator(renderer);
+      pmremGenerator.compileEquirectangularShader();
+
+      const envCanvas = document.createElement('canvas');
+      envCanvas.width = 512;
+      envCanvas.height = 256;
+      const ctx = envCanvas.getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 0, 256);
+      grad.addColorStop(0.0, '#101B36');
+      grad.addColorStop(0.4, '#1E3B8A');
+      grad.addColorStop(0.65, '#0B1120');
+      grad.addColorStop(1.0, '#03060C');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 512, 256);
+
+      const radial = ctx.createRadialGradient(380, 70, 10, 380, 70, 160);
+      radial.addColorStop(0, 'rgba(240, 138, 93, 0.55)');
+      radial.addColorStop(1, 'transparent');
+      ctx.fillStyle = radial;
+      ctx.fillRect(0, 0, 512, 256);
+
+      const envTexture = new THREE.CanvasTexture(envCanvas);
+      envTexture.mapping = THREE.EquirectangularReflectionMapping;
+      const envMap = pmremGenerator.fromEquirectangular(envTexture).texture;
+      scene.environment = envMap;
+
+      // 4. Lighting Rig
+      const ambientLight = new THREE.AmbientLight(0x060914, 1.3);
+      scene.add(ambientLight);
+
+      const keyLight = new THREE.DirectionalLight(0xA4C8FF, 1.4);
+      keyLight.position.set(-2.5, 4.5, 5.0);
+      scene.add(keyLight);
+
+      const rimLight = new THREE.DirectionalLight(0x2855FF, 1.6);
+      rimLight.position.set(4.0, -2.0, -3.0);
+      scene.add(rimLight);
+
+      cobaltPointLight = new THREE.PointLight(0x355CFF, 3.5, 14);
+      cobaltPointLight.position.set(-0.6, 0.2, 1.2);
+      scene.add(cobaltPointLight);
+
+      apricotPointLight = new THREE.PointLight(0xF08A5D, 1.6, 9);
+      apricotPointLight.position.set(0.8, -0.8, 0.8);
+      scene.add(apricotPointLight);
+
+      // 5. Compute Stable Glyph Targets for ARIS Wordmark
+      computeArisGlyphTargets();
+
+      // 6. Build 4,000 Smooth Instanced Sphere Bodies
+      buildParticleWordmarkMesh();
+
+      // 7. Layer 3: Distant Cosmic Dust
+      buildDeepDustField();
+
+      // Framing
+      updateCameraFraming();
+
+      // Event Listeners
+      window.addEventListener('resize', onResize);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mousedown', onMouseDown);
+      window.addEventListener('mouseup', onMouseUp);
+
+      if (prefersReducedMotion) {
+        animClock = 10.0;
+        isPaused = true;
+        document.getElementById('txtPauseMotion').textContent = 'Đã tắt chuyển động';
+      }
+
+      // Start 60fps Loop
+      requestAnimationFrame(simulationLoop);
+    }
+
+    /* Compute Stable ARIS Glyph Targets via Invisible Offscreen Canvas Rasterization */
+    function computeArisGlyphTargets() {
+      const c = document.createElement('canvas');
+      c.width = 1200;
+      c.height = 360;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 1200, 360);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = "900 205px 'Plus Jakarta Sans', Arial, sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.letterSpacing = '26px';
+      ctx.fillText('ARIS', 600, 180);
+
+      const imgData = ctx.getImageData(0, 0, 1200, 360).data;
+      const activePixels = [];
+
+      for (let y = 0; y < 360; y++) {
+        for (let x = 0; x < 1200; x++) {
+          const idx = (y * 1200 + x) * 4;
+          if (imgData[idx] > 110) {
+            activePixels.push({ x, y });
+          }
+        }
+      }
+
+      // Spatial placement within dark stage (centered at X = -0.55, Y = 0.05)
+      const wordCenterX = -0.55;
+      const wordCenterY = 0.05;
+      const wordWidth3D = 4.8;
+      const wordHeight3D = 1.6;
+
+      const numActive = activePixels.length;
+      const step = numActive / NUM_BODIES;
+
+      for (let i = 0; i < NUM_BODIES; i++) {
+        const pIdx = Math.floor(i * step) % numActive;
+        const pt = activePixels[pIdx];
+
+        // Normalized to 3D space with shallow volumetric thickness
+        targetX[i] = wordCenterX + ((pt.x / 1200) - 0.5) * wordWidth3D + (Math.random() - 0.5) * 0.04;
+        targetY[i] = wordCenterY - ((pt.y / 360) - 0.5) * wordHeight3D + (Math.random() - 0.5) * 0.04;
+        targetZ[i] = (Math.random() - 0.5) * 0.28;
+
+        // Initial dispersed orbital cloud
+        const initAngle = (i / NUM_BODIES) * Math.PI * 8.0;
+        const initR = 1.3 + Math.random() * 2.2;
+        initX[i] = wordCenterX + Math.cos(initAngle) * initR;
+        initY[i] = wordCenterY + Math.sin(initAngle) * (initR * 0.65) + (Math.random() - 0.5) * 0.6;
+        initZ[i] = (Math.random() - 0.5) * 2.2;
+
+        pX[i] = initX[i];
+        pY[i] = initY[i];
+        pZ[i] = initZ[i];
+
+        vX[i] = (Math.random() - 0.5) * 0.3;
+        vY[i] = (Math.random() - 0.5) * 0.3;
+        vZ[i] = (Math.random() - 0.5) * 0.3;
+
+        // Multi-Scale Power Law Distribution
+        const rScale = Math.random();
+        if (rScale < 0.65) {
+          sizeScale[i] = 0.55 + Math.random() * 0.3; // Fine stardust
+        } else if (rScale < 0.90) {
+          sizeScale[i] = 0.95 + Math.random() * 0.4; // Medium beads
+        } else {
+          sizeScale[i] = 1.45 + Math.random() * 0.7; // Focal nodes
+        }
+      }
+    }
+
+    /* Build 4,000 smooth instanced spheres with continuous curvature */
+    function buildParticleWordmarkMesh() {
+      const sphereGeo = new THREE.SphereGeometry(0.034, 16, 16);
+      const sphereMat = new THREE.MeshStandardMaterial({
+        color: 0xFFFFFF,
+        roughness: 0.24,
+        metalness: 0.78
+      });
+
+      instancedMesh = new THREE.InstancedMesh(sphereGeo, sphereMat, NUM_BODIES);
+      instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+      // Authored Color Palette with Pearl Bay Affinity
+      const cCobalt = new THREE.Color(0x1B3EB8);      // Deep resonance cobalt (42%)
+      const cAzure = new THREE.Color(0x3578FF);       // Electric luminous azure (26%)
+      const cPearl = new THREE.Color(0xF0EEE8);       // Warm architectural pearl (18%)
+      const cMidnight = new THREE.Color(0x081024);    // Deep shadow navy for volumetric occlusion (8%)
+      const cApricot = new THREE.Color(0xF08A5D);     // Restrained warm apricot accent (6%)
+
+      for (let i = 0; i < NUM_BODIES; i++) {
+        const rCol = Math.random();
+        if (rCol < 0.42) {
+          instancedMesh.setColorAt(i, cCobalt);
+        } else if (rCol < 0.68) {
+          instancedMesh.setColorAt(i, cAzure);
+        } else if (rCol < 0.86) {
+          instancedMesh.setColorAt(i, cPearl);
+        } else if (rCol < 0.94) {
+          instancedMesh.setColorAt(i, cMidnight);
+        } else {
+          instancedMesh.setColorAt(i, cApricot);
+        }
+      }
+
+      if (instancedMesh.instanceColor) {
+        instancedMesh.instanceColor.needsUpdate = true;
+      }
+      scene.add(instancedMesh);
+    }
+
+    /* Build 4 smooth sculptural satellites orbiting just outside glyph boundaries */
+    function buildAnchorSatellites() {
+      // 1. Sapphire Crown Sphere
+      const s1Geo = new THREE.SphereGeometry(0.24, 32, 32);
+      const s1Mat = new THREE.MeshStandardMaterial({
+        color: 0x1A3DA8,
+        roughness: 0.16,
+        metalness: 0.88,
+        emissive: 0x152E75,
+        emissiveIntensity: 0.25
+      });
+      const m1 = new THREE.Mesh(s1Geo, s1Mat);
+      scene.add(m1);
+      anchorMeshes.push({ mesh: m1, angle: 1.2, speed: 0.22, cx: -2.3, cy: 1.05, rx: 0.4, ry: 0.25, baseZ: 0.4 });
+
+      // 2. Titanium Obsidian Ellipsoid
+      const s2Geo = new THREE.SphereGeometry(0.22, 32, 32);
+      s2Geo.scale(0.85, 1.35, 0.85);
+      const s2Mat = new THREE.MeshStandardMaterial({
+        color: 0x1E2433,
+        roughness: 0.12,
+        metalness: 0.94,
+        emissive: 0x1E3B8A,
+        emissiveIntensity: 0.2
+      });
+      const m2 = new THREE.Mesh(s2Geo, s2Mat);
+      scene.add(m2);
+      anchorMeshes.push({ mesh: m2, angle: 3.4, speed: 0.24, cx: 0.55, cy: 1.1, rx: 0.45, ry: 0.25, baseZ: 0.35 });
+
+      // 3. Satin Bronze Sphere
+      const s3Geo = new THREE.SphereGeometry(0.21, 32, 32);
+      const s3Mat = new THREE.MeshStandardMaterial({
+        color: 0x8A4D32,
+        roughness: 0.22,
+        metalness: 0.84,
+        emissive: 0x4A2010,
+        emissiveIntensity: 0.22
+      });
+      const m3 = new THREE.Mesh(s3Geo, s3Mat);
+      scene.add(m3);
+      anchorMeshes.push({ mesh: m3, angle: 4.8, speed: 0.26, cx: 1.35, cy: -0.9, rx: 0.4, ry: 0.25, baseZ: -0.2 });
+
+      // 4. Luminous Pearl Sphere
+      const s4Geo = new THREE.SphereGeometry(0.18, 32, 32);
+      const s4Mat = new THREE.MeshStandardMaterial({
+        color: 0xF0EEE8,
+        roughness: 0.18,
+        metalness: 0.28,
+        emissive: 0x2A364F,
+        emissiveIntensity: 0.15
+      });
+      const m4 = new THREE.Mesh(s4Geo, s4Mat);
+      scene.add(m4);
+      anchorMeshes.push({ mesh: m4, angle: 2.1, speed: 0.3, cx: -2.8, cy: -0.85, rx: 0.4, ry: 0.25, baseZ: 0.5 });
+    }
+
+    /* Build 1,800 distant cosmic dust nodes */
+    function buildDeepDustField() {
+      const dustGeo = new THREE.BufferGeometry();
+      const posArray = new Float32Array(NUM_DUST * 3);
+
+      for (let i = 0; i < NUM_DUST * 3; i += 3) {
+        posArray[i] = (Math.random() - 0.5) * 16.0;
+        posArray[i + 1] = (Math.random() - 0.5) * 11.0;
+        posArray[i + 2] = -2.5 - Math.random() * 5.5;
+      }
+      dustGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+      const dustMat = new THREE.PointsMaterial({
+        color: 0x7CA5D8,
+        size: 0.02,
+        transparent: true,
+        opacity: 0.4
+      });
+
+      deepDust = new THREE.Points(dustGeo, dustMat);
+      scene.add(deepDust);
+    }
+
+    /* Camera Setup */
+    function updateCameraFraming() {
+      const container = document.getElementById('canvasContainer');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      const aspect = width / height;
+
+      camera.aspect = aspect;
+
+      if (aspect < 0.85) {
+        // Mobile portrait: zoom out to frame the full ARIS wordmark
+        camera.position.set(-0.55, 0.05, 8.8);
+      } else if (aspect < 1.3) {
+        camera.position.set(-0.55, 0.05, 7.8);
+      } else {
+        // Desktop: centered comfortably on dark stage
+        camera.position.set(-0.55, 0.05, 6.8);
+      }
+
+      camera.lookAt(-0.55, 0.05, 0.0);
+      camera.updateProjectionMatrix();
+    }
+
+    function onResize() {
+      const container = document.getElementById('canvasContainer');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      updateCameraFraming();
+    }
+
+    /* Pointer Raycasting */
+    function onMouseMove(e) {
+      const container = document.getElementById('canvasContainer');
+      const rect = container.getBoundingClientRect();
+
+      isPointerInArt = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
+
+      if (isPointerInArt) {
+        const normX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+        const normY = -((e.clientY - rect.top) / rect.height - 0.5) * 2;
+
+        const vec = new THREE.Vector3(normX, normY, 0.5);
+        vec.unproject(camera);
+        vec.sub(camera.position).normalize();
+        const distance = -camera.position.z / vec.z;
+        const worldPos = camera.position.clone().add(vec.multiplyScalar(distance));
+
+        pointer3D.copy(worldPos);
+      } else {
+        pointer3D.set(999, 999, 0);
+      }
+    }
+
+    function onMouseDown(e) {
+      if (isPointerInArt) {
+        isPointerPressed = true;
+      }
+    }
+
+    function onMouseUp(e) {
+      if (isPointerPressed) {
+        isPointerPressed = false;
+        isSurging = true;
+        surgeFactor = 1.0;
+      }
+    }
+
+    function handleFocus(focused) {
+      isTyping = focused;
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      const btn = document.getElementById('btnPauseMotion');
+      const txt = document.getElementById('txtPauseMotion');
+      if (isPaused) {
+        btn.classList.add('active');
+        txt.textContent = 'Phát tiếp';
+      } else {
+        btn.classList.remove('active');
+        txt.textContent = 'Tạm dừng';
+      }
+    }
+
+    function replayAssembly() {
+      animClock = 0;
+      for (let i = 0; i < NUM_BODIES; i++) {
+        pX[i] = initX[i];
+        pY[i] = initY[i];
+        pZ[i] = initZ[i];
+        vX[i] = (Math.random() - 0.5) * 0.4;
+        vY[i] = (Math.random() - 0.5) * 0.4;
+        vZ[i] = (Math.random() - 0.5) * 0.4;
+      }
+    }
+
+    // Main 60fps Physics & Render Loop
+    let lastTime = performance.now();
+
+    function simulationLoop(now) {
+      requestAnimationFrame(simulationLoop);
+
+      const dt = Math.min((now - lastTime) / 1000, 0.08);
+      lastTime = now;
+
+      if (!isPaused) {
+        animClock += dt;
+
+        // 1. Assembly Progression: 2.3s assembly curve
+        let assembleWeight = 0.0;
+        if (prefersReducedMotion) {
+          assembleWeight = 1.0;
+        } else {
+          assembleWeight = Math.min(1.0, Math.max(0, (animClock - 0.2) / 2.3));
+        }
+        const easeAssemble = 1 - Math.pow(1 - assembleWeight, 3);
+
+        // 2. Typing Damping
+        const targetDamping = isTyping ? 0.20 : 1.0;
+        typingDamp += (targetDamping - typingDamp) * (dt * 4.0);
+
+        // 3. Pointer Velocity
+        if (pointer3D.x < 900 && prevPointer3D.x < 900) {
+          pointerVel.set(
+            (pointer3D.x - prevPointer3D.x) / Math.max(dt, 0.01),
+            (pointer3D.y - prevPointer3D.y) / Math.max(dt, 0.01),
+            0
+          ).clampLength(0, 16);
+        } else {
+          pointerVel.set(0, 0, 0);
+        }
+        prevPointer3D.copy(pointer3D);
+
+        // 4. Surge Factor
+        if (isSurging) {
+          surgeFactor = Math.max(0, surgeFactor - dt * 2.2);
+          if (surgeFactor === 0) isSurging = false;
+        }
+
+        // 5. Update Satellites
+        for (let i = 0; i < NUM_ANCHORS; i++) {
+          const a = anchorMeshes[i];
+          a.angle += dt * a.speed;
+          const ang = a.angle;
+
+          const targetPosX = a.cx + Math.cos(ang) * a.rx;
+          const targetPosY = a.cy + Math.sin(ang) * a.ry;
+          const targetPosZ = a.baseZ + Math.sin(ang * 1.5) * 0.25;
+
+          a.mesh.position.set(targetPosX, targetPosY, targetPosZ);
+          a.mesh.rotation.x += dt * 0.4;
+          a.mesh.rotation.y += dt * 0.5;
+        }
+
+        // 6. Update 4,000 Particle Bodies (Assembly + Local Forces + Spring Recovery)
+        const R_INFLUENCE = 1.3;
+        const R_SQ = R_INFLUENCE * R_INFLUENCE;
+        const isPointerActive = (pointer3D.x < 900);
+
+        for (let i = 0; i < NUM_BODIES; i++) {
+          // Dynamic blend from initial swarm into exact glyph targets
+          const initialSwirlX = initX[i] + Math.cos(animClock * 0.6 + i) * 0.15;
+          const initialSwirlY = initY[i] + Math.sin(animClock * 0.6 + i) * 0.15;
+          const initialSwirlZ = initZ[i];
+
+          // Micro-organic breathing when formed (subtle shimmer, no loss of legibility)
+          const breatheY = Math.sin(animClock * 2.0 + i * 0.04) * 0.012 * easeAssemble;
+          const breatheX = Math.cos(animClock * 1.6 + i * 0.04) * 0.008 * easeAssemble;
+
+          const idealX = initialSwirlX * (1 - easeAssemble) + (targetX[i] + breatheX) * easeAssemble;
+          const idealY = initialSwirlY * (1 - easeAssemble) + (targetY[i] + breatheY) * easeAssemble;
+          const idealZ = initialSwirlZ * (1 - easeAssemble) + targetZ[i] * easeAssemble;
+
+          let fx = 0, fy = 0, fz = 0;
+
+          // A. Local Pointer Breakup & Wake (parts nearby bodies out of their letter surface)
+          if (isPointerActive) {
+            const dx = pX[i] - pointer3D.x;
+            const dy = pY[i] - pointer3D.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < R_SQ && distSq > 0.001) {
+              const dist = Math.sqrt(distSq);
+              const normDx = dx / dist;
+              const normDy = dy / dist;
+              const falloff = 1.0 - (dist / R_INFLUENCE);
+
+              // Radial Repulsion (or knot compression if pressed)
+              const repelMult = isPointerPressed ? -4.2 : 5.2;
+              const fRepel = (falloff * repelMult) / (dist + 0.15);
+              fx += normDx * fRepel;
+              fy += normDy * fRepel;
+
+              // Directional Wake
+              const fWake = falloff * 0.42;
+              fx += pointerVel.x * fWake;
+              fy += pointerVel.y * fWake;
+
+              // Swirling Curl
+              const fCurl = falloff * 2.2;
+              fx += -normDy * fCurl;
+              fy += normDx * fCurl;
+            }
+          }
+
+          // B. Surge Release Force
+          if (surgeFactor > 0) {
+            const sdx = pX[i] - pointer3D.x;
+            const sdy = pY[i] - pointer3D.y;
+            const sDist = Math.sqrt(sdx * sdx + sdy * sdy) + 0.1;
+            const sForce = (surgeFactor * 6.5) / sDist;
+            fx += (sdx / sDist) * sForce;
+            fy += (sdy / sDist) * sForce;
+          }
+
+          // C. Spring Recapture back into each body's OWN stable glyph position
+          const springK = 3.5 + easeAssemble * 4.8;
+          fx += (idealX - pX[i]) * springK;
+          fy += (idealY - pY[i]) * springK;
+          fz += (idealZ - pZ[i]) * springK;
+
+          // D. Velocity Integration with time-based drag
+          const drag = 0.88;
+          vX[i] = (vX[i] + fx * dt * typingDamp) * drag;
+          vY[i] = (vY[i] + fy * dt * typingDamp) * drag;
+          vZ[i] = (vZ[i] + fz * dt * typingDamp) * drag;
+
+          pX[i] += vX[i] * dt;
+          pY[i] += vY[i] * dt;
+          pZ[i] += vZ[i] * dt;
+
+          dummy.position.set(pX[i], pY[i], pZ[i]);
+          
+          const s = sizeScale[i] * (0.8 + easeAssemble * 0.35);
+          dummy.scale.set(s, s, s);
+
+          dummy.updateMatrix();
+          instancedMesh.setMatrixAt(i, dummy.matrix);
+        }
+
+        instancedMesh.instanceMatrix.needsUpdate = true;
+
+        // 7. Distant Dust
+        if (deepDust) {
+          deepDust.rotation.y = animClock * 0.01;
+          deepDust.rotation.x = Math.sin(animClock * 0.006) * 0.02;
+        }
+
+        // 8. Simulated State Pulse
+        if (isStatePulse) {
+          statePulseTime += dt * 5.0;
+          cobaltPointLight.intensity = 3.5 + Math.sin(statePulseTime) * 2.5;
+        } else {
+          cobaltPointLight.intensity = 3.5;
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    /* Form Handlers & State Transitions */
+    function submitForm(e) {
+      e.preventDefault();
+      const email = document.getElementById('userEmail').value.trim();
+      const errEl = document.getElementById('errMail');
+      const inputEl = document.getElementById('userEmail');
+
+      if (!email || !email.includes('@') || !email.includes('.')) {
+        inputEl.classList.add('has-error');
+        errEl.classList.add('visible');
+        return;
+      }
+
+      inputEl.classList.remove('has-error');
+      errEl.classList.remove('visible');
+      setScreenState('loading');
+
+      setTimeout(() => {
+        document.getElementById('dispSentEmail').textContent = email;
+        setScreenState('check-email');
+      }, 1200);
+    }
+
+    function setScreenState(state) {
+      const btn = document.getElementById('btnSubmit');
+      const lbl = document.getElementById('lblSubmit');
+      const input = document.getElementById('userEmail');
+      const err = document.getElementById('errMail');
+      const formView = document.getElementById('formViewSection');
+      const acceptView = document.getElementById('stateAcceptedBay');
+
+      isStatePulse = false;
+      input.classList.remove('has-error');
+      err.classList.remove('visible');
+
+      document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active'));
+
+      if (state === 'default') {
+        formView.style.display = 'block';
+        acceptView.classList.remove('active');
+        btn.disabled = false;
+        input.disabled = false;
+        lbl.textContent = 'Gửi liên kết đăng nhập';
+      } else if (state === 'loading') {
+        formView.style.display = 'block';
+        acceptView.classList.remove('active');
+        btn.disabled = true;
+        input.disabled = true;
+        lbl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Đang gửi...';
+        isStatePulse = true;
+      } else if (state === 'check-email') {
+        formView.style.display = 'none';
+        acceptView.classList.add('active');
+      } else if (state === 'error') {
+        formView.style.display = 'block';
+        acceptView.classList.remove('active');
+        btn.disabled = false;
+        input.disabled = false;
+        lbl.textContent = 'Gửi liên kết đăng nhập';
+        input.classList.add('has-error');
+        err.classList.add('visible');
+      }
+    }
+
+    function backToLogin() {
+      setScreenState('default');
+      document.getElementById('userEmail').focus();
+    }
+
+    // Launch on DOM ready
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('clean') === 'true' || window.location.hash.includes('clean')) {
+        document.getElementById('reviewDock').classList.add('hidden');
+      }
+      initResonanceEngine();
+      const reqState = params.get('state');
+      if (reqState) setScreenState(reqState);
+    });
+  </script>
+  <style>
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+</body>
+</html>

@@ -1,0 +1,51 @@
+@{
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    Layout = isAuthenticated ? "_AppLayout" : "_AuthLayout";
+    int code = ViewBag.StatusCode ?? 500;
+    var title = ViewBag.ErrorTitle ?? (code == 404 ? "Trang này không tồn tại" : "Có lỗi phía máy chủ");
+    var message = ViewBag.ErrorMessage ?? (code == 404
+        ? "Đường dẫn bạn yêu cầu không khả dụng hoặc đã bị di chuyển sang vị trí khác."
+        : "Hệ thống gặp sự cố không mong muốn khi xử lý yêu cầu. Vui lòng thử lại sau.");
+    var requestId = ViewBag.RequestId as string;
+
+    ViewData["Title"] = $"{code} — {title}";
+}
+
+<div class="a-container py-5">
+    <div class="a-empty">
+        <i data-lucide="alert-triangle" style="width: 32px; height: 32px; color: var(--text-3);"></i>
+        <h1 class="a-empty__title">@title</h1>
+        <p class="a-empty__text">@message</p>
+
+        <div class="d-flex align-items-center justify-content-center gap-2 mt-3">
+            <a asp-controller="Dashboard" asp-action="Index" class="a-btn a-btn--primary">
+                Về Bảng tin
+            </a>
+            <button type="button" class="a-btn a-btn--secondary" onclick="location.reload()">
+                Thử lại
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(requestId))
+        {
+            <div class="a-caption text-secondary mt-3 d-inline-flex align-items-center gap-2">
+                <span>Mã yêu cầu: <code id="errorReqId">@requestId</code></span>
+                <button type="button" class="a-btn a-btn--ghost a-btn--icon a-btn--sm" onclick="copyRequestId()" title="Sao chép mã lỗi" aria-label="Sao chép mã lỗi">
+                    <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function copyRequestId() {
+            const reqId = document.getElementById("errorReqId")?.innerText?.trim();
+            if (reqId && navigator.clipboard) {
+                navigator.clipboard.writeText(reqId);
+                if (window.showToast) window.showToast("Đã sao chép mã yêu cầu!", "info");
+            }
+        }
+    </script>
+}

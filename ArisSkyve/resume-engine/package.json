@@ -1,0 +1,31 @@
+{
+  "name": "aris-resume-engine",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build": "node ./node_modules/typescript/bin/tsc --noEmit && node build.mjs",
+    "check": "node ./node_modules/typescript/bin/tsc --noEmit",
+    "test:coach-quality": "node --import ./tests/register-typescript-source.mjs ./tests/coach-quality-rules.mjs",
+    "test:coach-browser": "node ./tests/coach-proposal-browser.mjs",
+    "test:coach": "npm run build && npm run test:coach-quality && npm run test:coach-browser",
+    "schema": "node generate-contract.mjs",
+    "catalog:refresh": "python sync-templates.py"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "esbuild": "0.25.5",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3"
+  }
+}

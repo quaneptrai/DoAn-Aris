@@ -1,0 +1,213 @@
+@model ArisSkyve.Application.DTOs.BecomeEmployerViewModel
+@{
+    ViewData["Title"] = "Đăng tuyển trên Aris";
+    ViewData["ActiveNav"] = "Employer";
+    Layout = "_AppLayout";
+    var industries = new[] { "Công nghệ thông tin", "Tài chính – Ngân hàng", "Bán lẻ – Thương mại", "Sản xuất", "Logistics – Vận tải biển", "Giáo dục", "Y tế", "Marketing – Truyền thông", "Xây dựng", "Du lịch – Khách sạn" };
+    var sizes = new[] { ("1-10", "Dưới 10"), ("11-50", "11 – 50"), ("51-200", "51 – 200"), ("200+", "Trên 200") };
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/become-employer.css" asp-append-version="true" />
+}
+
+<main class="a-main">
+    <div class="be-page">
+        <header class="be-head">
+            <div>
+                <div class="be-eyebrow"><i data-lucide="building-2"></i> Tài khoản nhà tuyển dụng</div>
+                <h1 class="be-title">Đăng tuyển trên Aris</h1>
+                <p class="be-sub">Ba bước, khoảng hai phút. Thẻ công ty bên phải là đúng thứ ứng viên sẽ thấy.</p>
+            </div>
+        </header>
+
+        <div class="be-grid">
+            <section class="be-form a-card" aria-label="Thông tin doanh nghiệp">
+                <ol class="be-steps" id="beSteps">
+                    <li class="be-step is-current" data-step="1"><button type="button" data-goto="1"><span class="be-step__dot">1</span><span class="be-step__label">Công ty</span></button></li>
+                    <li class="be-step" data-step="2"><button type="button" data-goto="2" disabled><span class="be-step__dot">2</span><span class="be-step__label">Nhận diện</span></button></li>
+                    <li class="be-step" data-step="3"><button type="button" data-goto="3" disabled><span class="be-step__dot">3</span><span class="be-step__label">Xác nhận</span></button></li>
+                </ol>
+
+                <form id="beForm" novalidate autocomplete="off">
+                    @Html.AntiForgeryToken()
+
+                    <!-- Bước 1 -->
+                    <fieldset class="be-stage is-active" data-stage="1">
+                        <legend class="be-stage__title">Công ty của bạn</legend>
+
+                        <div class="a-field">
+                            <label class="a-label" for="beCompanyName">Tên doanh nghiệp *</label>
+                            <input class="a-input a-input--lg" id="beCompanyName" name="CompanyName" maxlength="150" placeholder="VD: Công ty TNHH Cảng Xanh" required />
+                            <div class="be-error" data-error-for="CompanyName"></div>
+                        </div>
+
+                        <div class="a-field">
+                            <label class="a-label" for="beIndustry">Lĩnh vực *</label>
+                            <div class="be-chips" id="beIndustryChips" role="listbox" aria-label="Chọn nhanh lĩnh vực">
+                                @foreach (var ind in industries)
+                                {
+                                    <button type="button" class="be-chip" data-value="@ind" role="option" aria-selected="false">@ind</button>
+                                }
+                            </div>
+                            <input class="a-input" id="beIndustry" name="Industry" maxlength="120" placeholder="Hoặc gõ lĩnh vực khác" required />
+                            <div class="be-error" data-error-for="Industry"></div>
+                        </div>
+
+                        <div class="a-field">
+                            <span class="a-label">Quy mô nhân sự</span>
+                            <div class="be-seg" id="beSizeSeg" role="radiogroup" aria-label="Quy mô nhân sự">
+                                @foreach (var (val, label) in sizes)
+                                {
+                                    <label class="be-seg__opt">
+                                        <input type="radio" name="CompanySize" value="@val" />
+                                        <span>@label</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="be-row">
+                            <div class="a-field">
+                                <label class="a-label" for="beFounded">Năm thành lập</label>
+                                <input class="a-input" id="beFounded" name="FoundedYear" inputmode="numeric" maxlength="4" placeholder="VD: 2018" />
+                                <div class="be-error" data-error-for="FoundedYear"></div>
+                            </div>
+                            <div class="a-field">
+                                <label class="a-label" for="beTax">Mã số thuế</label>
+                                <input class="a-input" id="beTax" name="TaxCode" inputmode="numeric" maxlength="14" placeholder="10 chữ số" />
+                                <div class="a-help">Dùng để xác minh doanh nghiệp (dấu tích xanh). Có thể bổ sung sau.</div>
+                                <div class="be-error" data-error-for="TaxCode"></div>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Bước 2 -->
+                    <fieldset class="be-stage" data-stage="2" hidden>
+                        <legend class="be-stage__title">Ứng viên sẽ nhận ra bạn thế nào</legend>
+
+                        <div class="a-field">
+                            <span class="a-label">Logo</span>
+                            <label class="be-drop" id="beDrop" tabindex="0">
+                                <input type="file" id="beLogo" accept="image/png,image/jpeg,image/webp" hidden />
+                                <span class="be-drop__preview" id="beDropPreview"><i data-lucide="image-plus"></i></span>
+                                <span class="be-drop__text">
+                                    <b>Kéo thả hoặc bấm để chọn logo</b>
+                                    <span>PNG, JPG hoặc WEBP, dưới 5MB. Logo sẽ thay ảnh đại diện của tài khoản.</span>
+                                </span>
+                                <button type="button" class="a-btn a-btn--ghost a-btn--sm" id="beLogoClear" hidden>Bỏ</button>
+                            </label>
+                            <div class="be-error" data-error-for="Logo"></div>
+                        </div>
+
+                        <div class="be-row">
+                            <div class="a-field">
+                                <label class="a-label" for="beWebsite">Website</label>
+                                <input class="a-input" id="beWebsite" name="WebsiteUrl" maxlength="200" placeholder="congty.vn" />
+                            </div>
+                            <div class="a-field">
+                                <label class="a-label" for="beAddress">Địa chỉ</label>
+                                <input class="a-input" id="beAddress" name="CompanyAddress" maxlength="250" placeholder="Số nhà, đường, quận, tỉnh/thành" value="@(Model.Location == "Chưa cập nhật" ? "" : Model.Location)" />
+                            </div>
+                        </div>
+
+                        <div class="a-field">
+                            <label class="a-label" for="beDesc">Giới thiệu ngắn</label>
+                            <textarea class="a-textarea" id="beDesc" name="Description" rows="5" maxlength="1500" placeholder="Công ty làm gì, đội ngũ thế nào, vì sao người giỏi muốn làm ở đây."></textarea>
+                            <div class="be-counter"><span id="beDescCount">0</span>/1500 · nên có từ 150 ký tự</div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Bước 3 -->
+                    <fieldset class="be-stage" data-stage="3" hidden>
+                        <legend class="be-stage__title">Kiểm tra lại trước khi chuyển</legend>
+
+                        <dl class="be-review" id="beReview"></dl>
+
+                        <div class="be-impact">
+                            <div class="be-impact__title"><i data-lucide="info"></i> Sau khi chuyển</div>
+                            <ul>
+                                <li>Tài khoản <b>@Model.Email</b> trở thành tài khoản nhà tuyển dụng. Bạn đăng tin, xem hồ sơ và hẹn phỏng vấn từ <b>Bảng tuyển dụng</b>.</li>
+                                <li>Bài viết, bạn bè và tin nhắn giữ nguyên.</li>
+                                @if (Model.ResumeCount > 0)
+                                {
+                                    <li>@Model.ResumeCount CV của bạn vẫn được lưu nhưng không còn dùng để ứng tuyển — tài khoản doanh nghiệp không nộp đơn được.</li>
+                                }
+                                @if (Model.OpenApplicationCount > 0)
+                                {
+                                    <li class="is-warn">Bạn đang có <b>@Model.OpenApplicationCount đơn ứng tuyển</b> chưa có kết quả. Nhà tuyển dụng vẫn thấy đơn, nhưng bạn sẽ không trả lời lời mời phỏng vấn hay offer từ tài khoản này được nữa.</li>
+                                }
+                                <li>Chưa có nút chuyển ngược lại. Nếu cần tài khoản ứng viên riêng, hãy dùng một email khác.</li>
+                            </ul>
+                        </div>
+
+                        <label class="be-confirm">
+                            <input type="checkbox" class="a-check-input" id="beAgree" />
+                            <span>Tôi là người đại diện tuyển dụng của doanh nghiệp này và hiểu các thay đổi ở trên.</span>
+                        </label>
+                        <div class="be-error" data-error-for="Agree"></div>
+                    </fieldset>
+
+                    <div class="be-actions">
+                        <button type="button" class="a-btn a-btn--ghost" id="beBack" hidden><i data-lucide="arrow-left"></i> Quay lại</button>
+                        <span class="be-actions__spacer"></span>
+                        <a href="/Dashboard" class="a-btn a-btn--ghost" id="beCancel">Để sau</a>
+                        <button type="button" class="a-btn a-btn--primary" id="beNext"><span class="a-btn__label">Tiếp tục</span></button>
+                    </div>
+                </form>
+
+                <!-- Hoàn tất -->
+                <div class="be-done" id="beDone" hidden>
+                    <div class="be-done__mark"><i data-lucide="check"></i></div>
+                    <h2>Đã tạo tài khoản nhà tuyển dụng</h2>
+                    <p>Bước tiếp theo nên làm: đăng tin đầu tiên. Hồ sơ nộp vào sẽ được AI chấm mức phù hợp với tin, kèm lý do ngắn.</p>
+                    <div class="be-done__actions">
+                        <a class="a-btn a-btn--primary" href="/Jobs/Index?compose=1"><i data-lucide="plus"></i> Đăng tin đầu tiên</a>
+                        <a class="a-btn a-btn--secondary" href="/Employer/Index">Vào bảng tuyển dụng</a>
+                        <a class="a-btn a-btn--ghost" href="/Company/Edit">Bổ sung hồ sơ công ty</a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Xem trước trực tiếp -->
+            <aside class="be-preview" aria-label="Xem trước thẻ công ty">
+                <div class="be-preview__label">Ứng viên sẽ thấy</div>
+                <article class="be-card" id="beCard">
+                    <div class="be-card__cover"></div>
+                    <div class="be-card__body">
+                        <div class="be-card__logo" id="pvLogo" data-tone="1">A</div>
+                        <div class="be-card__name"><span id="pvName">Tên doanh nghiệp</span> <span class="be-card__pending" title="Xác minh sau khi bổ sung mã số thuế">Chưa xác minh</span></div>
+                        <div class="be-card__meta" id="pvMeta">Lĩnh vực · Quy mô</div>
+                        <p class="be-card__desc" id="pvDesc">Phần giới thiệu sẽ hiện ở đây.</p>
+                        <div class="be-card__facts">
+                            <span id="pvFounded" hidden><i data-lucide="calendar"></i> <b></b></span>
+                            <span id="pvWeb" hidden><i data-lucide="globe"></i> <b></b></span>
+                            <span id="pvAddr" hidden><i data-lucide="map-pin"></i> <b></b></span>
+                        </div>
+                        <div class="be-card__foot">
+                            <span>0 vị trí đang tuyển</span>
+                            <span class="a-btn a-btn--secondary a-btn--sm" aria-hidden="true">Theo dõi</span>
+                        </div>
+                    </div>
+                </article>
+
+                <div class="be-checklist" id="beChecklist">
+                    <div class="be-checklist__title">Độ đầy đủ hồ sơ <b id="beScore">0%</b></div>
+                    <div class="be-meter"><span id="beMeter" style="width:0%"></span></div>
+                    <ul>
+                        <li data-check="name">Tên doanh nghiệp</li>
+                        <li data-check="industry">Lĩnh vực</li>
+                        <li data-check="size">Quy mô</li>
+                        <li data-check="logo">Logo</li>
+                        <li data-check="desc">Giới thiệu từ 150 ký tự</li>
+                        <li data-check="web">Website hoặc địa chỉ</li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script src="~/js/pages/become-employer.js" asp-append-version="true"></script>
+}

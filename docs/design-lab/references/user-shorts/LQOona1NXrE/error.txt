@@ -1,0 +1,1 @@
+'charmap' codec can't encode character '\U0001f525' in position 26: character maps to <undefined>

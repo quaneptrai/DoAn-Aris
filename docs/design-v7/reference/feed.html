@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bảng tin — Aris (bản thiết kế V7)</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('aris-theme');
+        if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      } catch (e) { document.documentElement.dataset.theme = 'light'; }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="line.css">
+  <link rel="stylesheet" href="feed.css">
+</head>
+<body>
+<div class="a-app">
+
+  <nav class="a-rail" aria-label="Điều hướng chính">
+    <a class="a-rail__logo" href="feed.html" aria-label="Aris — về Bảng tin">
+      <svg viewBox="0 0 200 200" aria-hidden="true"><path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30"/></svg>
+    </a>
+    <div class="a-rail__nav">
+      <span class="a-indicator" data-axis="y" data-inset="15"></span>
+      <a class="a-rail__item" href="feed.html" data-mobile aria-current="page"><i data-lucide="home"></i><span>Bảng tin</span></a>
+      <a class="a-rail__item" href="jobs.html" data-mobile><i data-lucide="briefcase"></i><span>Việc làm</span></a>
+      <a class="a-rail__item" href="chat.html" data-mobile><i data-lucide="message-circle"></i><span>Tin nhắn</span><span class="a-badge a-badge--accent a-num">3</span></a>
+      <a class="a-rail__item" href="#applications" id="railApplications"><i data-lucide="file-check"></i><span>Ứng tuyển</span></a>
+      <a class="a-rail__item" href="#cv"><i data-lucide="file-text"></i><span>CV</span></a>
+      <a class="a-rail__item" href="#companies"><i data-lucide="building-2"></i><span>Công ty</span></a>
+      <a class="a-rail__item a-rail__item--mobile" href="#notifications" data-mobile><i data-lucide="bell"></i><span>Thông báo</span></a>
+      <a class="a-rail__item a-rail__item--mobile" href="#me" data-mobile><i data-lucide="circle-user"></i><span>Tôi</span></a>
+    </div>
+    <div class="a-rail__foot">
+      <button class="a-rail__btn a-rail__create" type="button" data-action="compose" data-tip="Tạo bài viết" data-kbd="N" aria-label="Tạo bài viết"><i data-lucide="plus-square"></i></button>
+      <button class="a-rail__btn" type="button" data-action="palette" data-tip="Tìm nhanh" data-kbd="Ctrl K" aria-label="Tìm nhanh"><i data-lucide="search"></i></button>
+      <button class="a-rail__btn" type="button" data-action="notifications" data-tip="Thông báo" aria-label="Thông báo, 4 chưa đọc"><i data-lucide="bell"></i><span class="a-badge a-badge--accent a-num">4</span></button>
+      <button class="a-rail__btn" type="button" data-action="theme" data-tip="Giao diện sáng / tối" aria-label="Đổi giao diện sáng tối"><i data-lucide="moon"></i></button>
+      <button class="a-rail__btn" type="button" data-action="demo" data-tip="Bảng demo (chỉ có trong bản thiết kế)" aria-label="Bảng demo"><i data-lucide="flask-conical"></i></button>
+      <button class="a-rail__me" type="button" data-action="account" aria-label="Tài khoản của bạn"><span class="a-avatar a-avatar--32" data-tone="1">ĐK</span></button>
+    </div>
+  </nav>
+
+  <main class="a-main feed" id="feed">
+
+    <!-- Chỉ mobile: thanh đầu kiểu Instagram (logo trái, Tạo bài phải), ẩn khi cuộn xuống cùng tab bar -->
+    <header class="feed-mhead" id="feedMhead">
+      <a class="feed-mhead__logo" href="feed.html" aria-label="Aris — về đầu Bảng tin">
+        <svg viewBox="0 0 200 200" aria-hidden="true"><path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30"/></svg>Aris
+      </a>
+      <button class="a-btn a-btn--ghost a-btn--icon" type="button" data-action="compose" aria-label="Tạo bài viết"><i data-lucide="plus-square"></i></button>
+    </header>
+
+    <!-- Kéo để làm mới (mobile): nét quỹ đạo vẽ dần theo quãng kéo -->
+    <div class="ptr" id="ptr" aria-hidden="true"></div>
+
+    <div class="feed-col">
+      <h1 class="a-visually-hidden">Bảng tin</h1>
+
+      <!-- Tin 24 giờ -->
+      <section class="stories" aria-label="Tin 24 giờ">
+        <button class="stories__nav stories__nav--prev" type="button" aria-label="Tin trước" hidden><i data-lucide="chevron-left"></i></button>
+        <div class="stories__track" id="storyTrack" role="list"></div>
+        <button class="stories__nav stories__nav--next" type="button" aria-label="Tin sau" hidden><i data-lucide="chevron-right"></i></button>
+      </section>
+
+      <!-- Ô tạo bài thu gọn: bấm phần nào mở hộp thoại tạo bài ở bước tương ứng -->
+      <div class="compose-bar" id="composeBar">
+        <span class="a-avatar a-avatar--40" data-tone="1">ĐK</span>
+        <button class="compose-bar__field" type="button" data-compose="text">Bạn muốn chia sẻ điều gì, Khoa?</button>
+        <button class="a-btn a-btn--ghost a-btn--icon" type="button" data-compose="media" data-tip="Ảnh / video" aria-label="Đăng ảnh hoặc video"><i data-lucide="image"></i></button>
+        <button class="a-btn a-btn--ghost a-btn--icon" type="button" data-compose="poll" data-tip="Bình chọn" aria-label="Tạo bình chọn"><i data-lucide="bar-chart-3"></i></button>
+      </div>
+
+      <!-- Bài mới (realtime) -->
+      <div class="newpill-wrap"><button class="newpill" id="newPill" type="button" hidden><i data-lucide="arrow-up"></i><span class="newpill__avs" id="newPillAvs"></span><span id="newPillText">Bài mới</span></button></div>
+
+      <div class="feed-list" id="feedList" aria-label="Bài viết" role="feed" aria-busy="false"></div>
+      <div id="feedSentinel" aria-hidden="true"></div>
+      <div class="feed-end" id="feedEnd" hidden>
+        <span class="feed-end__mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path pathLength="1" d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+        <div class="feed-end__title">Bạn đã xem hết bài mới</div>
+        <div class="feed-end__text">Bạn đã xem mọi bài đăng trong 3 ngày qua.</div>
+        <button class="a-btn a-btn--ghost a-btn--sm" type="button" id="olderBtn">Xem bài cũ hơn</button>
+      </div>
+    </div>
+
+    <aside class="feed-side" aria-label="Việc cần làm và gợi ý">
+      <div class="side-me">
+        <span class="a-avatar a-avatar--44" data-tone="1">ĐK</span>
+        <div class="side-me__text"><a class="side-me__name" href="#profile">Đặng Khoa</a><div class="side-me__sub">Frontend Developer · TP.HCM</div></div>
+        <a class="a-btn a-btn--ghost a-btn--sm" href="#profile">Hồ sơ</a>
+      </div>
+      <section class="side-sec" id="todoSide"></section>
+      <section class="side-sec" id="suggestSide"></section>
+      <section class="side-sec" id="jobsSide"></section>
+      <footer class="side-live" aria-live="off">
+        <span class="side-live__dot" aria-hidden="true"></span>
+        <span><b class="a-num" id="liveJobs">128</b> việc đang tuyển · <b class="a-num" id="liveOnline">5</b> bạn đang trực tuyến</span>
+      </footer>
+    </aside>
+  </main>
+</div>
+
+<!-- Menu "…" của bài viết, thẻ hồ sơ khi hover, gợi ý @nhắc tên -->
+<div class="a-pop" id="postMenu" role="menu" hidden></div>
+<div class="a-pop hovercard" id="hovercard" hidden></div>
+<div class="a-pop mention-pop" id="mentionPop" role="listbox" hidden></div>
+
+<!-- Tạo bài viết (3 bước: chọn ảnh → sắp xếp → nội dung) -->
+<div class="a-scrim" id="composeScrim" hidden></div>
+<div class="a-dialog cm" id="composeDialog" role="dialog" aria-modal="true" aria-labelledby="cmTitle" hidden></div>
+<input type="file" id="cmFile" accept="image/*,video/*" multiple hidden>
+
+<!-- Xác nhận bỏ bài đang viết -->
+<div class="a-scrim" id="confirmScrim" hidden></div>
+<div class="a-dialog confirm" id="confirmDialog" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText" hidden></div>
+
+<!-- Chi tiết bài + bình luận (desktop: modal ảnh | bình luận; mobile: bottom sheet bình luận) -->
+<div class="a-scrim" id="pdScrim" hidden></div>
+<div class="a-dialog pd" id="postDialog" role="dialog" aria-modal="true" aria-label="Bài viết" hidden></div>
+
+<!-- Gửi cho bạn bè -->
+<div class="a-scrim" id="shareScrim" hidden></div>
+<div class="a-dialog share" id="shareDialog" role="dialog" aria-modal="true" aria-labelledby="shareTitle" hidden></div>
+
+<!-- Phím tắt -->
+<div class="a-scrim" id="keysScrim" hidden></div>
+<div class="a-dialog keys" id="keysDialog" role="dialog" aria-modal="true" aria-labelledby="keysTitle" hidden></div>
+
+<!-- Xem tin 24h -->
+<div class="story" id="story" role="dialog" aria-modal="true" aria-label="Xem tin" hidden></div>
+
+<div class="a-pop" id="notifPop" hidden></div>
+<div class="a-pop" id="accountPop" hidden role="menu"></div>
+<div class="a-pop demo-pop" id="demoPop" hidden role="menu"></div>
+<div class="a-scrim" id="paletteScrim" hidden></div>
+<div class="a-palette" id="palette" role="dialog" aria-modal="true" aria-label="Tìm nhanh" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+<script src="motion.js"></script>
+<script src="shell.js"></script>
+<script src="feed-demo.js"></script>
+</body>
+</html>

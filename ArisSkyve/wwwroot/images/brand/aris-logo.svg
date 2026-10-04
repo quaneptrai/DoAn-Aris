@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44" fill="none" role="img" aria-label="Aris Careers">
+  <defs>
+    <linearGradient id="arisGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="50%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <path d="M6 34L20 8L34 34M11 25H29" stroke="url(#arisGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="20" cy="8" r="2.5" fill="#f59e0b"/>
+  <text x="44" y="28" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" letter-spacing="-0.03em" fill="#ffffff">Aris</text>
+  <text x="96" y="22" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-size="8" font-weight="700" letter-spacing="0.16em" fill="#a78bfa">CAREERS</text>
+</svg>

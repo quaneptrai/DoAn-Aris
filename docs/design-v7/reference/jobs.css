@@ -1,0 +1,178 @@
+/* =============================================================================
+   ARIS LINE — Trang Việc làm (V7): master–detail, cùng khung với Tin nhắn
+   Port vào app: wwwroot/css/pages/jobs.css
+   ============================================================================= */
+.jobs {
+  display: grid;
+  grid-template-columns: 440px minmax(0, 1fr);
+  height: 100dvh;
+  padding: 8px 8px 8px 0;
+  overflow: hidden;
+}
+
+/* ---------- Cột danh sách (canvas) ---------- */
+.jobs-list { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 4px 12px 0 4px; }
+.jobs-list__head { display: flex; align-items: baseline; gap: 10px; height: 52px; padding: 12px 0 0 8px; }
+.jobs-list__title { font: 600 var(--fs-22)/1.25 var(--font); letter-spacing: -.015em; }
+.jobs-list__count { font-size: var(--fs-13); color: var(--text-3); }
+.jobs-search { margin: 8px 0 10px; }
+.jobs-search .a-input { height: 40px; font-size: var(--fs-15); }
+.jobs-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.jobs-filters .a-chip svg:last-child { width: 14px; height: 14px; margin-right: -2px; opacity: .7; }
+.jobs-filters .a-chip[aria-pressed="true"] svg:last-child { opacity: 1; }
+.jobs-meta { display: flex; align-items: center; gap: 4px; min-height: 40px; padding: 6px 0 4px 8px; font-size: var(--fs-13); color: var(--text-3); }
+.jobs-meta b { color: var(--text); font-weight: 600; }
+.jobs-meta .a-btn { color: var(--text-2); }
+.jobs-sort { margin-left: auto; }
+.jobs-sort svg { width: 15px; height: 15px; }
+.jobs-list__scroll { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 2px 6px 24px; }
+
+.job-row { align-items: flex-start; gap: 12px; min-height: 84px; padding: 12px; }
+.job-row .a-row__main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.job-row__title { font: 600 var(--fs-15)/1.35 var(--font); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job-row__company { font-size: var(--fs-13); color: var(--text-2); }
+/* Meta luôn MỘT dòng: cắt bằng dấu … thay vì xuống dòng (tránh "·" rơi đầu dòng) */
+.job-row__meta { margin-top: 4px; font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job-row__meta > span + span::before { content: "·"; margin: 0 6px; color: var(--text-4); }
+.job-row__side { display: grid; justify-items: end; gap: 6px; flex: none; }
+.job-row__salary { font: 600 var(--fs-13)/1.3 var(--font); color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.job-row__msal { display: none; }
+.job-row.is-applied .job-row__title::after { content: " · Đã ứng tuyển"; font-weight: 500; font-size: var(--fs-12); color: var(--success); }
+
+
+.job-skel { display: flex; gap: 12px; padding: 12px; }
+.job-skel__lines { flex: 1; display: grid; gap: 8px; padding-top: 2px; }
+
+/* Popover bộ lọc */
+.filter-pop { width: 280px; padding: 8px; }
+.filter-pop__list { display: grid; gap: 2px; max-height: 280px; overflow: auto; padding: 4px; }
+.filter-pop__list .a-check-row { padding: 2px 6px; border-radius: var(--r-sm); }
+.filter-pop__list .a-check-row:hover { background: var(--hover); }
+.filter-pop__foot { display: flex; justify-content: space-between; gap: 8px; padding: 8px 4px 2px; border-top: 1px solid var(--line); margin-top: 6px; }
+
+/* ---------- Chi tiết (sheet) ---------- */
+.job-detail { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.job-detail__scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.job-detail__inner { max-width: 760px; padding: 28px 32px 48px; }
+
+.jd-compact {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 60px;
+  padding: 0 16px 0 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  transform: translateY(-100%);
+  transition: transform var(--d-3) var(--e-out);
+}
+.jd-compact.is-shown { transform: none; }
+.jd-compact__title { flex: 1; min-width: 0; font: 600 var(--fs-15)/1.3 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.jd-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; }
+.jd-title { font: 600 var(--fs-22)/1.3 var(--font); letter-spacing: -.015em; }
+.jd-company { margin-top: 4px; font-size: var(--fs-14); color: var(--text-2); }
+.jd-company a { font-weight: 500; }
+.jd-facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+.jd-facts .a-tag { height: 26px; padding: 0 10px; font-size: var(--fs-13); }
+.jd-facts .a-tag--salary { color: var(--text); font-weight: 600; }
+.jd-actions { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
+.jd-applied { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border-radius: var(--r-sm); background: var(--success-soft); color: var(--success); font: 600 var(--fs-14)/1 var(--font); }
+.jd-applied svg { width: 18px; height: 18px; }
+.jd-deadline { margin-left: 8px; font-size: var(--fs-13); color: var(--text-3); }
+
+.jd-body { margin-top: 32px; border-top: 1px solid var(--line); }
+.jd-section { padding-top: 28px; }
+.jd-section h2 { margin-bottom: 10px; font: 600 var(--fs-16)/1.4 var(--font); }
+.jd-section p, .jd-section li { font-size: var(--fs-15); line-height: 1.7; color: var(--text-2); max-width: 68ch; }
+.jd-section ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.jd-section li { position: relative; padding-left: 18px; }
+.jd-section li::before { content: ""; position: absolute; left: 4px; top: .8em; width: 5px; height: 5px; border-radius: 50%; background: var(--text-4); }
+
+.jd-company-card { display: flex; align-items: center; gap: 14px; margin-top: 32px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-md); }
+.jd-company-card__text { flex: 1; min-width: 0; }
+.jd-company-card__name { font-weight: 600; }
+.jd-company-card__sub { font-size: var(--fs-13); color: var(--text-3); }
+
+.jd-swap-out { animation: jd-out 120ms var(--e-in) both; }
+/* QUAN TRỌNG: jd-in dùng fill "backwards", KHÔNG dùng "both"/"forwards". Animation transform
+   còn giữ sau khi chạy xong biến phần tử thành khối chứa của con position:fixed →
+   thanh "Ứng tuyển" cố định ở đáy (mobile) bị ghim xuống cuối nội dung. */
+.jd-swap-in { animation: jd-in 220ms var(--e-out) backwards; }
+@keyframes jd-out { to { opacity: 0; transform: translateY(-4px); } }
+@keyframes jd-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* ---------- Hộp thoại ứng tuyển ---------- */
+.apply-dialog { width: min(520px, calc(100vw - 32px)); }
+.apply-job { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding: 12px; border-radius: var(--r-md); background: var(--field); }
+.apply-job__title { font-weight: 600; }
+.apply-job__sub { font-size: var(--fs-13); color: var(--text-3); }
+.cv-pick { display: grid; gap: 8px; margin: 8px 0 18px; }
+.cv-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color var(--d-1) var(--e-out), background-color var(--d-1) var(--e-out);
+}
+.cv-card:hover { border-color: var(--n-400); }
+.cv-card:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.cv-card input { position: absolute; opacity: 0; pointer-events: none; }
+.cv-card:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.cv-card__thumb { width: 36px; height: 46px; flex: none; display: grid; gap: 3px; align-content: start; padding: 6px 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+.cv-card__thumb i { display: block; height: 3px; border-radius: 2px; background: var(--line-strong); }
+.cv-card__thumb i:first-child { width: 60%; background: var(--text-4); }
+.cv-card__text { flex: 1; min-width: 0; }
+.cv-card__name { font-weight: 600; font-size: var(--fs-14); }
+.cv-card__sub { font-size: var(--fs-12); color: var(--text-3); }
+.cv-card__radio { width: 18px; height: 18px; flex: none; border: 1.5px solid var(--line-control); border-radius: 50%; display: grid; place-items: center; transition: border-color var(--d-1); }
+.cv-card__radio::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--brand); transform: scale(0); transition: transform var(--d-2) var(--e-spring); }
+.cv-card:has(input:checked) .cv-card__radio { border-color: var(--brand); }
+.cv-card:has(input:checked) .cv-card__radio::after { transform: scale(1); }
+.apply-done { display: grid; justify-items: center; gap: 8px; padding: 28px 8px 12px; text-align: center; }
+.apply-done__mark { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; background: var(--success-soft); color: var(--success); }
+.apply-done__mark svg { width: 28px; height: 28px; }
+.apply-done__mark path { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; animation: a-draw 520ms 120ms var(--e-out) both; }
+.apply-done__title { font: 600 var(--fs-18)/1.35 var(--font); }
+.apply-done__text { font-size: var(--fs-14); color: var(--text-3); max-width: 36ch; }
+
+.jd-mobile-back { display: none !important; }
+
+/* ---------- Responsive ---------- */
+@media (min-width: 768px) and (max-width: 1099px) {
+  .jobs { grid-template-columns: 360px minmax(0, 1fr); }
+  .job-detail__inner { padding: 24px; }
+}
+@media (max-width: 767px) {
+  .jobs { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 100dvh; padding: 0; overflow: visible; }
+  .jobs-list { padding: 0 12px; }
+  .jobs-list__scroll { overflow: visible; }
+  /* Hàng job trên điện thoại: bỏ cột phải (nó ép tiêu đề còn vài chữ);
+     tiêu đề tối đa 2 dòng, lương xuống dưới tên công ty */
+  .job-row__side { display: none; }
+  .job-row__title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .job-row__msal { display: flex; align-items: center; gap: 8px; margin-top: 2px; font: 600 var(--fs-13)/1.4 var(--font); color: var(--text); font-variant-numeric: tabular-nums; }
+  .job-detail { display: none; }
+  .job-detail.is-mobile-open {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    border: 0;
+    border-radius: 0;
+  }
+  .job-detail__inner { padding: 20px 16px 96px; }
+  .jd-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; margin: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); }
+  .jd-actions .a-btn--primary, .jd-actions .jd-applied { flex: 1; }
+  .jd-deadline { display: none; }
+  .jd-compact { padding-left: 16px; }
+  .jd-compact [data-apply] { display: none; } /* đã có thanh Ứng tuyển cố định ở đáy */
+  .jd-mobile-back { display: inline-flex !important; }
+}

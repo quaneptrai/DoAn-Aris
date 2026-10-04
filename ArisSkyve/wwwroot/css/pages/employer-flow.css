@@ -1,0 +1,295 @@
+/* =============================================================================
+   ARIS LINE — Quy trình tuyển dụng v2 (04/10/2026)
+   Điểm AI trên thẻ, "Bước tiếp theo", ngăn chi tiết có tab, lịch tuần, phiếu đánh giá.
+   File: wwwroot/css/pages/employer-flow.css (nạp sau employer.css)
+   ============================================================================= */
+
+/* Thanh phễu ở đầu cột trái */
+.employer-funnel { display: flex; gap: 2px; height: 6px; border-radius: 3px; overflow: hidden; }
+.employer-funnel__seg { min-width: 4px; background: var(--line-strong); }
+.employer-funnel__seg[data-stage="Submitted"] { background: var(--text-4); }
+.employer-funnel__seg[data-stage="UnderReview"] { background: var(--b-300, var(--brand)); }
+.employer-funnel__seg[data-stage="Shortlisted"] { background: var(--b-500, var(--brand)); }
+.employer-funnel__seg[data-stage="InterviewScheduled"] { background: var(--brand); }
+.employer-funnel__seg[data-stage="Offered"] { background: var(--amber, var(--warning)); }
+.employer-funnel__seg[data-stage="Hired"] { background: var(--success); }
+.employer-funnel__seg[data-stage="Rejected"] { background: var(--danger); opacity: .55; }
+
+.employer-job-item__todo {
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-full); flex-shrink: 0;
+  display: inline-grid; place-items: center; font: 700 11px/1 var(--font);
+  background: var(--accent, var(--warning)); color: var(--on-brand, #fff);
+}
+.employer-job-item__hire { display: flex; align-items: center; gap: 8px; font-size: var(--fs-11); color: var(--text-3); }
+.employer-job-item__hire-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--line-soft); overflow: hidden; }
+.employer-job-item__hire-bar > span { display: block; height: 100%; background: var(--success); border-radius: 2px; }
+
+/* Nút phân đoạn nhỏ trong header */
+.emp-seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--r-md); background: var(--field); border: 1px solid var(--line-soft); }
+.emp-seg button {
+  border: 0; background: transparent; color: var(--text-3); font: 600 var(--fs-12)/1 var(--font);
+  padding: 7px 10px; border-radius: calc(var(--r-md) - 3px); display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.emp-seg button svg { width: 14px; height: 14px; }
+.emp-seg button:hover { color: var(--text); }
+.emp-seg button[aria-selected="true"], .emp-seg button[aria-checked="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-1); }
+.emp-seg--sm button { padding: 6px 9px; }
+
+.emp-banner {
+  display: flex; align-items: center; gap: 10px; margin: 12px 20px 0; padding: 10px 14px;
+  border-radius: var(--r-md); background: var(--success-soft); color: var(--text); font-size: var(--fs-13);
+}
+.emp-banner[hidden] { display: none; }
+.emp-banner svg { width: 16px; height: 16px; color: var(--success); flex-shrink: 0; }
+.emp-banner span { flex: 1; }
+
+/* Thẻ ứng viên: điểm + tóm tắt + trạng thái */
+.candidate-card__head { align-items: flex-start; }
+.cc-score {
+  margin-left: auto; flex-shrink: 0; min-width: 38px; height: 24px; padding: 0 7px; border-radius: var(--r-full);
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  font: 700 var(--fs-12)/1 var(--font); border: 1px solid var(--line); color: var(--text-3); background: var(--field);
+}
+.cc-score[data-tier="high"] { color: var(--success); background: var(--success-soft); border-color: transparent; }
+.cc-score[data-tier="good"] { color: var(--brand-text); background: var(--brand-soft); border-color: transparent; }
+.cc-score[data-tier="mid"] { color: var(--amber-text, var(--warning)); background: var(--warning-soft); border-color: transparent; }
+.cc-score[data-tier="low"] { color: var(--text-3); }
+.cc-score.is-pending { color: var(--text-4); font-weight: 600; }
+.cc-score.is-pending::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  border: 1.5px solid currentColor; border-right-color: transparent; animation: ccSpin .9s linear infinite;
+}
+@keyframes ccSpin { to { transform: rotate(360deg); } }
+.cc-summary {
+  font-size: var(--fs-12); line-height: 1.45; color: var(--text-2); margin: 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cc-flag {
+  display: inline-flex; align-items: center; gap: 4px; font: 600 var(--fs-11)/1 var(--font);
+  padding: 4px 7px; border-radius: var(--r-full); background: var(--field); color: var(--text-2); border: 1px solid var(--line-soft);
+}
+.cc-flag svg { width: 11px; height: 11px; }
+.cc-flag--ok { color: var(--success); background: var(--success-soft); border-color: transparent; }
+.cc-flag--warn { color: var(--amber-text, var(--warning)); background: var(--warning-soft); border-color: transparent; }
+.cc-flag--danger { color: var(--danger); background: var(--danger-soft); border-color: transparent; }
+.cc-flag--brand { color: var(--brand-text); background: var(--brand-soft); border-color: transparent; }
+.candidate-card.needs-action::after {
+  content: ''; position: absolute; top: -1px; left: 12px; right: 12px; height: 2px;
+  border-radius: 0 0 2px 2px; background: var(--accent, var(--warning));
+}
+.candidate-card.is-flash { animation: ccFlash 1.4s var(--e-out); }
+@keyframes ccFlash { 0%, 45% { box-shadow: 0 0 0 3px var(--brand-soft), var(--shadow-2); border-color: var(--brand); } }
+
+/* Ngăn chi tiết v2 */
+.candidate-drawer { width: 480px; }
+.candidate-drawer__body { gap: 16px; }
+.cd-id { display: flex; align-items: center; gap: 12px; }
+.cd-id__avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid var(--line); flex-shrink: 0; }
+.cd-id__name { font: 700 var(--fs-16)/1.3 var(--font); color: var(--text); margin: 0; }
+.cd-id__sub { font-size: var(--fs-13); color: var(--text-3); }
+.cd-id__date { font-size: var(--fs-12); color: var(--text-4); }
+.cd-score {
+  flex-shrink: 0; width: 76px; padding: 8px 4px; border-radius: var(--r-lg); border: 1px solid var(--line);
+  background: var(--field); display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer;
+  transition: transform .15s var(--e-out), border-color .15s;
+}
+.cd-score:hover { transform: translateY(-1px); border-color: var(--line-strong); }
+.cd-score__num { font: 800 var(--fs-22)/1 var(--font-display, var(--font)); color: var(--text); }
+.cd-score__label { font-size: 10.5px; font-weight: 600; color: var(--text-3); text-align: center; line-height: 1.2; }
+.cd-score[data-tier="high"] { background: var(--success-soft); border-color: transparent; }
+.cd-score[data-tier="high"] .cd-score__num { color: var(--success); }
+.cd-score[data-tier="good"] { background: var(--brand-soft); border-color: transparent; }
+.cd-score[data-tier="good"] .cd-score__num { color: var(--brand-text); }
+.cd-score[data-tier="mid"] .cd-score__num { color: var(--amber-text, var(--warning)); }
+
+.cd-next { border-radius: var(--r-lg); padding: 14px 16px; background: var(--brand-soft); border: 1px solid transparent; }
+.cd-next[data-tone="warn"] { background: var(--warning-soft); }
+.cd-next[data-tone="ok"] { background: var(--success-soft); }
+.cd-next[data-tone="muted"] { background: var(--field); border-color: var(--line-soft); }
+.cd-next.is-bump { animation: cdBump .5s var(--e-out); }
+@keyframes cdBump { 30% { transform: scale(1.015); } }
+.cd-next__eyebrow { font: 700 10.5px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 6px; }
+.cd-next__title { font: 700 var(--fs-15)/1.3 var(--font); color: var(--text); }
+.cd-next__text { font-size: var(--fs-13); color: var(--text-2); margin: 4px 0 0; line-height: 1.5; }
+.cd-next__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.cd-next__actions:empty { display: none; }
+
+.cd-tabs {
+  display: flex; gap: 2px; border-bottom: 1px solid var(--line-soft); margin: 0 -20px; padding: 0 16px;
+  position: sticky; top: -20px; background: var(--surface); z-index: 2;
+}
+.cd-tabs button {
+  border: 0; background: none; padding: 11px 8px; font: 600 var(--fs-13)/1 var(--font); color: var(--text-3);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; transition: color .15s, border-color .15s;
+}
+.cd-tabs button:hover { color: var(--text); }
+.cd-tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--brand); }
+.cd-tab-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent, var(--warning)); margin-left: 4px; vertical-align: middle; }
+.cd-pane { display: flex; flex-direction: column; gap: 16px; animation: cdIn .22s var(--e-out); }
+.cd-pane[hidden] { display: none; }
+@keyframes cdIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.cd-h { font: 600 var(--fs-13)/1.3 var(--font); color: var(--text-2); margin: 0 0 8px; }
+.cd-block { padding: 12px 14px; border-radius: var(--r-md); background: var(--field); border: 1px solid var(--line-soft); font-size: var(--fs-13); color: var(--text); }
+.cd-block--brand { background: var(--brand-soft); border-color: transparent; }
+.cd-block__label { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--fs-12); color: var(--brand-text); margin-bottom: 4px; }
+.cd-block__label svg { width: 14px; height: 14px; }
+.cd-contact { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 14px; }
+.cd-contact > svg { width: 14px; height: 14px; color: var(--brand); }
+.cd-letter { line-height: 1.6; white-space: pre-wrap; }
+.cd-qa { margin: 0; padding-left: 18px; display: grid; gap: 10px; font-size: var(--fs-13); }
+.cd-qa li::marker { color: var(--text-4); font-weight: 600; }
+.cd-qa__q { color: var(--text-2); font-weight: 600; }
+.cd-qa__a { color: var(--text); margin-top: 2px; white-space: pre-wrap; }
+.cd-qa__a.is-empty { color: var(--text-4); font-style: italic; }
+.cd-other { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--fs-13); }
+.cd-other a { color: var(--text); text-decoration: none; }
+.cd-other a:hover { color: var(--brand-text); }
+
+/* Phỏng vấn: khung đề xuất + phiếu đánh giá */
+.iv-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+.iv-slot {
+  border: 1px solid var(--brand); background: var(--surface); color: var(--brand-text); border-radius: var(--r-md);
+  padding: 7px 10px; font: 600 var(--fs-12)/1.25 var(--font); cursor: pointer;
+  display: inline-flex; flex-direction: column; align-items: flex-start;
+  transition: background .15s, transform .15s var(--e-out);
+}
+.iv-slot small { font-weight: 500; color: var(--text-3); }
+.iv-slot:hover { background: var(--brand-soft); transform: translateY(-1px); }
+.iv-slot.is-selected { background: var(--brand); color: var(--on-brand, #fff); }
+.iv-slot.is-selected small { color: inherit; opacity: .85; }
+
+.ev-form { display: grid; gap: 12px; }
+.ev-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: var(--fs-13); color: var(--text); }
+.ev-stars { display: inline-flex; gap: 2px; }
+.ev-stars button {
+  width: 28px; height: 28px; border: 0; background: none; border-radius: 6px; cursor: pointer; color: var(--line-strong);
+  display: grid; place-items: center; transition: color .12s, transform .12s var(--e-out);
+}
+.ev-stars button svg { width: 18px; height: 18px; }
+.ev-stars button.is-on { color: var(--amber, var(--warning)); }
+.ev-stars button.is-on svg { fill: currentColor; }
+.ev-stars button:hover { transform: scale(1.12); }
+.ev-recs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ev-recs label { position: relative; cursor: pointer; margin: 0; }
+.ev-recs input { position: absolute; opacity: 0; pointer-events: none; }
+.ev-recs span {
+  display: block; text-align: center; padding: 8px 4px; border-radius: var(--r-md); border: 1px solid var(--line);
+  font: 600 var(--fs-12)/1.2 var(--font); color: var(--text-2); transition: all .15s;
+}
+.ev-recs input:checked + span[data-rec="Hire"] { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+.ev-recs input:checked + span[data-rec="NextRound"] { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-text); }
+.ev-recs input:checked + span[data-rec="Hold"] { background: var(--warning-soft); border-color: var(--warning); color: var(--amber-text, var(--warning)); }
+.ev-recs input:checked + span[data-rec="Reject"] { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.ev-recs input:focus-visible + span { outline: 2px solid var(--brand); outline-offset: 2px; }
+.ev-card { border: 1px solid var(--line-soft); border-radius: var(--r-md); padding: 12px 14px; font-size: var(--fs-13); display: grid; gap: 8px; }
+.ev-card__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 600; color: var(--text); }
+.ev-card__bars { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; font-size: var(--fs-12); color: var(--text-3); }
+.ev-card__bar { height: 5px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }
+.ev-card__bar > span { display: block; height: 100%; background: var(--amber, var(--warning)); }
+
+/* Dòng thời gian */
+.cd-timeline { list-style: none; margin: 0; padding: 0 0 0 18px; position: relative; display: grid; gap: 14px; }
+.cd-timeline::before { content: ''; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 2px; background: var(--line-soft); }
+.cd-timeline li { position: relative; font-size: var(--fs-13); }
+.cd-timeline li::before {
+  content: ''; position: absolute; left: -18px; top: 4px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--line-strong);
+}
+.cd-timeline li[data-actor="Candidate"]::before { border-color: var(--brand); }
+.cd-timeline li[data-actor="Employer"]::before { border-color: var(--success); }
+.cd-timeline li[data-internal="true"]::before { border-style: dashed; }
+.cd-timeline__title { font-weight: 600; color: var(--text); }
+.cd-timeline__meta { font-size: var(--fs-11); color: var(--text-4); }
+.cd-timeline__detail { color: var(--text-2); white-space: pre-wrap; margin-top: 2px; }
+
+/* Modal hẹn: cảnh báo trùng + giờ ứng viên đề xuất */
+.emp-conflict { margin: -6px 0 12px; padding: 10px 12px; border-radius: var(--r-md); background: var(--warning-soft); font-size: var(--fs-13); color: var(--text); }
+.emp-conflict[hidden] { display: none; }
+.emp-conflict ul { margin: 4px 0 8px; padding-left: 18px; }
+.emp-slot-picks { margin-bottom: 14px; padding: 10px 12px; border-radius: var(--r-md); background: var(--brand-soft); }
+.emp-slot-picks[hidden] { display: none; }
+
+/* Modal từ chối: nhóm lý do + mẫu phản hồi */
+.emp-reasons { display: flex; flex-wrap: wrap; gap: 6px; }
+.emp-reasons label { position: relative; margin: 0; cursor: pointer; }
+.emp-reasons input { position: absolute; opacity: 0; pointer-events: none; }
+.emp-reasons span {
+  display: inline-block; padding: 7px 11px; border-radius: var(--r-full); border: 1px solid var(--line);
+  font: 600 var(--fs-12)/1 var(--font); color: var(--text-2); background: var(--surface); transition: all .15s;
+}
+.emp-reasons input:checked + span { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.emp-reasons input:focus-visible + span { outline: 2px solid var(--brand); outline-offset: 2px; }
+.emp-tpls { display: grid; gap: 6px; max-height: 180px; overflow: auto; }
+.emp-tpl {
+  text-align: left; border: 1px solid var(--line-soft); background: var(--field); color: var(--text);
+  border-radius: var(--r-md); padding: 8px 10px; font-size: var(--fs-12); line-height: 1.45; cursor: pointer;
+  transition: border-color .15s;
+}
+.emp-tpl:hover { border-color: var(--brand); }
+.emp-tpl.is-ai { border-color: transparent; background: var(--brand-soft); }
+.emp-tpl.is-ai::before { content: 'Theo phân tích AI · '; font-weight: 700; color: var(--brand-text); }
+
+/* Lịch phỏng vấn theo tuần */
+.iv-cal { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 12px 20px 16px; gap: 10px; }
+.iv-cal[hidden] { display: none; }
+.iv-cal__bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.iv-cal__range { font: 700 var(--fs-15)/1.2 var(--font); color: var(--text); }
+.iv-cal__legend { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--text-3); flex-wrap: wrap; }
+.iv-dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-left: 6px; }
+.iv-dot--pending { background: var(--text-4); }
+.iv-dot--ok { background: var(--brand); }
+.iv-dot--declined { background: var(--danger); }
+.iv-dot--eval { background: var(--warning); }
+.iv-cal__scroll { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.iv-cal__grid { display: grid; grid-template-columns: 52px repeat(7, minmax(110px, 1fr)); position: relative; min-width: 820px; }
+.iv-cal__corner, .iv-cal__day {
+  position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line);
+  padding: 8px 6px; text-align: center; font-size: var(--fs-12); color: var(--text-3);
+}
+.iv-cal__day b { display: block; font: 700 var(--fs-16)/1.1 var(--font); color: var(--text); }
+.iv-cal__day.is-today b { color: var(--brand-text); }
+.iv-cal__day.is-today { box-shadow: inset 0 -2px 0 var(--brand); }
+.iv-cal__hour { height: 52px; font-size: 10.5px; color: var(--text-4); text-align: right; padding: 2px 6px 0 0; border-top: 1px solid var(--line-soft); }
+.iv-cal__col {
+  position: relative; border-left: 1px solid var(--line-soft);
+  background-image: repeating-linear-gradient(to bottom, var(--line-soft) 0, var(--line-soft) 1px, transparent 1px, transparent 52px);
+}
+.iv-cal__col.is-today { background-color: var(--brand-soft); }
+.iv-cal__now { position: absolute; left: 0; right: 0; height: 2px; background: var(--danger); z-index: 3; pointer-events: none; }
+.iv-cal__now::before { content: ''; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.iv-ev {
+  position: absolute; left: 3px; right: 3px; border-radius: 8px; padding: 4px 7px; overflow: hidden; cursor: pointer; z-index: 1;
+  font-size: 11.5px; line-height: 1.3; color: var(--text); text-align: left; border: 0;
+  background: var(--brand-soft); border-left: 3px solid var(--brand); box-shadow: var(--shadow-1);
+  transition: transform .15s var(--e-out), box-shadow .15s;
+}
+.iv-ev:hover, .iv-ev:focus-visible { transform: translateY(-1px); box-shadow: var(--shadow-2); z-index: 4; outline: none; }
+.iv-ev b { display: block; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iv-ev span { color: var(--text-3); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iv-ev[data-state="pending"] { background: var(--field); border-left-color: var(--text-4); }
+.iv-ev[data-state="declined"] { background: var(--danger-soft); border-left-color: var(--danger); }
+.iv-ev[data-state="declined"] b { text-decoration: line-through; }
+.iv-ev[data-state="eval"] { background: var(--warning-soft); border-left-color: var(--warning); }
+.iv-ev[data-state="past"] { opacity: .55; }
+.iv-cal__list { display: none; }
+.iv-cal__empty { padding: 28px; text-align: center; color: var(--text-3); font-size: var(--fs-13); }
+
+@media (max-width: 900px) {
+  .iv-cal__scroll { display: none; }
+  .iv-cal__list { display: grid; gap: 12px; }
+  .iv-cal__legend { display: none; }
+  .iv-list-day { font: 700 var(--fs-13)/1.2 var(--font); color: var(--text-2); margin-bottom: 6px; }
+  .iv-list-day.is-today { color: var(--brand-text); }
+  .iv-cal__list .iv-ev { position: static; display: block; margin-bottom: 6px; padding: 8px 10px; font-size: var(--fs-13); width: 100%; }
+}
+@media (max-width: 640px) {
+  .pipeline-head__actions { flex-wrap: wrap; }
+  .candidate-drawer { width: 100vw; }
+  .ev-recs { grid-template-columns: 1fr 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cd-pane, .candidate-card.is-flash, .cd-next.is-bump { animation: none; }
+  .cc-score.is-pending::before { animation: none; }
+}

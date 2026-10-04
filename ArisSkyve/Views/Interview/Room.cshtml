@@ -1,0 +1,267 @@
+@model ArisSkyve.Application.DTOs.InterviewRoomViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phỏng vấn trực tuyến: @Model.JobTitle — Aris</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/aris-line.css" asp-append-version="true" />
+    <script src="~/lib/lucide/lucide.min.js"></script>
+    <script src="~/js/aris-icons.js" asp-append-version="true"></script>
+
+    <link rel="stylesheet" href="~/css/pages/interview.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="call-shell" id="callShell">
+        <header class="call-header">
+            <div class="call-info-card">
+                <h1 class="call-title">@Model.JobTitle</h1>
+                <div class="call-subtitle">Phỏng vấn với @Model.OtherPartyName</div>
+            </div>
+            <div class="call-status-pill" id="statusPill">
+                <span class="dot"></span>
+                <span id="statusText">Đang kết nối...</span>
+            </div>
+        </header>
+
+        <main class="video-stage">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div class="remote-placeholder" id="remotePlaceholder">
+                <div class="avatar-circle">@(Model.OtherPartyName.Length > 0 ? Model.OtherPartyName.Substring(0, 1).ToUpper() : "?")</div>
+                <div class="small">Đang chờ @Model.OtherPartyName tham gia phòng phỏng vấn...</div>
+            </div>
+        </main>
+
+        <div class="local-video-wrap" id="localWrap">
+            <video id="localVideo" autoplay playsinline muted></video>
+        </div>
+
+        <footer class="call-controls" id="callControls">
+            <button class="call-btn" id="toggleMicBtn" title="Tắt / Bật micro"><i data-lucide="mic"></i></button>
+            <button class="call-btn" id="toggleCamBtn" title="Tắt / Bật camera"><i data-lucide="video"></i></button>
+            <button class="call-btn leave" id="leaveBtn" title="Rời phòng phỏng vấn"><i data-lucide="phone-off"></i></button>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <script>
+        (function () {
+            const applicationId = @Model.ApplicationId;
+            const selfUserId = @Model.SelfUserId;
+            const otherUserId = @Model.OtherPartyUserId;
+            const polite = selfUserId < otherUserId;
+            const leaveUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.IsEmployer ? "/Jobs/Index" : "/JobApplications/MyApplications"));
+
+            const remoteVideo = document.getElementById('remoteVideo');
+            const remotePlaceholder = document.getElementById('remotePlaceholder');
+            const localVideo = document.getElementById('localVideo');
+            const statusPill = document.getElementById('statusPill');
+            const statusText = document.getElementById('statusText');
+            const toggleMicBtn = document.getElementById('toggleMicBtn');
+            const toggleCamBtn = document.getElementById('toggleCamBtn');
+            const leaveBtn = document.getElementById('leaveBtn');
+            const callControls = document.getElementById('callControls');
+            const callShell = document.getElementById('callShell');
+
+            let localStream = null;
+            let makingOffer = false;
+            let ignoreOffer = false;
+
+            // Auto-hide controls after 3s of inactivity
+            let hideTimer = null;
+            function resetControlsTimer() {
+                callControls.classList.remove('is-hidden');
+                clearTimeout(hideTimer);
+                hideTimer = setTimeout(() => {
+                    callControls.classList.add('is-hidden');
+                }, 3000);
+            }
+            callShell.addEventListener('mousemove', resetControlsTimer);
+            callShell.addEventListener('touchstart', resetControlsTimer);
+            resetControlsTimer();
+
+            function setStatus(text, connected) {
+                statusText.textContent = text;
+                statusPill.classList.toggle('connected', !!connected);
+            }
+
+            let iceServersCache = null;
+            async function getIceServers() {
+                if (iceServersCache) return iceServersCache;
+                try {
+                    const res = await fetch('/Turn/GetIceServers').then(r => r.json());
+                    iceServersCache = res.iceServers;
+                } catch {
+                    iceServersCache = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+                }
+                return iceServersCache;
+            }
+
+            let pc;
+
+            const hubConnection = new signalR.HubConnectionBuilder()
+                .withUrl('/hubs/videocall')
+                .withAutomaticReconnect()
+                .build();
+
+            const roomId = String(applicationId);
+
+            function sendSignal(signal) {
+                hubConnection.invoke('SendInterviewSignal', applicationId, signal).catch(err => console.error('SendSignal failed:', err));
+            }
+
+            async function createAndSendOffer() {
+                try {
+                    makingOffer = true;
+                    await pc.setLocalDescription();
+                    sendSignal({ description: pc.localDescription });
+                } catch (err) {
+                    console.error('Offer creation failed:', err);
+                } finally {
+                    makingOffer = false;
+                }
+            }
+
+            function attachPeerConnectionHandlers() {
+                pc.onnegotiationneeded = createAndSendOffer;
+
+                pc.onicecandidate = ({ candidate }) => {
+                    if (candidate) sendSignal({ candidate });
+                };
+
+                pc.ontrack = (event) => {
+                    remoteVideo.srcObject = event.streams[0];
+                    remotePlaceholder.style.display = 'none';
+                };
+
+                pc.onconnectionstatechange = () => {
+                    if (pc.connectionState === 'connected') {
+                        setStatus('Đang phỏng vấn trực tiếp', true);
+                    } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                        setStatus('Mất kết nối, đang thử lại...', false);
+                        remotePlaceholder.style.display = 'flex';
+                    }
+                };
+            }
+
+            hubConnection.on('ReceiveSignal', async (appId, fromUserId, signal) => {
+                if (appId !== roomId) return;
+                try {
+                    if (signal.description) {
+                        const offerCollision = signal.description.type === 'offer' &&
+                            (makingOffer || pc.signalingState !== 'stable');
+                        ignoreOffer = !polite && offerCollision;
+                        if (ignoreOffer) return;
+
+                        await pc.setRemoteDescription(signal.description);
+                        if (signal.description.type === 'offer') {
+                            await pc.setLocalDescription();
+                            sendSignal({ description: pc.localDescription });
+                        }
+                    } else if (signal.candidate) {
+                        try {
+                            await pc.addIceCandidate(signal.candidate);
+                        } catch (err) {
+                            if (!ignoreOffer) throw err;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Signal handling failed:', err);
+                }
+            });
+
+            hubConnection.on('PeerJoined', (appId) => {
+                if (appId !== roomId) return;
+                setStatus('Đối phương đã tham gia, đang kết nối...', false);
+                if (pc && pc.signalingState === 'stable') createAndSendOffer();
+            });
+
+            hubConnection.on('PeerLeft', (appId) => {
+                if (appId !== roomId) return;
+                setStatus('Đối phương đã rời cuộc gọi', false);
+                remoteVideo.srcObject = null;
+                remotePlaceholder.style.display = 'flex';
+            });
+
+            let announceInterval = null;
+
+            async function start() {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                } catch (err) {
+                    setStatus('Không thể truy cập camera/micro', false);
+                    alert('Vui lòng cho phép quyền truy cập camera và micro trong trình duyệt để tham gia phỏng vấn.');
+                    return;
+                }
+
+                localVideo.srcObject = localStream;
+                pc = new RTCPeerConnection({ iceServers: await getIceServers() });
+                attachPeerConnectionHandlers();
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+                await hubConnection.start().catch(err => {
+                    console.error('Hub connection failed:', err);
+                    setStatus('Không thể kết nối máy chủ', false);
+                });
+
+                setStatus('Đang chờ đối phương tham gia...', false);
+                hubConnection.invoke('JoinInterviewCall', applicationId).catch(err => console.error(err));
+
+                announceInterval = setInterval(() => {
+                    if (pc.connectionState === 'connected') {
+                        clearInterval(announceInterval);
+                        return;
+                    }
+                    hubConnection.invoke('JoinInterviewCall', applicationId).catch(() => {});
+                }, 3000);
+
+                if (window.lucide) lucide.createIcons();
+            }
+
+            toggleMicBtn.addEventListener('click', () => {
+                if (!localStream) return;
+                const track = localStream.getAudioTracks()[0];
+                if (!track) return;
+                track.enabled = !track.enabled;
+                toggleMicBtn.classList.toggle('off', !track.enabled);
+                toggleMicBtn.innerHTML = `<i data-lucide="${track.enabled ? 'mic' : 'mic-off'}"></i>`;
+                if (window.lucide) lucide.createIcons();
+            });
+
+            toggleCamBtn.addEventListener('click', () => {
+                if (!localStream) return;
+                const track = localStream.getVideoTracks()[0];
+                if (!track) return;
+                track.enabled = !track.enabled;
+                toggleCamBtn.classList.toggle('off', !track.enabled);
+                toggleCamBtn.innerHTML = `<i data-lucide="${track.enabled ? 'video' : 'video-off'}"></i>`;
+                if (window.lucide) lucide.createIcons();
+            });
+
+            async function leaveCall() {
+                if (!confirm("Bạn có chắc chắn muốn rời phòng phỏng vấn?")) return;
+                try { await hubConnection.invoke('LeaveInterviewCall', applicationId); } catch { /* best-effort */ }
+                if (announceInterval) clearInterval(announceInterval);
+                if (localStream) localStream.getTracks().forEach(t => t.stop());
+                pc?.close();
+                hubConnection.stop();
+                window.location.href = leaveUrl;
+            }
+
+            leaveBtn.addEventListener('click', leaveCall);
+            window.addEventListener('beforeunload', () => {
+                hubConnection.invoke('LeaveInterviewCall', applicationId).catch(() => {});
+            });
+
+            start();
+        })();
+    </script>
+</body>
+</html>

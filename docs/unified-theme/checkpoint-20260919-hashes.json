@@ -1,0 +1,38 @@
+﻿[
+    {
+        "Path":  "D:\\Downloads\\ArisThucTap-main\\ArisThucTap-main\\ArisSkyve\\Views\\Dashboard\\Index.cshtml",
+        "Hash":  "286F4B840894D417B7843E444D790B352302F967EA6200DBBA97795A41611644"
+    },
+    {
+        "Path":  "D:\\Downloads\\ArisThucTap-main\\ArisThucTap-main\\ArisSkyve\\Views\\Chat\\Index.cshtml",
+        "Hash":  "2F632DFDFEDE8BD7E636D727E69B941866A5E7CD52D346980175410CBBEDD770"
+    },
+    {
+        "Path":  "D:\\Downloads\\ArisThucTap-main\\ArisThucTap-main\\ArisSkyve\\Views\\Jobs\\Index.cshtml",
+        "Hash":  "552414289DB11D5E5293E20CB0F0AA12A1F1AF2F833FF98818501060A75EF85B"
+    },
+    {
+        "Path":  "D:\\Downloads\\ArisThucTap-main\\ArisThucTap-main\\ArisSkyve\\Views\\Shared\\_AppLayout.cshtml",
+        "Hash":  "F53246F786999DB71E84D579A904B65F86E384607879BD0C6A75981BC71ECAE8"
+    },
+    {
+        "Path":  "D:\\Downloads\\ArisThucTap-main\\ArisThucTap-main\\ArisSkyve\\Views\\Shared\\Components\\AppNavbar\\Default.cshtml",
+        "Hash":  "9E77EC900DF507B2309B481F6D08D218CACA241E59C55EA07B45C309A3A28ED0"
+    },
+    {
+        "Path":  "D:\\Downloads\\ArisThucTap-main\\ArisThucTap-main\\ArisSkyve\\wwwroot\\css\\aris-cosmos.css",
+        "Hash":  "72068AA346753D1808D7CCB415A613296A7107931F34C985B0780403E93165EB"
+    },
+    {
+        "Path":  "D:\\Downloads\\ArisThucTap-main\\ArisThucTap-main\\ArisSkyve\\wwwroot\\css\\aris-dashboard.css",
+        "Hash":  "B5ECFF203CC80D943137BA9D250C7280AF6BB80E00637C723C033F2B41BFAD26"
+    },
+    {
+        "Path":  "D:\\Downloads\\ArisThucTap-main\\ArisThucTap-main\\ArisSkyve\\wwwroot\\js\\aris-dashboard.js",
+        "Hash":  "869970A77633939D8976F4F2F87D388F418F6770E2588020EEE5A1D8AA82C9DE"
+    },
+    {
+        "Path":  "D:\\Downloads\\ArisThucTap-main\\ArisThucTap-main\\.local\\cosmos-checkpoint\\ArisSkyve.dll",
+        "Hash":  "07E40905BEE71CFFFE72BD26D76745C74B82285867E4B6AEFA0B5FCEFBE9D1C9"
+    }
+]

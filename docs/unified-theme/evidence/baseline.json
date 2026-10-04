@@ -1,0 +1,10 @@
+[
+  {
+    "name": "current-login",
+    "error": "Page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5025/Account/Login\nCall log:\n  - navigating to \"http://127.0.0.1:5025/Account/Login\", waiting until \"domcontentloaded\"\n"
+  },
+  {
+    "name": "current-v5",
+    "error": "Page.goto: Navigation to \"http://127.0.0.1:5183/\" is interrupted by another navigation to \"chrome-error://chromewebdata/\"\nCall log:\n  - navigating to \"http://127.0.0.1:5183/\", waiting until \"domcontentloaded\"\n"
+  }
+]

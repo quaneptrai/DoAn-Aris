@@ -1,0 +1,14 @@
+@{
+    // Notification bell dropdown, meant to sit inside a <ul class="navbar-nav"> alongside
+    // the other nav-items. Wired up by notification-client.js (see _ChatWidget.cshtml,
+    // Chat/Index.cshtml and Settings/Index.cshtml for where that script gets loaded + initialized).
+}
+<li class="nav-item dropdown">
+    <a href="#" class="nav-link position-relative" id="notifBellBtn" aria-label="Thông báo" data-bs-toggle="dropdown" aria-expanded="false">
+        <i data-lucide="bell" ></i><span>Thông báo</span>
+        <span id="notifBadge" class="aris-notif-badge"></span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end border-0 shadow mt-3 aris-notif-dropdown" id="notifList">
+        <li class="aris-notif-empty">Đang tải thông báo...</li>
+    </ul>
+</li>

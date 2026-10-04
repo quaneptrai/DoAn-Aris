@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <title>@(ViewData["Title"] ?? "Aris Careers — Việc làm & văn hoá công ty")</title>
+
+    <!-- Giao diện (mặc định tối, giống trong app) đặt trước CSS để không chớp -->
+    <script>
+        (function () {
+            try { document.documentElement.dataset.theme = localStorage.getItem('aris-theme') || 'dark'; }
+            catch (e) { document.documentElement.dataset.theme = 'dark'; }
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/aris-line.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pages/auth.css" asp-append-version="true" />
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" asp-append-version="true">
+    <link rel="alternate icon" href="~/favicon.ico">
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <div class="auth">
+        <!-- Cột giới thiệu (ẩn trên màn hẹp) -->
+        <aside class="auth-art" aria-label="Giới thiệu Aris">
+            <header class="auth-art__top">
+                <a class="auth-brand" href="/" aria-label="Aris Careers — trang chủ">
+                    @await Html.PartialAsync("_ArisMark", 34)
+                    <span class="auth-brand__name">Aris<span class="auth-brand__tag">Careers</span></span>
+                </a>
+            </header>
+            @await Component.InvokeAsync("AuthShowcase")
+            <footer class="auth-art__foot">© 2026 Aris Careers · Việc làm &amp; văn hoá công ty</footer>
+        </aside>
+
+        <!-- Cột biểu mẫu -->
+        <main class="auth-main" id="mainContent">
+            <div class="auth-main__top">
+                <a class="auth-brand auth-brand--m" href="/" aria-label="Aris Careers — trang chủ">
+                    @await Html.PartialAsync("_ArisMark", 28)
+                    <span class="auth-brand__name">Aris<span class="auth-brand__tag">Careers</span></span>
+                </a>
+                <button class="auth-theme" type="button" id="authTheme" aria-label="Đổi giao diện sáng / tối" title="Đổi giao diện">
+                    <i data-lucide="sun" class="auth-theme__sun"></i><i data-lucide="moon" class="auth-theme__moon"></i>
+                </button>
+            </div>
+
+            <div class="auth-main__center">
+                @RenderBody()
+            </div>
+
+            <p class="auth-foot">© 2026 Aris Careers</p>
+        </main>
+    </div>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/lucide/lucide.min.js" asp-append-version="true"></script>
+    <script src="~/js/aris-icons.js" asp-append-version="true"></script>
+    <script src="~/js/aris-motion.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+            var btn = document.getElementById('authTheme');
+            if (btn) btn.addEventListener('click', function () {
+                var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+                if (window.ArisMotion && window.ArisMotion.setTheme) window.ArisMotion.setTheme(next, btn);
+                else document.documentElement.dataset.theme = next;
+                try { localStorage.setItem('aris-theme', next); } catch (e) { }
+            });
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

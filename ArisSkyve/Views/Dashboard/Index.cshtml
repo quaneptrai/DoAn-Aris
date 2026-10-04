@@ -1,0 +1,431 @@
+@model ArisSkyve.Domain.Entities.User
+@using ArisSkyve.Application.DTOs
+@inject ArisSkyve.Infrastructure.Services.IV7FeatureGate FeatureGate
+
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Bảng tin";
+    ViewData["ActiveNav"] = "Home";
+    ViewData["TopChips"] = new List<(string Label, string Href)>
+    {
+        ("Remote", "/Jobs?workMode=Remote"),
+        ("Fintech", "/Jobs?q=Fintech"),
+        ("AI & Big Data", "/Jobs?q=AI")
+    };
+
+    var profile = Model?.Profile;
+    var business = profile as ArisSkyve.Domain.Entities.BussinessAccount;
+    var isBusiness = Model?.Role == "Business";
+    var avatar = string.IsNullOrWhiteSpace(profile?.AvatarUrl) ? "/images/default-avatar.png" : profile!.AvatarUrl!;
+    var hasAvatar = avatar != "/images/default-avatar.png";
+    var fullName = business != null && !string.IsNullOrWhiteSpace(business.CompanyName)
+        ? business.CompanyName
+        : (string.IsNullOrWhiteSpace(profile?.FullName) ? (Model?.Username ?? "Bạn") : profile!.FullName);
+    var firstName = isBusiness ? fullName : (fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? fullName);
+    var jobTitle = string.IsNullOrWhiteSpace(profile?.JobTitle) || profile!.JobTitle == "Ứng viên tiềm năng" ? null : profile.JobTitle;
+    var location = string.IsNullOrWhiteSpace(profile?.Location) || profile!.Location == "Chưa cập nhật" ? null : profile.Location;
+    var subLine = isBusiness
+        ? string.Join(" · ", new[] { business?.Industry, business?.CompanyAddress }.Where(x => !string.IsNullOrWhiteSpace(x)))
+        : string.Join(" · ", new[] { jobTitle, location }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    if (string.IsNullOrWhiteSpace(subLine)) subLine = isBusiness ? "Tài khoản doanh nghiệp" : "Thêm chức danh để nhà tuyển dụng dễ tìm bạn";
+
+    var initialPosts = ViewBag.InitialPosts as List<object> ?? new List<object>();
+    var upcomingInterview = ViewBag.UpcomingInterview as ArisSkyve.Domain.Entities.JobApplication;
+    var todos = ViewBag.Todos as List<FeedTodoItem> ?? new List<FeedTodoItem>();
+    var requests = ViewBag.Requests as List<FeedRequestItem> ?? new List<FeedRequestItem>();
+    var requestCount = (int)(ViewBag.RequestCount ?? 0);
+    var activeJobCount = (int)(ViewBag.ActiveJobCount ?? 0);
+    var onlineFriendsCount = (int)(ViewBag.OnlineFriendsCount ?? 0);
+    var profilePercent = (int)(ViewBag.ProfilePercent ?? 0);
+    var currentUserId = (int)(ViewBag.CurrentUserId ?? Model?.Id ?? 0);
+    var todoCount = todos.Count + (upcomingInterview != null ? 1 : 0);
+
+    string Initials(string name)
+    {
+        var parts = (name ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0) return "A";
+        if (parts.Length == 1) return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpperInvariant();
+        return (parts[^2][0].ToString() + parts[^1][0]).ToUpperInvariant();
+    }
+    // Cùng công thức với window.toneOf() trong aris-shell.js
+    int Tone(string name)
+    {
+        uint h = 0;
+        foreach (var ch in name ?? "") h = unchecked(h * 31 + ch);
+        return (int)(h % 6) + 1;
+    }
+    var myInitials = Initials(fullName);
+    var myTone = Tone(fullName);
+    var recentJobs = ViewBag.RecentJobs as List<ArisSkyve.Domain.Entities.JobPosting> ?? new List<ArisSkyve.Domain.Entities.JobPosting>();
+    bool HasImg(string? url) => !string.IsNullOrWhiteSpace(url) && !url.Contains("default-avatar.png") && !url.Contains("ui-avatars.com");
+    string OrgInitials(string? name)
+    {
+        var words = (name ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return "AR";
+        if (words.Length > 1) return (words[0][0].ToString() + words[1][0]).ToUpperInvariant();
+        return words[0].Substring(0, Math.Min(2, words[0].Length)).ToUpperInvariant();
+    }
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/aris-stories.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pages/feed.css" asp-append-version="true" />
+}
+
+<!-- Chỉ mobile: thanh đầu (logo trái, tạo bài phải), ẩn khi cuộn xuống cùng tab bar -->
+<header class="feed-mhead" id="feedMhead">
+    <a class="feed-mhead__logo" href="/Dashboard" aria-label="Aris — về đầu Bảng tin">
+        @await Html.PartialAsync("_ArisMark", 26)<span>Aris</span>
+    </a>
+    <div class="feed-mhead__actions">
+        <button class="a-btn a-btn--ghost a-btn--icon" type="button" data-action="palette" aria-label="Tìm kiếm"><i data-lucide="search"></i></button>
+        <button class="a-btn a-btn--ghost a-btn--icon" type="button" data-compose="text" aria-label="Tạo bài viết"><i data-lucide="plus-square"></i></button>
+    </div>
+</header>
+
+<div class="feed" id="feed">
+    <div class="feed-col">
+        <h1 class="a-visually-hidden">Bảng tin</h1>
+
+        @if (FeatureGate.Stories)
+        {
+            <!-- Tin 24 giờ: "Một ngày ở công ty" -->
+            <section class="fx-card stories" id="storiesSection" aria-labelledby="storiesTitle">
+                <header class="stories__head">
+                    <span class="fx-live" aria-hidden="true"></span>
+                    <h2 class="stories__title" id="storiesTitle">Một ngày ở công ty <span>· tin 24 giờ</span></h2>
+                    <div class="stories__navs">
+                        <button class="stories__nav" type="button" data-st-step="-1" aria-label="Xem các tin trước" disabled><i data-lucide="chevron-left"></i></button>
+                        <button class="stories__nav" type="button" data-st-step="1" aria-label="Xem các tin tiếp theo" disabled><i data-lucide="chevron-right"></i></button>
+                    </div>
+                </header>
+                <div class="stories__track" id="storyTrack" role="list">
+                    <button class="st st--me" type="button" role="listitem" id="storyMe" aria-label="Tin của bạn — thêm tin mới">
+                        <span class="st__ring">
+                            @if (hasAvatar)
+                            {
+                                <span class="a-avatar a-avatar--56"><img src="@avatar" alt="" onerror="this.remove()" /></span>
+                            }
+                            else
+                            {
+                                <span class="a-avatar a-avatar--56" data-tone="@myTone">@myInitials</span>
+                            }
+                            <span class="st__plus" data-story-add aria-hidden="true"><i data-lucide="plus"></i></span>
+                        </span>
+                        <span class="st__name">Tin của bạn</span>
+                    </button>
+                    @for (var i = 0; i < 5; i++)
+                    {
+                        <span class="st st--skel" aria-hidden="true"><span class="st__ring"><span class="a-skel"></span></span><span class="a-skel st__skel-name"></span></span>
+                    }
+                </div>
+                <input type="file" id="storyFile" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
+            </section>
+        }
+
+        <!-- Tạo bài viết: một hàng (ô nhập + 3 lối tắt) -->
+        <section class="compose" id="composeBar" aria-label="Tạo bài viết">
+            @if (hasAvatar)
+            {
+                <span class="a-avatar a-avatar--40"><img src="@avatar" alt="" onerror="this.remove()" /></span>
+            }
+            else
+            {
+                <span class="a-avatar a-avatar--40" data-tone="@myTone">@myInitials</span>
+            }
+            <button class="compose__field" type="button" data-compose="text">Bạn đang nghĩ gì, @firstName?</button>
+            <div class="compose__acts">
+                <button class="compose__act" type="button" data-compose="media" data-tip="Ảnh / video" aria-label="Đăng ảnh hoặc video"><i data-lucide="image"></i></button>
+                <button class="compose__act" type="button" data-compose="article" data-tip="Viết bài dài" aria-label="Viết bài dài"><i data-lucide="pen-line"></i></button>
+                <button class="compose__act" type="button" data-compose="milestone" data-tip="Cột mốc mới" aria-label="Chia sẻ cột mốc mới"><i data-lucide="zap"></i></button>
+            </div>
+        </section>
+
+        <!-- Bài mới (realtime) -->
+        <div class="newpill-wrap">
+            <button class="newpill" id="newPill" type="button" hidden>
+                <i data-lucide="arrow-up"></i>
+                <span class="newpill__avs" id="newPillAvs"></span>
+                <span id="newPillText">Bài mới</span>
+            </button>
+        </div>
+
+        <!-- Danh sách bài viết -->
+        <div class="feed-list" id="feedList" aria-label="Bài viết" role="feed" aria-busy="false">
+            @if (!initialPosts.Any())
+            {
+                <div class="fx-card feed-empty a-empty" style="max-width:none">
+                    <i data-lucide="newspaper"></i>
+                    <div class="a-empty__title">Bảng tin của bạn còn trống</div>
+                    <div class="a-empty__text">Kết bạn hoặc theo dõi công ty để thấy bài viết, việc làm mới và câu chuyện văn hoá của họ ở đây.</div>
+                    <div class="feed-empty__actions">
+                        <a class="a-btn a-btn--ink" href="/Company">Khám phá công ty</a>
+                        <button class="a-btn a-btn--secondary" type="button" data-compose="text">Tạo bài viết đầu tiên</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div id="feedSentinel" aria-hidden="true"></div>
+
+        <div class="feed-end" id="feedEnd" hidden>
+            <span class="feed-end__mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path pathLength="1" d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+            <div class="feed-end__title">Bạn đã xem hết bài mới</div>
+            <div class="feed-end__text">Quay lại sau để xem cập nhật từ bạn bè và công ty bạn theo dõi.</div>
+        </div>
+    </div>
+
+    <!-- Cột phải -->
+    <aside class="feed-side" aria-label="Hồ sơ, việc cần làm và gợi ý">
+        <section class="fx-card me-card">
+            <div class="me-card__top">
+                <a class="me-card__avatar" href="/Profile" aria-label="Hồ sơ của bạn">
+                    @if (hasAvatar)
+                    {
+                        <span class="a-logo a-logo--56"><img src="@avatar" alt="" onerror="this.remove()" /></span>
+                    }
+                    else
+                    {
+                        <span class="a-logo a-logo--56 me-card__mono">@myInitials</span>
+                    }
+                    <span class="me-card__online" aria-hidden="true"></span>
+                </a>
+                <div class="me-card__text">
+                    <a class="me-card__name" href="/Profile">
+                        <span>@fullName</span>
+                        @if (business?.IsVerified == true)
+                        {
+                            <i data-lucide="badge-check" class="fx-verified" aria-label="Đã xác minh"></i>
+                        }
+                    </a>
+                    <div class="me-card__sub">@subLine</div>
+                </div>
+                <a class="me-card__link" href="/Profile">Xem</a>
+            </div>
+            <div class="me-card__foot">
+                @if (isBusiness)
+                {
+                    <span class="fx-pill fx-pill--brand"><span class="fx-pill__dot"></span>Tài khoản doanh nghiệp</span>
+                    <a class="me-card__stat" href="/Employer">Bảng tuyển dụng</a>
+                }
+                else
+                {
+                    @if (profile?.IsLookingForJob == true)
+                    {
+                        <span class="fx-pill fx-pill--emerald"><span class="fx-pill__dot"></span>Sẵn sàng nhận việc mới</span>
+                    }
+                    else
+                    {
+                        <span class="fx-pill"><span class="fx-pill__dot"></span>Không tìm việc</span>
+                    }
+                    <div class="d-flex align-items-center gap-2">
+                        @if ((ViewBag.AppliedCount ?? 0) > 0)
+                        {
+                            <a class="me-card__stat" href="/JobApplications/MyApplications">Đơn nộp <b class="a-num">@(ViewBag.AppliedCount ?? 0)</b></a>
+                        }
+                        <a class="me-card__stat" href="/Profile">Hồ sơ <b class="a-num">@profilePercent%</b></a>
+                    </div>
+                }
+            </div>
+            <div class="side-live" aria-live="off">
+                <span class="side-live__dot" aria-hidden="true"></span>
+                <span><b class="a-num" id="liveJobs">@activeJobCount</b> việc đang tuyển · <b class="a-num" id="liveOnline">@onlineFriendsCount</b> bạn trực tuyến</span>
+            </div>
+        </section>
+
+        <section class="fx-card side-card" id="todoSide" aria-labelledby="todoTitle">
+            <header class="side-card__head">
+                <h2 id="todoTitle">Việc cần làm</h2>
+                <span class="side-card__count side-card__count--accent a-num" data-todo-count @(todoCount == 0 ? "hidden" : "")>@todoCount</span>
+                <a href="/JobApplications/MyApplications?tab=interview">Lịch tuần này</a>
+            </header>
+            <div class="todo-list">
+                @if (upcomingInterview != null)
+                {
+                    var ivCompany = upcomingInterview.JobPosting?.BusinessAccount?.CompanyName
+                        ?? (string.IsNullOrWhiteSpace(upcomingInterview.JobPosting?.Company) ? "Doanh nghiệp" : upcomingInterview.JobPosting!.Company);
+                    var ivJob = upcomingInterview.JobPosting?.Title ?? "Vị trí tuyển dụng";
+                    var ivTime = upcomingInterview.InterviewAt ?? DateTime.UtcNow;
+                    var ivStatus = upcomingInterview.InterviewResponse?.ToLower() ?? "pending";
+                    string[] wdShort = { "CN", "T2", "T3", "T4", "T5", "T6", "T7" };
+
+                    <div class="iv" data-todo-id="iv-@upcomingInterview.Id">
+                        <div class="iv__top">
+                            <div class="iv__cal" aria-hidden="true">
+                                <span class="iv__wd">@wdShort[(int)ivTime.DayOfWeek]</span>
+                                <span class="iv__d a-num">@ivTime.Day</span>
+                            </div>
+                            <div class="iv__text">
+                                <div class="iv__company"><span>@ivCompany</span><span class="iv__tag">Phỏng vấn</span></div>
+                                <a class="iv__job" href="/JobApplications/MyApplications?tab=interview">@ivJob</a>
+                                <div class="iv__when"><i data-lucide="clock-3"></i>@ivTime.ToString("HH:mm") · @ivTime.ToString("dd/MM") · @(upcomingInterview.InterviewLocation ?? "Trực tuyến (Aris)")</div>
+                            </div>
+                        </div>
+                        @if (ivStatus == "accepted")
+                        {
+                            <div class="todo__done"><i data-lucide="check-circle-2"></i>Đã nhận lời</div>
+                        }
+                        else
+                        {
+                            <div class="iv__actions">
+                                <button class="a-btn a-btn--primary a-btn--sm" type="button" data-iv-accept="@upcomingInterview.Id">Nhận lời</button>
+                                <button class="a-btn a-btn--secondary a-btn--sm" type="button" data-iv-decline="@upcomingInterview.Id">Từ chối</button>
+                            </div>
+                        }
+                    </div>
+                }
+                @foreach (var t in todos)
+                {
+                    <a class="todo-row" href="@t.Href">
+                        <span class="todo-row__icon"><i data-lucide="@t.Icon"></i></span>
+                        <span class="todo-row__text">
+                            <span class="todo-row__title">@t.Title</span>
+                            <span class="todo-row__sub">@t.Sub</span>
+                        </span>
+                        <span class="todo-row__go">@t.Action<i data-lucide="arrow-right"></i></span>
+                    </a>
+                }
+                @if (todoCount == 0)
+                {
+                    <div class="todo-empty"><i data-lucide="check-circle-2"></i>Không có việc gì cần làm. Bạn đang rất ổn!</div>
+                }
+            </div>
+        </section>
+
+        @if (requests.Count > 0)
+        {
+            <section class="fx-card side-card" id="reqSide" aria-labelledby="reqTitle">
+                <header class="side-card__head">
+                    <h2 id="reqTitle">Lời mời kết nối</h2>
+                    <span class="side-card__count a-num" data-req-count>@requestCount</span>
+                    <a href="/Chat/Index?tab=requests">Xem tất cả</a>
+                </header>
+                <div class="req-list">
+                    @foreach (var r in requests)
+                    {
+                        var rHasAvatar = !string.IsNullOrWhiteSpace(r.AvatarUrl) && r.AvatarUrl != "/images/default-avatar.png";
+                        var rSub = string.Join(" · ", new[] { r.Subtitle, r.MutualCount > 0 ? $"{r.MutualCount} bạn chung" : null }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                        <div class="req" data-req="@r.RequestId">
+                            <div class="req__top">
+                                @if (rHasAvatar)
+                                {
+                                    <span class="a-avatar a-avatar--44"><img src="@r.AvatarUrl" alt="" onerror="this.remove()" /></span>
+                                }
+                                else
+                                {
+                                    <span class="a-avatar a-avatar--44" data-tone="@Tone(r.Name)">@Initials(r.Name)</span>
+                                }
+                                <div class="req__text">
+                                    <a class="req__name" href="/Profile/View/@r.UserId">@r.Name</a>
+                                    <div class="req__sub">@(string.IsNullOrWhiteSpace(rSub) ? "Muốn kết nối với bạn" : rSub)</div>
+                                </div>
+                            </div>
+                            <div class="req__actions">
+                                <button class="a-btn a-btn--primary a-btn--sm" type="button" data-req-accept="@r.RequestId">Đồng ý</button>
+                                <button class="a-btn a-btn--secondary a-btn--sm" type="button" data-req-decline="@r.RequestId">Bỏ qua</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (!isBusiness && recentJobs.Any())
+        {
+            <section class="fx-card side-card" aria-labelledby="jobsTitle">
+                <header class="side-card__head">
+                    <h2 id="jobsTitle">Việc làm mới đăng</h2>
+                    <a href="/Jobs">Xem tất cả</a>
+                </header>
+                <div class="sjob-list">
+                    @foreach (var j in recentJobs)
+                    {
+                        var jCompany = j.BusinessAccount?.CompanyName ?? (string.IsNullOrWhiteSpace(j.Company) ? "Doanh nghiệp" : j.Company);
+                        var jCity = j.Locations?.FirstOrDefault()?.City;
+                        var jDays = (int)Math.Max(0, (DateTime.UtcNow - j.CreatedAt).TotalDays);
+                        <a class="sjob" href="/Jobs?job=@j.Id">
+                            <span class="a-logo a-logo--40" data-tone="@Tone(jCompany)">@OrgInitials(jCompany)@if (HasImg(j.BusinessAccount?.AvatarUrl))
+                                {
+                                    <img src="@j.BusinessAccount!.AvatarUrl" alt="" loading="lazy" onerror="this.remove()" />
+                                }</span>
+                            <span class="sjob__text">
+                                <span class="sjob__title">@j.Title</span>
+                                <span class="sjob__sub">@jCompany@(string.IsNullOrWhiteSpace(jCity) ? "" : " · " + jCity)</span>
+                                <span class="sjob__meta"><b>@(string.IsNullOrWhiteSpace(j.Salary) ? "Thoả thuận" : j.Salary)</b><span>@(jDays == 0 ? "Hôm nay" : jDays == 1 ? "Hôm qua" : $"{jDays} ngày trước")</span></span>
+                            </span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+
+        <section class="fx-card side-card" id="suggestSide" aria-labelledby="suggestTitle" hidden>
+            <header class="side-card__head">
+                <h2 id="suggestTitle">Gợi ý cho bạn</h2>
+                <a href="/Chat/Index?tab=friends">Xem thêm</a>
+            </header>
+            <div class="sugg-list" id="suggestList"></div>
+        </section>
+
+        <footer class="side-foot">
+            <nav aria-label="Liên kết chân trang">
+                <a href="/Company">Văn hoá</a>
+                <a href="/Jobs">Việc làm</a>
+                <a href="/Settings">Quyền riêng tư</a>
+                <button type="button" data-keys>Phím tắt</button>
+            </nav>
+            <div>© 2026 Aris Careers</div>
+        </footer>
+    </aside>
+</div>
+
+<!-- Menu "…" của bài viết -->
+<div class="a-pop" id="postMenu" role="menu" hidden></div>
+
+<!-- Tạo bài viết (3 bước: chọn ảnh → sắp xếp → nội dung) -->
+<div class="a-scrim" id="composeScrim" hidden></div>
+<div class="a-dialog cm" id="composeDialog" role="dialog" aria-modal="true" aria-labelledby="cmTitle" hidden></div>
+<input type="file" id="cmFile" accept="image/*,video/*" multiple hidden>
+
+<!-- Xác nhận bỏ bài đang viết -->
+<div class="a-scrim" id="confirmScrim" hidden></div>
+<div class="a-dialog confirm" id="confirmDialog" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText" hidden></div>
+
+<!-- Chi tiết bài + bình luận -->
+<div class="a-scrim" id="pdScrim" hidden></div>
+<div class="a-dialog pd" id="postDialog" role="dialog" aria-modal="true" aria-label="Bài viết" hidden></div>
+
+<!-- Gửi cho bạn bè -->
+<div class="a-scrim" id="shareScrim" hidden></div>
+<div class="a-dialog share" id="shareDialog" role="dialog" aria-modal="true" aria-labelledby="shareTitle" hidden></div>
+
+<!-- Phím tắt -->
+<div class="a-scrim" id="keysScrim" hidden></div>
+<div class="a-dialog keys" id="keysDialog" role="dialog" aria-modal="true" aria-labelledby="keysTitle" hidden></div>
+
+<!-- Đăng tin 24h -->
+<div class="a-scrim" id="storyNewScrim" hidden></div>
+<div class="a-dialog story-new" id="storyNewDialog" role="dialog" aria-modal="true" aria-labelledby="storyNewTitle" hidden></div>
+
+<!-- Xem tin 24h -->
+<div class="story" id="story" role="dialog" aria-modal="true" aria-label="Xem tin" hidden></div>
+
+<script>
+    window.__FEED_CONFIG__ = {
+        currentUserId: @currentUserId,
+        currentUserName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(fullName)),
+        currentUserTitle: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(jobTitle)),
+        currentUserLocation: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(location)),
+        currentUserAvatar: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(avatar)),
+        isBusiness: @(isBusiness ? "true" : "false"),
+        companyId: @(business?.Id.ToString() ?? "null"),
+        initialPosts: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initialPosts)),
+        activeJobCount: @activeJobCount,
+        onlineFriendsCount: @onlineFriendsCount
+    };
+</script>
+
+@section Scripts {
+    <script src="~/js/aris-stories.js" asp-append-version="true"></script>
+    <script src="~/js/pages/feed.js" asp-append-version="true"></script>
+}

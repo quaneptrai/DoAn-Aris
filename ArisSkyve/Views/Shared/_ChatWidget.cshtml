@@ -1,0 +1,803 @@
+@model int
+@{
+    var path = Context.Request.Path.Value ?? "";
+    if (path.StartsWith("/Chat", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/Interview/Room", StringComparison.OrdinalIgnoreCase))
+    {
+        return;
+    }
+}
+
+<link rel="stylesheet" href="~/css/chat-widget.css" asp-append-version="true" />
+
+<div id="arisChatWidget">
+    <!-- Popover Panel (380x560) -->
+    <div id="chatPanel" class="chat-panel" role="dialog" aria-modal="false" aria-label="Cửa sổ tin nhắn">
+        <div class="chat-widget-viewport">
+            <div id="chatWidgetSlider" class="chat-widget-slider">
+                <!-- VIEW 1: Conversations List -->
+                <div id="widgetListView" class="chat-widget-view">
+                    <div class="chat-widget-header">
+                        <span class="chat-widget-header-title">
+                            <i data-lucide="messages-square" style="width:18px;height:18px;color:var(--brand)"></i>
+                            Tin nhắn
+                        </span>
+                        <div class="chat-widget-header-actions">
+                            <a href="/Chat/Index" class="chat-widget-btn-icon" title="Mở toàn màn hình" aria-label="Mở toàn màn hình">
+                                <i data-lucide="maximize-2"></i>
+                            </a>
+                            <button type="button" class="chat-widget-btn-icon chat-panel-close-btn" title="Đóng" aria-label="Đóng">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="chat-widget-search">
+                        <div class="chat-widget-search-input-wrap">
+                            <i data-lucide="search"></i>
+                            <input type="text" id="widgetSearchInput" placeholder="Tìm người để nhắn tin..." aria-label="Tìm kiếm người nhắn tin" autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div id="widgetSearchResults" class="chat-widget-list" style="display:none;"></div>
+                    <div id="widgetConversationList" class="chat-widget-list"></div>
+                </div>
+
+                <!-- VIEW 2: Chat Thread Detail -->
+                <div id="widgetThreadView" class="chat-widget-view">
+                    <div class="chat-widget-header">
+                        <button type="button" id="widgetThreadBackBtn" class="chat-widget-btn-icon" title="Quay lại danh sách" aria-label="Quay lại danh sách">
+                            <i data-lucide="arrow-left"></i>
+                        </button>
+                        <div class="widget-thread-user">
+                            <span id="widgetThreadFace"></span>
+                            <img id="widgetThreadAvatar" src="/images/default-avatar.png" alt="Avatar" hidden>
+                            <div class="widget-thread-user-info">
+                                <div id="widgetThreadName" class="widget-thread-user-name">...</div>
+                                <div id="widgetThreadStatus" class="widget-thread-user-status">Ngoại tuyến</div>
+                            </div>
+                        </div>
+                        <div class="chat-widget-header-actions">
+                            <a id="widgetThreadFullLink" href="/Chat/Index" class="chat-widget-btn-icon" title="Mở toàn màn hình" aria-label="Mở toàn màn hình">
+                                <i data-lucide="maximize-2"></i>
+                            </a>
+                            <button type="button" class="chat-widget-btn-icon chat-panel-close-btn" title="Đóng" aria-label="Đóng">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="widget-thread-body">
+                        <div id="widgetThreadMessages" class="widget-thread-messages"></div>
+                        <div id="widgetThreadTyping" class="widget-typing">đang soạn tin...</div>
+
+                        <!-- Staged Reply Preview -->
+                        <div id="widgetReplyBar" class="widget-preview-bar" style="display:none;">
+                            <div class="widget-preview-text">Đang trả lời: <span id="widgetReplySnippet" class="fw-semibold"></span></div>
+                            <button type="button" id="widgetCancelReplyBtn" class="chat-widget-btn-icon" style="width:24px;height:24px;" aria-label="Hủy trả lời">
+                                <i data-lucide="x" style="width:14px;height:14px;"></i>
+                            </button>
+                        </div>
+
+                        <!-- Staged Image Preview -->
+                        <div id="widgetImageBar" class="widget-preview-bar" style="display:none;">
+                            <img id="widgetImageThumb" src="" alt="Thumbnail">
+                            <div class="widget-preview-text">Đã đính kèm ảnh</div>
+                            <button type="button" id="widgetCancelImageBtn" class="chat-widget-btn-icon" style="width:24px;height:24px;" aria-label="Hủy ảnh">
+                                <i data-lucide="x" style="width:14px;height:14px;"></i>
+                            </button>
+                        </div>
+
+                        <!-- Composer Form -->
+                        <form id="widgetComposerForm" class="widget-composer">
+                            <button type="button" id="widgetEmojiBtn" class="chat-widget-btn-icon" title="Biểu tượng cảm xúc" aria-label="Chọn biểu tượng cảm xúc">
+                                <i data-lucide="smile"></i>
+                            </button>
+                            <button type="button" id="widgetImageBtn" class="chat-widget-btn-icon" title="Gửi ảnh" aria-label="Đính kèm ảnh">
+                                <i data-lucide="image"></i>
+                            </button>
+                            <input type="file" id="widgetImageInput" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
+                            <input type="text" id="widgetComposerInput" class="widget-composer-input" placeholder="Nhập tin nhắn..." autocomplete="off">
+                            <button type="submit" class="widget-composer-send-btn" title="Gửi (Enter)" aria-label="Gửi tin nhắn">
+                                <i data-lucide="send"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 48px Launcher Button -->
+    <button type="button" id="chatLauncherBtn" class="chat-launcher" aria-label="Mở tin nhắn" aria-controls="chatPanel" aria-expanded="false">
+        <i data-lucide="message-circle"></i>
+        <span id="chatUnreadBadge" class="chat-unread-badge">0</span>
+    </button>
+</div>
+
+<!-- Forward Message Modal -->
+<div class="modal fade" id="chatWidgetForwardModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--r-2xl, 16px); background: var(--surface, #ffffff);">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold" style="font-size: 15px;">Chuyển tiếp tin nhắn đến...</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-2" id="widgetForwardTargetList" style="max-height:340px;overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+<script src="~/js/chat-client.js"></script>
+<script src="~/js/notification-client.js"></script>
+<script>
+    // Initialize navbar notifications bell if element exists
+    (function () {
+        const bellBtn = document.getElementById("notifBellBtn");
+        if (bellBtn && window.ArisNotifications) {
+            ArisNotifications.init({
+                bellBtn,
+                badge: document.getElementById("notifBadge"),
+                list: document.getElementById("notifList")
+            });
+        }
+    })();
+
+    // Main Chat Widget Controller
+    (function () {
+        const myUserId = @Model;
+        const defaultAvatar = "/images/default-avatar.png";
+
+        const launcher = document.getElementById("chatLauncherBtn");
+        const panel = document.getElementById("chatPanel");
+        const slider = document.getElementById("chatWidgetSlider");
+        const badge = document.getElementById("chatUnreadBadge");
+        const convList = document.getElementById("widgetConversationList");
+        const searchInput = document.getElementById("widgetSearchInput");
+        const searchResults = document.getElementById("widgetSearchResults");
+
+        const threadBackBtn = document.getElementById("widgetThreadBackBtn");
+        const threadAvatar = document.getElementById("widgetThreadAvatar");
+        const threadName = document.getElementById("widgetThreadName");
+        const threadStatus = document.getElementById("widgetThreadStatus");
+        const threadFullLink = document.getElementById("widgetThreadFullLink");
+        const threadMessages = document.getElementById("widgetThreadMessages");
+        const threadTyping = document.getElementById("widgetThreadTyping");
+
+        const replyBar = document.getElementById("widgetReplyBar");
+        const replySnippetEl = document.getElementById("widgetReplySnippet");
+        const cancelReplyBtn = document.getElementById("widgetCancelReplyBtn");
+
+        const imageBar = document.getElementById("widgetImageBar");
+        const imageThumb = document.getElementById("widgetImageThumb");
+        const cancelImageBtn = document.getElementById("widgetCancelImageBtn");
+        const imageBtn = document.getElementById("widgetImageBtn");
+        const imageInput = document.getElementById("widgetImageInput");
+
+        const composerForm = document.getElementById("widgetComposerForm");
+        const composerInput = document.getElementById("widgetComposerInput");
+        const emojiBtn = document.getElementById("widgetEmojiBtn");
+
+        const forwardTargetList = document.getElementById("widgetForwardTargetList");
+        const closeBtns = document.querySelectorAll(".chat-panel-close-btn");
+
+        let conversations = [];
+        let activeUserId = null;
+        let activePartner = null;
+        let messagesById = {};
+        let replyingTo = null;
+        let stagedImageFile = null;
+        let typingTimeout = null;
+        let forwardingMessageId = null;
+
+        function refreshIcons() {
+            if (window.lucide && typeof window.lucide.createIcons === "function") {
+                window.lucide.createIcons();
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement("div");
+            div.innerText = str == null ? "" : str;
+            return div.innerHTML;
+        }
+
+        function replySnippet(m) {
+            if (!m) return "";
+            if (m.content) return m.content.length > 50 ? m.content.slice(0, 50) + "…" : m.content;
+            return m.imageUrl ? (/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(m.imageUrl) ? "🎬 Video" : "📷 Ảnh đính kèm") : "";
+        }
+
+        // ---- Hiển thị kiểu Zalo / Messenger (27/09/2026) ----
+        const isVid = (u) => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(String(u || ""));
+        const nameOf = (o) => (o && (o.displayName || o.username)) || "";
+        const HIDE_KEY = "aris-chat-hidden-" + myUserId;
+        const hiddenSet = () => { try { return new Set(JSON.parse(localStorage.getItem(HIDE_KEY) || "[]")); } catch (e) { return new Set(); } };
+        function hideMsg(id, on) {
+            const set = hiddenSet();
+            if (on) set.add(+id); else set.delete(+id);
+            try { localStorage.setItem(HIDE_KEY, JSON.stringify(Array.from(set).slice(-500))); } catch (e) { /* bỏ qua */ }
+        }
+        function tone(name) {
+            if (window.toneOf) return window.toneOf(name);
+            let h = 0;
+            for (const ch of String(name || "")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+            return (h % 6) + 1;
+        }
+        function inits(name) {
+            if (window.initials) return window.initials(name);
+            const p = String(name || "?").trim().split(/\s+/);
+            return (p.length > 1 ? p[p.length - 2][0] + p[p.length - 1][0] : p[0].slice(0, 2)).toUpperCase();
+        }
+        function faceHtml(name, url, size) {
+            const img = url && !url.includes("default-avatar.png") ? `<img src="${escapeHtml(url)}" alt="" onerror="this.remove()">` : "";
+            return `<span class="a-avatar" style="--_s:${size}px" data-tone="${tone(name)}">${escapeHtml(inits(name))}${img}</span>`;
+        }
+        const two = (n) => String(n).padStart(2, "0");
+        const hhmm = (d) => `${two(d.getHours())}:${two(d.getMinutes())}`;
+        const fullTime = (d) => `${hhmm(d)} · ${two(d.getDate())}/${two(d.getMonth() + 1)}/${d.getFullYear()}`;
+        const toast = (msg, opts) => { if (window.ArisMotion && ArisMotion.toast) ArisMotion.toast(msg, opts || {}); };
+        let threadMsgs = [];
+
+        let forwardModalInstance = null;
+        function getForwardModal() {
+            if (!forwardModalInstance && typeof bootstrap !== "undefined" && bootstrap.Modal) {
+                const el = document.getElementById("chatWidgetForwardModal");
+                forwardModalInstance = new bootstrap.Modal(el);
+            }
+            return forwardModalInstance;
+        }
+
+        function renderForwardTargetList() {
+            if (!forwardTargetList) return;
+            forwardTargetList.innerHTML = conversations.length === 0
+                ? '<div class="text-muted small p-3">Chưa có cuộc trò chuyện nào.</div>'
+                : conversations.map(c => `
+                    <div class="widget-forward-target-item" data-user-id="${c.userId}">
+                        ${faceHtml(nameOf(c), c.avatar, 32)}
+                        <div class="fw-medium">${escapeHtml(nameOf(c))}</div>
+                    </div>
+                `).join("");
+        }
+
+        if (forwardTargetList) {
+            forwardTargetList.addEventListener("click", async (e) => {
+                const item = e.target.closest(".widget-forward-target-item");
+                if (!item || !forwardingMessageId) return;
+                await ArisChat.forward(parseInt(item.dataset.userId), parseInt(forwardingMessageId));
+                forwardingMessageId = null;
+                const m = getForwardModal();
+                if (m) m.hide();
+            });
+        }
+
+        // Open/Close Popover
+        function togglePanel(show) {
+            const willShow = show !== undefined ? show : (panel.style.display !== "flex");
+            panel.style.display = willShow ? "flex" : "none";
+            launcher.setAttribute("aria-expanded", String(willShow));
+            if (willShow) {
+                refreshIcons();
+                if (!activeUserId) {
+                    searchInput.focus();
+                } else {
+                    composerInput.focus();
+                }
+                loadConversations();
+            }
+        }
+
+        launcher.addEventListener("click", () => togglePanel());
+
+        closeBtns.forEach(btn => {
+            btn.addEventListener("click", () => togglePanel(false));
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!panel.contains(e.target) && !launcher.contains(e.target) && !e.target.closest("#chatWidgetForwardModal")) {
+                if (panel.style.display === "flex") {
+                    togglePanel(false);
+                }
+            }
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && panel.style.display === "flex") {
+                if (slider.classList.contains("in-thread")) {
+                    showListView();
+                } else {
+                    togglePanel(false);
+                }
+                launcher.focus();
+            }
+        });
+
+        // View sliding transitions
+        function showListView() {
+            slider.classList.remove("in-thread");
+            activeUserId = null;
+            activePartner = null;
+            clearReplyingTo();
+            clearStagedImage();
+            loadConversations();
+            refreshIcons();
+        }
+
+        function showThreadView(userId, partner) {
+            activeUserId = userId;
+            activePartner = partner;
+            slider.classList.add("in-thread");
+
+            threadAvatar.src = partner.avatar || defaultAvatar;
+            const tf = document.getElementById("widgetThreadFace");
+            if (tf) tf.innerHTML = faceHtml(nameOf(partner), partner.avatar, 34);
+            threadName.textContent = nameOf(partner) || "Người dùng";
+            threadFullLink.href = `/Chat/Index?userId=${userId}`;
+
+            updateThreadPresence(partner.isOnline);
+
+            loadMessages(userId);
+            refreshIcons();
+            setTimeout(() => composerInput.focus(), 150);
+        }
+
+        threadBackBtn.addEventListener("click", showListView);
+
+        function updateThreadPresence(isOnline) {
+            if (!threadStatus) return;
+            if (isOnline) {
+                threadStatus.textContent = "Đang trực tuyến";
+                threadStatus.className = "widget-thread-user-status online";
+            } else {
+                threadStatus.textContent = "Ngoại tuyến";
+                threadStatus.className = "widget-thread-user-status";
+            }
+        }
+
+        // Load & Render Conversations
+        async function loadConversations() {
+            try {
+                const res = await fetch("/Chat/GetConversations");
+                if (!res.ok) return;
+                conversations = await res.json();
+                renderConversationList();
+                updateUnreadBadge();
+            } catch (err) {
+                console.warn("Failed to load conversations:", err);
+            }
+        }
+
+        function updateUnreadBadge() {
+            const total = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+            badge.style.display = total > 0 ? "flex" : "none";
+            badge.textContent = total > 99 ? "99+" : total;
+        }
+
+        function renderConversationList() {
+            if (!convList) return;
+            convList.innerHTML = conversations.length === 0
+                ? '<div class="chat-widget-empty">Chưa có cuộc trò chuyện nào.<br>Tìm bạn bè ở thanh tìm kiếm phía trên.</div>'
+                : conversations.map(c => `
+                    <div class="chat-widget-item" data-user-id="${c.userId}" data-username="${escapeHtml(c.username)}" data-display="${escapeHtml(nameOf(c))}" data-avatar="${c.avatar || defaultAvatar}" data-online="${c.isOnline ? 'true' : 'false'}">
+                        <div class="chat-widget-avatar-wrap">
+                            ${faceHtml(nameOf(c), c.avatar, 40)}
+                            <div class="chat-widget-dot ${c.isOnline ? 'online' : ''}" data-presence-dot="${c.userId}"></div>
+                        </div>
+                        <div class="chat-widget-item-meta">
+                            <div class="chat-widget-item-name">${escapeHtml(nameOf(c))}</div>
+                            <div class="chat-widget-item-preview ${c.unreadCount > 0 ? 'unread' : ''}">
+                                ${c.isMine ? '<span class="text-muted">Bạn: </span>' : ''}${escapeHtml(c.lastMessage || '')}
+                            </div>
+                        </div>
+                        ${c.unreadCount > 0 ? '<span class="chat-widget-unread-dot"></span>' : ''}
+                    </div>`).join("");
+        }
+
+        convList.addEventListener("click", (e) => {
+            const item = e.target.closest(".chat-widget-item");
+            if (!item) return;
+            const userId = parseInt(item.dataset.userId);
+            const username = item.dataset.username;
+            const avatar = item.dataset.avatar;
+            const isOnline = item.dataset.online === "true";
+            showThreadView(userId, { userId, username, displayName: item.dataset.display, avatar, isOnline });
+        });
+
+        // Search Users
+        let searchDebounce = null;
+        searchInput.addEventListener("input", () => {
+            clearTimeout(searchDebounce);
+            const q = searchInput.value.trim();
+            if (!q) {
+                searchResults.style.display = "none";
+                convList.style.display = "block";
+                return;
+            }
+            searchDebounce = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/Chat/SearchUsers?q=${encodeURIComponent(q)}`);
+                    const users = await res.json();
+                    convList.style.display = "none";
+                    searchResults.style.display = "block";
+                    searchResults.innerHTML = users.length === 0
+                        ? '<div class="chat-widget-empty">Không tìm thấy người dùng phù hợp.</div>'
+                        : users.map(u => `
+                            <div class="chat-widget-item" data-user-id="${u.id}" data-username="${escapeHtml(u.username)}" data-display="${escapeHtml(nameOf(u))}" data-avatar="${u.avatar || defaultAvatar}">
+                                <div class="chat-widget-avatar-wrap">
+                                    ${faceHtml(nameOf(u), u.avatar, 40)}
+                                </div>
+                                <div class="chat-widget-item-meta">
+                                    <div class="chat-widget-item-name">${escapeHtml(nameOf(u))}</div>
+                                </div>
+                            </div>`).join("");
+                } catch (e) {
+                    console.warn(e);
+                }
+            }, 250);
+        });
+
+        searchResults.addEventListener("click", (e) => {
+            const item = e.target.closest(".chat-widget-item");
+            if (!item) return;
+            const userId = parseInt(item.dataset.userId);
+            const username = item.dataset.username;
+            const avatar = item.dataset.avatar;
+            searchInput.value = "";
+            searchResults.style.display = "none";
+            convList.style.display = "block";
+            showThreadView(userId, { userId, username, displayName: item.dataset.display, avatar, isOnline: false });
+        });
+
+        // Messages & Bubbles — cụm tin (cùng người, cách < 5 phút), avatar ở CUỐI cụm, nút nổi không làm xê dịch tin
+        function messageHtml(m, pos, receipt) {
+            messagesById[m.id] = m;
+            const mine = m.senderId === myUserId;
+            const d = new Date(m.sentAt);
+            const pName = nameOf(activePartner);
+            const avatarCell = mine ? "" : `<div class="widget-msg-avatar">${pos === "last" || pos === "single" ? faceHtml(pName, activePartner?.avatar, 26) : ""}</div>`;
+
+            const forwardedLabel = m.isForwarded
+                ? `<div class="widget-msg-fwd"><i data-lucide="forward"></i>Đã chuyển tiếp</div>`
+                : "";
+            const replyQuote = m.replyTo
+                ? `<div class="widget-msg-quote"><b>${m.replyTo.senderId === myUserId ? "Bạn" : escapeHtml(pName || m.replyTo.senderUsername)}</b>${escapeHtml(replySnippet(m.replyTo))}</div>`
+                : "";
+            let body;
+            if (m.deleted) {
+                body = `<div class="widget-msg-bubble is-deleted" title="${fullTime(d)}">Tin nhắn đã được thu hồi</div>`;
+            } else {
+                const media = m.imageUrl
+                    ? (isVid(m.imageUrl)
+                        ? `<video class="widget-msg-img" src="${escapeHtml(m.imageUrl)}#t=0.1" controls playsinline preload="metadata"></video>`
+                        : `<a href="${escapeHtml(m.imageUrl)}" target="_blank" rel="noopener"><img class="widget-msg-img" src="${escapeHtml(m.imageUrl)}" alt="Ảnh"></a>`)
+                    : "";
+                const text = m.content ? `<span class="widget-msg-text">${escapeHtml(m.content)}</span>` : "";
+                body = `<div class="widget-msg-bubble${m.imageUrl ? " has-media" : ""}" title="${fullTime(d)}">${forwardedLabel}${replyQuote}${media}${text}<time class="widget-msg-time">${hhmm(d)}</time></div>`;
+            }
+            const actions = m.deleted ? "" : `
+                <div class="widget-msg-actions">
+                    <button type="button" class="widget-msg-act-btn" data-wact="reply" data-id="${m.id}" title="Trả lời" aria-label="Trả lời"><i data-lucide="quote"></i></button>
+                    <button type="button" class="widget-msg-act-btn" data-wact="forward" data-id="${m.id}" title="Chuyển tiếp" aria-label="Chuyển tiếp"><i data-lucide="forward"></i></button>
+                    <button type="button" class="widget-msg-act-btn" data-wact="more" data-id="${m.id}" title="Thêm" aria-label="Thêm tuỳ chọn" aria-haspopup="menu"><i data-lucide="more-horizontal"></i></button>
+                </div>`;
+            let rc = "";
+            if (receipt === "seen") rc = `<div class="widget-msg-seen" title="Đã xem">${faceHtml(pName, activePartner?.avatar, 14)}</div>`;
+            else if (receipt === "sent") rc = `<div class="widget-msg-sent"><i data-lucide="check"></i>Đã gửi</div>`;
+
+            return `<div class="widget-msg-row ${mine ? "mine" : "them"} is-${pos}" data-msg-id="${m.id}">
+                ${avatarCell}<div class="widget-msg-stack">${body}${actions}${rc}</div>
+            </div>`;
+        }
+
+        const GAP = 5 * 60 * 1000;
+        function renderWidgetThread(opts) {
+            const hidden = hiddenSet();
+            const list = threadMsgs.filter((m) => !hidden.has(m.id));
+            if (!list.length) {
+                threadMessages.innerHTML = '<div class="chat-widget-empty">Bắt đầu cuộc trò chuyện với ' + escapeHtml(nameOf(activePartner) || "người này") + "</div>";
+                return;
+            }
+            const mineMsgs = list.filter((m) => m.senderId === myUserId && !m.deleted);
+            const lastMine = mineMsgs[mineMsgs.length - 1];
+            const lastSeen = [...mineMsgs].reverse().find((m) => m.isRead);
+            const receipts = {};
+            if (lastSeen) receipts[lastSeen.id] = "seen";
+            if (lastMine && !lastMine.isRead && list[list.length - 1] === lastMine) receipts[lastMine.id] = "sent";
+            const same = (a, b) => a && b && a.senderId === b.senderId && Math.abs(new Date(b.sentAt) - new Date(a.sentAt)) < GAP
+                && new Date(a.sentAt).toDateString() === new Date(b.sentAt).toDateString();
+            const near = threadMessages.scrollHeight - threadMessages.scrollTop - threadMessages.clientHeight < 120;
+            const prevTop = threadMessages.scrollTop;
+            threadMessages.innerHTML = list.map((m, i) => {
+                const a = same(list[i - 1], m), b = same(m, list[i + 1]);
+                const pos = a && b ? "middle" : a ? "last" : b ? "first" : "single";
+                return messageHtml(m, pos, receipts[m.id]);
+            }).join("");
+            if (opts && opts.keepScroll && !near) threadMessages.scrollTop = prevTop;
+            else threadMessages.scrollTop = threadMessages.scrollHeight;
+            refreshIcons();
+        }
+
+        async function loadMessages(userId) {
+            threadMessages.innerHTML = '<div class="chat-widget-empty"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Đang tải tin nhắn...</div>';
+            try {
+                const res = await fetch(`/Chat/GetMessages?userId=${userId}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.partner) {
+                    activePartner = data.partner;
+                    threadAvatar.src = data.partner.avatar || defaultAvatar;
+                    const tf2 = document.getElementById("widgetThreadFace");
+                    if (tf2) tf2.innerHTML = faceHtml(nameOf(data.partner), data.partner.avatar, 34);
+                    threadName.textContent = nameOf(data.partner);
+                    updateThreadPresence(data.partner.isOnline);
+                }
+
+                messagesById = {};
+                threadMsgs = data.messages || [];
+                renderWidgetThread();
+                ArisChat.markRead(userId);
+            } catch (err) {
+                console.error("Failed to load messages:", err);
+                threadMessages.innerHTML = '<div class="chat-widget-empty text-danger">Không thể tải tin nhắn. Vui lòng thử lại.</div>';
+            }
+        }
+
+        // Reply / Forward / Copy Actions inside Thread
+        function setReplyingTo(m) {
+            replyingTo = m;
+            replySnippetEl.textContent = replySnippet(m);
+            replyBar.style.display = "flex";
+            composerInput.focus();
+            refreshIcons();
+        }
+
+        function clearReplyingTo() {
+            replyingTo = null;
+            replyBar.style.display = "none";
+        }
+
+        cancelReplyBtn.addEventListener("click", clearReplyingTo);
+
+        function clearStagedImage() {
+            stagedImageFile = null;
+            imageBar.style.display = "none";
+            imageThumb.src = "";
+            imageInput.value = "";
+        }
+
+        cancelImageBtn.addEventListener("click", clearStagedImage);
+
+        imageBtn.addEventListener("click", () => imageInput.click());
+        imageInput.addEventListener("change", () => {
+            const file = imageInput.files[0];
+            imageInput.value = "";
+            if (!file) return;
+            stagedImageFile = file;
+            imageThumb.src = URL.createObjectURL(file);
+            imageBar.style.display = "flex";
+            refreshIcons();
+        });
+
+        let wMenu = null;
+        function openWidgetMenu(anchor, m) {
+            if (!wMenu) {
+                wMenu = document.createElement("div");
+                wMenu.className = "a-pop m-menu widget-msg-menu";
+                wMenu.setAttribute("role", "menu");
+                wMenu.hidden = true;
+                document.body.appendChild(wMenu);
+            }
+            const mine = m.senderId === myUserId;
+            const row = anchor.closest(".widget-msg-row");
+            wMenu.innerHTML = `
+                ${m.content ? '<button class="a-menu__item" type="button" role="menuitem" data-mact="copy"><i data-lucide="copy"></i>Sao chép tin nhắn</button>' : ""}
+                <button class="a-menu__item" type="button" role="menuitem" data-mact="reply"><i data-lucide="quote"></i>Trả lời</button>
+                <button class="a-menu__item" type="button" role="menuitem" data-mact="forward"><i data-lucide="forward"></i>Chuyển tiếp</button>
+                <button class="a-menu__item" type="button" role="menuitem" data-mact="details"><i data-lucide="info"></i>Xem chi tiết</button>
+                <div class="a-menu__sep" role="separator"></div>
+                ${mine ? '<button class="a-menu__item a-menu__item--danger" type="button" role="menuitem" data-mact="recall"><i data-lucide="rotate-ccw"></i>Thu hồi với mọi người</button>' : ""}
+                <button class="a-menu__item a-menu__item--danger" type="button" role="menuitem" data-mact="hide"><i data-lucide="trash-2"></i>Xoá chỉ ở phía tôi</button>`;
+            refreshIcons();
+            const close = () => {
+                wMenu.hidden = true;
+                if (row) row.classList.remove("is-menu");
+                document.removeEventListener("pointerdown", outside, true);
+                document.removeEventListener("keydown", esc, true);
+            };
+            const outside = (ev) => { if (!wMenu.contains(ev.target) && !anchor.contains(ev.target)) close(); };
+            const esc = (ev) => { if (ev.key === "Escape") { ev.stopPropagation(); close(); } };
+            if (row) row.classList.add("is-menu");
+            wMenu.hidden = false;
+            const r = anchor.getBoundingClientRect();
+            const w = wMenu.offsetWidth || 240, h = wMenu.offsetHeight || 300;
+            let left = mine ? r.right - w : r.left;
+            left = Math.max(8, Math.min(window.innerWidth - w - 8, left));
+            let top = r.bottom + 6;
+            if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+            wMenu.style.position = "fixed";
+            wMenu.style.top = top + "px";
+            wMenu.style.left = left + "px";
+            wMenu.style.zIndex = "2000";
+            setTimeout(() => {
+                document.addEventListener("pointerdown", outside, true);
+                document.addEventListener("keydown", esc, true);
+            }, 0);
+            wMenu.onclick = async (ev) => {
+                const it = ev.target.closest("[data-mact]");
+                if (!it) return;
+                const act = it.dataset.mact;
+                close();
+                if (act === "copy") {
+                    if (navigator.clipboard) navigator.clipboard.writeText(m.content || "").catch(() => {});
+                    toast("Đã sao chép tin nhắn", { tone: "success" });
+                } else if (act === "reply") {
+                    setReplyingTo(m);
+                } else if (act === "forward") {
+                    forwardingMessageId = m.id;
+                    renderForwardTargetList();
+                    const fm = getForwardModal();
+                    if (fm) fm.show();
+                } else if (act === "details") {
+                    const d = new Date(m.sentAt);
+                    toast(`${mine ? "Bạn gửi" : (nameOf(activePartner) || "Đối phương") + " gửi"} lúc ${fullTime(d)}${mine ? (m.isRead ? " · Đã xem" : " · Chưa xem") : ""}`);
+                } else if (act === "hide") {
+                    hideMsg(m.id, true);
+                    renderWidgetThread({ keepScroll: true });
+                    toast("Đã xoá tin nhắn ở phía bạn (trên thiết bị này).", { action: { label: "Hoàn tác", onClick: () => { hideMsg(m.id, false); renderWidgetThread({ keepScroll: true }); } } });
+                } else if (act === "recall") {
+                    try {
+                        await ArisChat.deleteMessage(m.id);
+                        m.deleted = true;
+                        renderWidgetThread({ keepScroll: true });
+                    } catch (err) {
+                        toast("Không thể thu hồi tin nhắn", { tone: "danger" });
+                    }
+                }
+            };
+        }
+
+        threadMessages.addEventListener("click", (e) => {
+            const b = e.target.closest("[data-wact]");
+            if (!b) return;
+            const m = messagesById[b.dataset.id];
+            if (!m) return;
+            const act = b.dataset.wact;
+            if (act === "reply") setReplyingTo(m);
+            else if (act === "forward") {
+                forwardingMessageId = m.id;
+                renderForwardTargetList();
+                const fm = getForwardModal();
+                if (fm) fm.show();
+            } else if (act === "more") openWidgetMenu(b, m);
+        });
+
+        // Composer Submit with IME safety
+        composerForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!activeUserId) return;
+
+            const content = composerInput.value.trim();
+            if (!content && !stagedImageFile) return;
+
+            composerInput.value = "";
+            const fileToSend = stagedImageFile;
+            const replyToId = replyingTo ? replyingTo.id : null;
+            clearStagedImage();
+            clearReplyingTo();
+
+            let imageUrl = null;
+            if (fileToSend) {
+                const formData = new FormData();
+                formData.append("file", fileToSend);
+                try {
+                    const res = await fetch("/Chat/UploadChatMedia", { method: "POST", body: formData });
+                    const result = await res.json();
+                    if (!result.success) {
+                        alert(result.message || "Không thể tải lên hình ảnh.");
+                        return;
+                    }
+                    imageUrl = result.url;
+                } catch {
+                    alert("Lỗi kết nối tới máy chủ khi gửi ảnh.");
+                    return;
+                }
+            }
+
+            await ArisChat.send(activeUserId, content, replyToId, imageUrl);
+        });
+
+        // IME composition handling for Vietnamese input
+        composerInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                if (e.isComposing || e.keyCode === 229) {
+                    return; // Vietnamese IME typing in progress
+                }
+                e.preventDefault();
+                composerForm.dispatchEvent(new Event("submit"));
+            }
+        });
+
+        composerInput.addEventListener("input", () => {
+            if (activeUserId) {
+                ArisChat.typing(activeUserId);
+            }
+        });
+
+        // Attach emoji picker if available
+        if (window.ArisChatEmoji && typeof ArisChatEmoji.attach === "function") {
+            ArisChatEmoji.attach(composerInput, { container: composerForm }); // gợi ý ":tên" khi gõ
+        }
+        // Bảng emoji đầy đủ (dùng chung với trang Tin nhắn) — chỉ nạp module khi bấm lần đầu
+        if (emojiBtn) {
+            emojiBtn.setAttribute("aria-haspopup", "dialog");
+            emojiBtn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                    const mod = await import("/js/aris-emoji-picker.js");
+                    mod.toggleEmojiPicker(emojiBtn, composerInput);
+                } catch (err) {
+                    console.warn("Emoji picker unavailable", err);
+                }
+            });
+        }
+
+        // Realtime SignalR Listeners
+        ArisChat.onMessage((msg) => {
+            const partnerId = msg.senderId === myUserId ? msg.receiverId : msg.senderId;
+
+            if (activeUserId === partnerId) {
+                const mine = msg.senderId === myUserId;
+                threadMsgs.push(msg);
+                renderWidgetThread({ keepScroll: !mine });
+                if (!mine) {
+                    ArisChat.markRead(activeUserId);
+                }
+            } else if (msg.senderId !== myUserId && panel.style.display !== "flex") {
+                // Background unread update
+            }
+
+            loadConversations();
+        });
+
+        ArisChat.onTyping((fromUserId) => {
+            if (activeUserId === fromUserId) {
+                threadTyping.style.display = "block";
+                clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => {
+                    threadTyping.style.display = "none";
+                }, 2000);
+            }
+        });
+
+        ArisChat.onRead((readerId) => {
+            if (readerId === activeUserId) {
+                let changed = false;
+                threadMsgs.forEach((m) => { if (m.senderId === myUserId && !m.isRead) { m.isRead = true; changed = true; } });
+                if (changed) renderWidgetThread({ keepScroll: true });
+            }
+            loadConversations();
+        });
+
+        if (ArisChat.onDeleted) ArisChat.onDeleted((messageId) => {
+            const m = threadMsgs.find((x) => x.id === messageId);
+            if (m) { m.deleted = true; renderWidgetThread({ keepScroll: true }); }
+            loadConversations();
+        });
+
+        ArisChat.onPresence((userId, isOnline) => {
+            const dot = document.querySelector(`[data-presence-dot="${userId}"]`);
+            if (dot) dot.classList.toggle("online", isOnline);
+            if (activeUserId === userId) {
+                updateThreadPresence(isOnline);
+            }
+        });
+
+        // Start SignalR
+        ArisChat.start().then(() => {
+            loadConversations();
+            refreshIcons();
+        });
+    })();
+</script>

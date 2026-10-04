@@ -1,0 +1,47 @@
+@model List<ArisSkyve.Domain.Entities.Resume>
+
+@{
+    ViewData["Title"] = "CV của tôi";
+    ViewData["ActiveNav"] = "Resume";
+    Layout = "_AppLayout";
+    var count = Model?.Count ?? 0;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/cv.css" asp-append-version="true" />
+}
+
+<main class="a-main">
+    <div class="cv-page">
+        <header class="a-pagehead">
+            <div>
+                <h1 class="a-pagehead__title">CV của tôi</h1>
+                <div class="a-pagehead__sub"><span class="a-num">@count</span> bản CV · Resume Studio với 32 layout, chỉnh sửa nội dung và xuất PDF</div>
+            </div>
+            <div class="a-pagehead__actions">
+                <a href="/Resume/Studio?templates=1" class="a-btn a-btn--ghost a-btn--sm">Khám phá 32 layout</a>
+                <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-cv-upload>
+                    <i data-lucide="upload"></i> Tải CV có sẵn lên
+                </button>
+                <a href="/Resume/Studio?new=1" class="a-btn a-btn--primary a-btn--sm">
+                    <i data-lucide="file-plus"></i> Tạo CV mới
+                </a>
+            </div>
+        </header>
+
+        <input type="file" id="cvUploadInput" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+        <div class="cv-upload-status" id="cvUploadStatus" role="status" aria-live="polite" hidden>
+            <span class="cv-upload-status__icon" id="cvUploadIcon"><span class="spinner-border spinner-border-sm"></span></span>
+            <div class="cv-upload-status__text">
+                <b id="cvUploadTitle">Đang tải CV lên…</b>
+                <span id="cvUploadSub">AI đọc CV, nhận diện kỹ năng và kinh nghiệm — thường mất 30–90 giây.</span>
+            </div>
+        </div>
+
+        @await Html.PartialAsync("_MyCvsPartial", Model)
+    </div>
+</main>
+
+@section Scripts {
+    <script src="~/js/resume-actions.js" asp-append-version="true"></script>
+}

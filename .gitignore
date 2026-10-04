@@ -1,0 +1,38 @@
+## Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+## Build results
+[Bb]in/
+[Oo]bj/
+.local/
+
+## Secrets
+secrets.json
+.env
+ArisSkyve/.env
+ArisSkyve/appsettings.Local.json
+ArisSkyve/appsettings.*.local.json
+
+## Claude / IDE
+.claude/
+ArisSkyve/App_Data/resume-originals/
+
+## Dependencies (reinstall with npm install)
+node_modules/
+
+## Runtime data: private CV originals, uploaded media, data-protection keys
+ArisSkyve/App_Data/
+ArisSkyve/wwwroot/uploads/*
+!ArisSkyve/wwwroot/uploads/demo/
+ArisSkyve/ArisSkyve/
+
+## Local screenshots and browser captures (may contain session cookies/tokens)
+ArisSkyve/_shots/
+tests/.artifacts/
+/cookies.txt
+/login.html
+/dashboard.html

@@ -1,0 +1,42 @@
+{
+  "file": "D:\\Downloads\\ArisThucTap-main\\ArisThucTap-main\\docs\\design-lab\\aris-login-v5\\index.html",
+  "errors": [],
+  "fps_samples": [
+    7.9,
+    56.7,
+    60,
+    60,
+    60,
+    60,
+    60.1,
+    50,
+    59.1,
+    60,
+    60,
+    60
+  ],
+  "avg_fps": 54.48,
+  "render_stats": {
+    "triangles": 98,
+    "bodies": 1368,
+    "titleCells": 260,
+    "rimCells": 340,
+    "surfaceCells": 768,
+    "dust": 100,
+    "mode": "login",
+    "revealed": true
+  },
+  "keyboard_nav_success": true,
+  "skip_intro_matches": true,
+  "email_error_shown": true,
+  "reg_email_carried": "linh.nguyen@aris-career.vn",
+  "tab_sequence": [
+    "userEmail",
+    "btnSubmit",
+    "BUTTON",
+    "BUTTON",
+    "BUTTON"
+  ],
+  "mobile_390_scroll_width": 390,
+  "mobile_320_scroll_width": 320
+}

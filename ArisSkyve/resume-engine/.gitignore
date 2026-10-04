@@ -1,0 +1,6 @@
+node_modules/
+.npm-cache/
+server/__pycache__/
+.smoke.cjs
+tests/artifacts/
+tests/.artifacts/

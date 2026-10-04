@@ -1,0 +1,8 @@
+{
+  "name": "aris-skyve-browser-tests",
+  "private": true,
+  "description": "Browser test dependency shared by resume-engine/tests and tests/*.cjs (they require ../../node_modules/puppeteer-core).",
+  "devDependencies": {
+    "puppeteer-core": "25.11.0"
+  }
+}

@@ -1,0 +1,704 @@
+@import url('aris-tokens.css');
+
+/* Aris Career Studio — Unified Theme Layer
+   Consumes design tokens from aris-tokens.css.
+   Maintains full backward compatibility for legacy styles while standardizing
+   typography, spacing, surfaces, and motion across the entire application. */
+
+:root {
+    --bg-color: var(--aris-canvas);
+    --card-bg: var(--aris-surface);
+    --primary-color: var(--aris-brand);
+    --primary-hover: var(--aris-brand-hover);
+    --text-main: var(--aris-text);
+    --text-muted: var(--aris-text-muted);
+    --border-color: var(--aris-border);
+    --card-radius: var(--aris-radius-card);
+    --detail-card-radius: var(--aris-radius-feature);
+    --nav-height: var(--aris-nav-height);
+
+    --accent: var(--aris-brand);
+    --accent-hover: var(--aris-brand-hover);
+    --accent-soft: var(--aris-brand-soft);
+    --accent-ink: var(--aris-brand-ink);
+    --accent-light: #7EC8F5;
+    --ink: var(--aris-ink);
+    --ink-soft: var(--aris-ink-subtle);
+
+    --warning-color: var(--aris-warning);
+    --warning-hover: #B45F04;
+    --warning-soft: var(--aris-warning-soft);
+    --warning-ink: #78350F;
+
+    /* Back-compat aliases */
+    --accent-gold: var(--accent);
+    --accent-gold-hover: var(--accent-hover);
+    --accent-gold-soft: var(--accent-soft);
+    --accent-gold-ink: var(--accent-ink);
+    --accent-blue: var(--accent);
+    --accent-blue-light: var(--accent-light);
+    --accent-blue-soft: var(--accent-soft);
+
+    --font-display: var(--aris-font-display);
+    --font-body: var(--aris-font-body);
+}
+
+/* Site-wide page background: flat, near-white, cool-toned surface with one
+   quiet blue glow in the corner — a single deliberate accent instead of a
+   textured/multi-layer wash, in keeping with the flat minimal direction. */
+body {
+    background-color: var(--bg-color);
+    background-image: radial-gradient(circle at 100% -10%, rgba(47, 111, 237, 0.06), transparent 42%);
+    background-attachment: fixed;
+    font-family: var(--font-body);
+    color: var(--text-main);
+    position: relative;
+}
+
+@keyframes aris-rise-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.aris-rise-in {
+    animation: aris-rise-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+}
+
+a {
+    color: var(--primary-color);
+}
+
+    a:hover {
+        color: var(--accent-gold-ink);
+    }
+
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--card-radius);
+    box-shadow: 0 4px 16px rgba(18, 20, 26, 0.04);
+}
+
+/* --- Shared navbar (rendered by the AppNavbar view component) --- */
+
+.navbar {
+    height: var(--nav-height);
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 1px 4px rgba(11, 17, 32, 0.04);
+    position: sticky;
+    top: 0;
+    width: 100%;
+    z-index: var(--aris-z-nav, 1030);
+    padding: 0;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.logo {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 21px;
+    color: var(--text-main);
+    text-decoration: none;
+    letter-spacing: -0.01em;
+}
+
+.navbar-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+}
+
+.navbar .nav-item {
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.navbar .nav-link {
+    color: var(--text-muted) !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    position: relative;
+    min-width: 76px;
+}
+
+    .navbar .nav-link i {
+        font-size: 20px !important;
+        margin-bottom: 2px;
+    }
+
+    .navbar .nav-link:hover {
+        background-color: rgba(18, 20, 26, 0.05);
+        color: var(--text-main) !important;
+    }
+
+.navbar .nav-item.active .nav-link {
+    color: var(--primary-color) !important;
+    font-weight: 600;
+}
+
+    .navbar .nav-item.active .nav-link::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 10%;
+        width: 80%;
+        height: 3px;
+        background: var(--accent-gold);
+        border-radius: 4px 4px 0 0;
+    }
+
+/* --- Mobile Navbar Responsiveness --- */
+@media (max-width: 768px) {
+    .navbar {
+        height: 58px;
+    }
+    .navbar .container {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    .navbar-nav {
+        gap: 2px;
+    }
+    .navbar .nav-link {
+        min-width: 44px;
+        padding: 4px 6px;
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 576px) {
+    .navbar {
+        height: 54px;
+    }
+    .navbar .nav-link {
+        min-width: 36px;
+        height: 38px;
+        padding: 2px 4px;
+        border-radius: 8px;
+    }
+    .navbar .nav-link span {
+        display: none;
+    }
+    .navbar .nav-link i {
+        font-size: 21px !important;
+        margin-bottom: 0;
+    }
+    .navbar .nav-item.active .nav-link::after {
+        bottom: 0px;
+        height: 2.5px;
+    }
+    .logo {
+        font-size: 17px;
+    }
+    .logo svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+.SearchContainer {
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    background: rgba(18, 20, 26, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+    .SearchContainer i,
+    .SearchContainer svg {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        color: var(--text-muted);
+    }
+
+.search-input {
+    border: none;
+    outline: none;
+    width: 0;
+    opacity: 0;
+    padding-left: 42px;
+    background: transparent;
+    transition: all 0.3s ease;
+}
+
+.SearchContainer:focus-within, .SearchContainer:hover {
+    width: 260px;
+    background: rgba(18, 20, 26, 0.08);
+}
+
+    .SearchContainer:focus-within .search-input, .SearchContainer:hover .search-input {
+        width: 100%;
+        opacity: 1;
+    }
+
+/* Wraps .SearchContainer so the results dropdown can be positioned relative to
+   it without being clipped by .SearchContainer's own overflow:hidden (needed
+   for its width-expand-on-hover animation). */
+.search-wrap {
+    position: relative;
+}
+
+.global-search-results {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 340px;
+    max-height: 420px;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(18, 20, 26, 0.12);
+    border: 1px solid var(--border-color);
+    z-index: 3100;
+    padding: 8px 0;
+}
+
+.global-search-results.show {
+    display: block;
+}
+
+.gs-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 8px 16px 4px;
+}
+
+.gs-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+}
+
+    .gs-item:hover {
+        background: var(--accent-gold-soft);
+        color: inherit;
+    }
+
+    .gs-item img {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+.gs-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent-gold-soft);
+    color: var(--accent-gold-ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.gs-item-meta {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.gs-item-title {
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gs-item-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gs-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.dropdown-menu {
+    z-index: 3000;
+}
+
+/* --- Dark "cockpit" navbar variant — opt-in via AppNavbar's theme="dark" param, used
+   only by pages that intentionally break from the site's usual light theme (e.g. the
+   Employer dashboard's night-sky background), so the shared navbar doesn't clash
+   sitting on top of them. Every other page keeps the default light navbar untouched. --- */
+.navbar.navbar-cockpit {
+    background: rgba(15, 13, 20, 0.88);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.navbar-cockpit .logo {
+    color: var(--accent-gold);
+}
+
+.navbar-cockpit .nav-link {
+    color: rgba(240, 235, 220, 0.6) !important;
+}
+
+    .navbar-cockpit .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.06);
+        color: #fff !important;
+    }
+
+.navbar-cockpit .nav-item.active .nav-link {
+    color: var(--accent-gold) !important;
+}
+
+    .navbar-cockpit .nav-item.active .nav-link::after {
+        background: var(--accent-gold);
+    }
+
+.navbar-cockpit .SearchContainer {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+    .navbar-cockpit .SearchContainer:focus-within,
+    .navbar-cockpit .SearchContainer:hover {
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    .navbar-cockpit .SearchContainer i {
+        color: rgba(240, 235, 220, 0.55);
+    }
+
+.navbar-cockpit .search-input {
+    color: #f0ebdc;
+}
+
+.navbar-cockpit #navAvatar {
+    border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* --- Bootstrap semantic-color overrides ---
+   The views lean heavily on Bootstrap's stock utility classes (btn-primary,
+   bg-primary, text-warning, badge bg-success, ...) for color, and those ship
+   hardcoded to Bootstrap's default blue/yellow/green/red rather than reading
+   our CSS variables. Retheming here — once — keeps every existing view's
+   markup untouched while pulling the whole site onto the flat blue palette.
+   Mapping: primary -> Aris blue (CTAs, links), warning -> a true amber, kept
+   independent of the brand blue so "pending" badges stay visually distinct
+   from primary actions, success/danger -> muted, less-candy tones that sit
+   quietly next to white instead of shouting stock green/red. */
+.btn-primary {
+    --bs-btn-bg: var(--primary-color);
+    --bs-btn-border-color: var(--primary-color);
+    --bs-btn-hover-bg: var(--primary-hover);
+    --bs-btn-hover-border-color: var(--primary-hover);
+    --bs-btn-active-bg: var(--primary-hover);
+    --bs-btn-active-border-color: var(--primary-hover);
+    --bs-btn-disabled-bg: var(--primary-color);
+    --bs-btn-disabled-border-color: var(--primary-color);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--primary-color);
+    --bs-btn-border-color: var(--primary-color);
+    --bs-btn-hover-bg: var(--primary-color);
+    --bs-btn-hover-border-color: var(--primary-color);
+    --bs-btn-active-bg: var(--primary-color);
+    --bs-btn-active-border-color: var(--primary-color);
+}
+
+.text-primary { color: var(--primary-color) !important; }
+.bg-primary { background-color: var(--primary-color) !important; }
+.border-primary { border-color: var(--primary-color) !important; }
+
+.btn-warning, .badge.bg-warning {
+    --bs-btn-bg: var(--warning-color);
+    --bs-btn-border-color: var(--warning-color);
+    --bs-btn-hover-bg: var(--warning-hover);
+    --bs-btn-hover-border-color: var(--warning-hover);
+    --bs-btn-color: #fff;
+    --bs-btn-hover-color: #fff;
+    background-color: var(--warning-color) !important;
+    border-color: var(--warning-color) !important;
+    color: #fff !important;
+}
+
+.text-warning { color: var(--warning-ink) !important; }
+.bg-warning { background-color: var(--warning-color) !important; }
+.bg-opacity-10.bg-warning, .bg-warning.bg-opacity-10 { background-color: var(--warning-soft) !important; }
+
+.btn-success {
+    --bs-btn-bg: #1F7A53;
+    --bs-btn-border-color: #1F7A53;
+    --bs-btn-hover-bg: #17603F;
+    --bs-btn-hover-border-color: #17603F;
+    --bs-btn-active-bg: #17603F;
+    --bs-btn-active-border-color: #17603F;
+}
+
+.btn-outline-success {
+    --bs-btn-color: #1F7A53;
+    --bs-btn-border-color: #1F7A53;
+    --bs-btn-hover-bg: #1F7A53;
+    --bs-btn-hover-border-color: #1F7A53;
+}
+
+.text-success { color: #1F7A53 !important; }
+.bg-success { background-color: #1F7A53 !important; }
+
+.btn-danger {
+    --bs-btn-bg: #B3453B;
+    --bs-btn-border-color: #B3453B;
+    --bs-btn-hover-bg: #963A31;
+    --bs-btn-hover-border-color: #963A31;
+    --bs-btn-active-bg: #963A31;
+    --bs-btn-active-border-color: #963A31;
+}
+
+.btn-outline-danger {
+    --bs-btn-color: #B3453B;
+    --bs-btn-border-color: #B3453B;
+    --bs-btn-hover-bg: #B3453B;
+    --bs-btn-hover-border-color: #B3453B;
+}
+
+.text-danger { color: #B3453B !important; }
+.bg-danger { background-color: #B3453B !important; }
+
+.btn-secondary, .btn-outline-secondary {
+    --bs-btn-color: var(--text-muted);
+    --bs-btn-border-color: var(--border-color);
+    --bs-btn-hover-bg: var(--text-muted);
+    --bs-btn-hover-border-color: var(--text-muted);
+}
+
+.bg-secondary { background-color: #8A8390 !important; }
+
+.dropdown-item:hover, .dropdown-item:focus {
+    background-color: var(--accent-gold-soft);
+    color: var(--text-main);
+}
+
+.dropdown-item.active, .dropdown-item:active {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+.alert-success {
+    color: #17603F;
+    background-color: #E8F1EA;
+    border-color: #CBE0D0;
+}
+
+.alert-danger {
+    color: #963A31;
+    background-color: #F6E9E7;
+    border-color: #EAD1CD;
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* --- Accent helpers — the site's one signature highlight, reserved for
+   "curated/AI/premium" touches (recommendation panels, upsells) so it stays
+   a deliberate accent rather than bleeding into every element. .text-gold /
+   .bg-gold / .border-gold are kept as aliases for existing markup. --- */
+.text-accent, .text-gold { color: var(--accent-ink) !important; }
+.bg-accent, .bg-gold { background-color: var(--accent) !important; color: #fff !important; }
+.bg-accent-soft, .bg-gold-soft { background-color: var(--accent-soft) !important; }
+.border-accent, .border-gold { border-color: var(--accent) !important; }
+
+/* --- Company cover gradients (fallback when no CoverPhotoUrl is set) --- */
+.cover-grad-0 { background: linear-gradient(135deg, #12141A, #2B3240); }
+.cover-grad-1 { background: linear-gradient(135deg, #1B3E82, #2F6FED); }
+.cover-grad-2 { background: linear-gradient(135deg, #2B3240, #64707F); }
+.cover-grad-3 { background: linear-gradient(135deg, #2F6FED, #7EC8F5); }
+.cover-grad-4 { background: linear-gradient(135deg, #12141A, #1E54C4); }
+
+/* ==========================================================================
+   ARIS CAREER STUDIO: DESIGN DIRECTION EXTENSIONS (02-design-direction.md)
+   ========================================================================== */
+
+/* Containers */
+.aris-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding-left: 24px;
+    padding-right: 24px;
+}
+@media (max-width: 768px) {
+    .aris-container {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+}
+
+/* Controls & Radii */
+.btn, .form-control, .form-select {
+    border-radius: 12px;
+    font-size: 15px;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-lg, .form-control-lg {
+    height: 48px;
+    padding-left: 18px;
+    padding-right: 18px;
+    border-radius: 12px;
+}
+
+.btn-sm, .form-control-sm {
+    height: 38px;
+    min-height: 38px;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: 13.5px;
+    border-radius: 10px;
+}
+
+/* Cards & Surfaces */
+.aris-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(18, 20, 26, 0.04);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.aris-card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(18, 20, 26, 0.08);
+    border-color: #CBD5E1;
+}
+
+.aris-card-feature {
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+}
+
+/* WCAG-Tested Badges */
+.badge-aris-info {
+    color: #1B3E82 !important;
+    background-color: #EAF2FF !important;
+    border: 1px solid #C9DEFF;
+    font-weight: 500;
+}
+
+.badge-aris-success {
+    color: #166534 !important;
+    background-color: #DCFCE7 !important;
+    border: 1px solid #BBF7D0;
+    font-weight: 500;
+}
+
+.badge-aris-warning {
+    color: #92400E !important;
+    background-color: #FEF3C7 !important;
+    border: 1px solid #FDE68A;
+    font-weight: 500;
+}
+
+.badge-aris-danger {
+    color: #991B1B !important;
+    background-color: #FEE2E2 !important;
+    border: 1px solid #FECACA;
+    font-weight: 500;
+}
+
+.badge-aris-neutral {
+    color: #475569 !important;
+    background-color: #F1F5F9 !important;
+    border: 1px solid #E2E8F0;
+    font-weight: 500;
+}
+
+/* Overlays Stack Hierarchy */
+.navbar { z-index: 1030 !important; }
+.dropdown-menu { z-index: 1040 !important; }
+.modal-backdrop { z-index: 1050 !important; }
+.modal { z-index: 1060 !important; }
+.aris-lightbox { z-index: 1070 !important; }
+.toast-container { z-index: 1080 !important; }
+
+/* Filter button pills */
+.filter-btn-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    border: 1px solid var(--border-color);
+    background: #ffffff;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+}
+
+.filter-btn-pill:hover {
+    background: #F1F5F9;
+    color: var(--text-main);
+    border-color: #CBD5E1;
+}
+
+.filter-btn-pill.active {
+    background: #EAF2FF;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    .auth-showcase-pane .arc-rotate,
+    .auth-showcase-pane .star,
+    .auth-flourish svg,
+    .auth-card > * {
+        animation: none !important;
+    }
+}

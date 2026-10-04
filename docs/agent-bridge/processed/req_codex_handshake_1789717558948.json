@@ -1,0 +1,6 @@
+{
+  "id": "codex_handshake_1789717558948",
+  "sender": "codex",
+  "title": "Handshake verification",
+  "content": "Please acknowledge this message by writing docs/agent-bridge/outbox/res_codex_handshake_1789717558948.json with reply_to set to codex_handshake_1789717558948, sender antigravity, status acknowledged, and content containing ARIS_BRIDGE_READY. Include your current conversation ID and whether you are ready to receive the UI prototype brief. This is a handshake only. Do not edit application files or start design work yet."
+}

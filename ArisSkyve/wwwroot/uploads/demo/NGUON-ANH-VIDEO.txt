@@ -1,0 +1,9 @@
+Ảnh / video mẫu cho dữ liệu thử giao diện (Infrastructure/Data/DemoSocialSeeder.cs)
+
+- Ảnh *.jpg: ảnh Unsplash tải qua picsum.photos (Giấy phép Unsplash — dùng miễn phí). Không dùng ảnh do AI tạo.
+- v-fpt / v-vng / v-momo / v-tiki / v-viettel / v-vinamilk .mp4: video trình chiếu dựng từ chính các ảnh trên
+  (không chứa logo hay tài liệu của các công ty).
+- v-flower.mp4: MDN interactive-examples, CC0.
+- v-sample.mp4: samplelib.com (miễn phí dùng thử).
+
+Có thể xoá cả thư mục này cùng các tài khoản *@example.com khi không cần dữ liệu mẫu nữa.

@@ -1,0 +1,290 @@
+/* =============================================================================
+   ARIS LINE — Hồ sơ cá nhân (V7)
+   File: wwwroot/css/pages/profile.css
+   ============================================================================= */
+.profile-page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Header hồ sơ */
+.profile-head {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: clip;
+}
+
+.profile-cover {
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  max-height: 220px;
+  object-fit: cover;
+  background: var(--field);
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-main {
+  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.profile-avatar-wrap {
+  position: relative;
+  flex: none;
+}
+.profile-avatar-wrap .a-avatar {
+  --_s: 96px;
+  border: 3px solid var(--surface);
+  box-shadow: var(--shadow-2);
+}
+.profile-avatar-edit {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+  transition: transform var(--d-1) var(--e-out);
+}
+.profile-avatar-edit:hover {
+  transform: scale(1.1);
+  color: var(--brand-text);
+}
+.profile-avatar-edit svg {
+  width: 16px;
+  height: 16px;
+}
+
+.profile-meta {
+  flex: 1;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.profile-name {
+  font: 700 var(--fs-22)/1.2 var(--font);
+  color: var(--text);
+  letter-spacing: -.01em;
+}
+
+.profile-role {
+  font: 500 var(--fs-15)/1.4 var(--font);
+  color: var(--text-2);
+}
+
+.profile-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Thang hoàn thiện hồ sơ */
+.profile-meter {
+  margin: 0 24px 20px;
+  padding: 14px 18px;
+  border-radius: var(--r-md);
+  background: var(--field);
+  border: 1px solid var(--line-soft);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.profile-meter__info {
+  flex: 1;
+  min-width: 0;
+}
+.profile-meter__title {
+  font: 600 var(--fs-13)/1.3 var(--font);
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.profile-meter__sub {
+  font-size: var(--fs-12);
+  color: var(--text-3);
+}
+.profile-meter__bar {
+  width: 140px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line-control);
+  overflow: hidden;
+  position: relative;
+}
+.profile-meter__fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--brand);
+}
+
+/* Tabs & Nội dung */
+.profile-tabs-wrap {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: var(--z-sticky);
+  background: var(--canvas);
+  border-bottom: 1px solid var(--line);
+}
+.profile-tabs {
+  display: flex;
+  gap: 24px;
+}
+.profile-tab {
+  padding: 12px 2px;
+  font: 500 var(--fs-14)/1.4 var(--font);
+  color: var(--text-3);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  background: none;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  transition: color var(--d-1);
+}
+.profile-tab:hover {
+  color: var(--text);
+}
+.profile-tab.is-active {
+  color: var(--brand-text);
+  font-weight: 600;
+  border-bottom-color: var(--brand);
+}
+
+/* Khối nội dung 2 cột */
+.profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 28px;
+  align-items: start;
+}
+
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile-toc {
+  position: sticky;
+  top: calc(var(--topbar-h) + 64px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: var(--fs-13);
+}
+.profile-toc__title {
+  font: 600 var(--fs-12)/1.2 var(--font);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 4px;
+}
+.profile-toc a {
+  color: var(--text-2);
+  padding: 4px 0;
+  text-decoration: none;
+}
+.profile-toc a:hover {
+  color: var(--brand-text);
+}
+
+/* Các thẻ thông tin */
+.sec-card {
+  --ring: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sec-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sec-card__title {
+  font: 600 var(--fs-16)/1.3 var(--font);
+  color: var(--text);
+}
+
+/* Vùng AI dropzone */
+.cv-drop-ai {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--field);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--d-1);
+}
+.cv-drop-ai:hover {
+  border-color: var(--brand);
+}
+.cv-drop-ai__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  display: grid;
+  place-items: center;
+}
+
+@media (max-width: 900px) {
+  .profile-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .profile-toc {
+    display: none;
+  }
+}
+
+.profile-pane { display: none; }
+.profile-pane.is-active { display: block; }
+.typing-cursor::after {
+  content: '|';
+  animation: blink 0.8s step-end infinite;
+  color: var(--brand);
+  font-weight: bold;
+}
+@keyframes blink { 50% { opacity: 0; } }

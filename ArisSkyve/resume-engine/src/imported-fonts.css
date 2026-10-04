@@ -1,0 +1,29 @@
+/*
+ * Local, metric-compatible fallbacks for common Office/PDF font families.
+ * The names are private to this application so an installed system font cannot
+ * replace a packaged fallback. See imported-fonts/README.md for provenance.
+ */
+@font-face { font-family: "Aris Carlito"; src: url("/resume-engine/fonts/carlito-regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: block; }
+@font-face { font-family: "Aris Carlito"; src: url("/resume-engine/fonts/carlito-bold.ttf") format("truetype"); font-style: normal; font-weight: 700; font-display: block; }
+@font-face { font-family: "Aris Carlito"; src: url("/resume-engine/fonts/carlito-italic.ttf") format("truetype"); font-style: italic; font-weight: 400; font-display: block; }
+@font-face { font-family: "Aris Carlito"; src: url("/resume-engine/fonts/carlito-bold-italic.ttf") format("truetype"); font-style: italic; font-weight: 700; font-display: block; }
+
+@font-face { font-family: "Aris Arimo"; src: url("/resume-engine/fonts/arimo-regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: block; }
+@font-face { font-family: "Aris Arimo"; src: url("/resume-engine/fonts/arimo-bold.ttf") format("truetype"); font-style: normal; font-weight: 700; font-display: block; }
+@font-face { font-family: "Aris Arimo"; src: url("/resume-engine/fonts/arimo-italic.ttf") format("truetype"); font-style: italic; font-weight: 400; font-display: block; }
+@font-face { font-family: "Aris Arimo"; src: url("/resume-engine/fonts/arimo-bold-italic.ttf") format("truetype"); font-style: italic; font-weight: 700; font-display: block; }
+
+@font-face { font-family: "Aris Tinos"; src: url("/resume-engine/fonts/tinos-regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: block; }
+@font-face { font-family: "Aris Tinos"; src: url("/resume-engine/fonts/tinos-bold.ttf") format("truetype"); font-style: normal; font-weight: 700; font-display: block; }
+@font-face { font-family: "Aris Tinos"; src: url("/resume-engine/fonts/tinos-italic.ttf") format("truetype"); font-style: italic; font-weight: 400; font-display: block; }
+@font-face { font-family: "Aris Tinos"; src: url("/resume-engine/fonts/tinos-bold-italic.ttf") format("truetype"); font-style: italic; font-weight: 700; font-display: block; }
+
+@font-face { font-family: "Aris Caladea"; src: url("/resume-engine/fonts/caladea-regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: block; }
+@font-face { font-family: "Aris Caladea"; src: url("/resume-engine/fonts/caladea-bold.ttf") format("truetype"); font-style: normal; font-weight: 700; font-display: block; }
+@font-face { font-family: "Aris Caladea"; src: url("/resume-engine/fonts/caladea-italic.ttf") format("truetype"); font-style: italic; font-weight: 400; font-display: block; }
+@font-face { font-family: "Aris Caladea"; src: url("/resume-engine/fonts/caladea-bold-italic.ttf") format("truetype"); font-style: italic; font-weight: 700; font-display: block; }
+
+@font-face { font-family: "Aris Cousine"; src: url("/resume-engine/fonts/cousine-regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: block; }
+@font-face { font-family: "Aris Cousine"; src: url("/resume-engine/fonts/cousine-bold.ttf") format("truetype"); font-style: normal; font-weight: 700; font-display: block; }
+@font-face { font-family: "Aris Cousine"; src: url("/resume-engine/fonts/cousine-italic.ttf") format("truetype"); font-style: italic; font-weight: 400; font-display: block; }
+@font-face { font-family: "Aris Cousine"; src: url("/resume-engine/fonts/cousine-bold-italic.ttf") format("truetype"); font-style: italic; font-weight: 700; font-display: block; }

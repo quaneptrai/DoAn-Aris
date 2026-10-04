@@ -1,0 +1,508 @@
+@model ArisSkyve.Application.DTOs.CompanyDiscoverViewModel
+@using ArisSkyve.Application.DTOs
+@using System.Text.RegularExpressions
+@inject ArisSkyve.Infrastructure.Services.IV7FeatureGate FeatureGate
+@{
+    ViewData["Title"] = "Khám phá công ty";
+    ViewData["ActiveNav"] = "Companies";
+    Layout = "_AppLayout";
+
+    var companies = Model.Companies;
+    ViewData["TopChips"] = Model.TopIndustries.Take(3)
+        .Select(i => (Label: i, Href: "/Company?industry=" + Uri.EscapeDataString(i)))
+        .ToList();
+
+    var totalOpen = companies.Sum(c => c.OpenJobCount);
+    var featured = companies
+        .OrderByDescending(c => c.FollowerCount * 3 + c.OpenJobCount * 2 + (c.IsVerified ? 3 : 0) + (string.IsNullOrWhiteSpace(c.CoverPhotoUrl) ? 0 : 2))
+        .ThenBy(c => c.CompanyName)
+        .Take(3)
+        .ToList();
+
+    string OrgInitials(string name)
+    {
+        var words = (name ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return "AR";
+        if (words.Length > 1) return (words[0][0].ToString() + words[1][0]).ToUpperInvariant();
+        return words[0].Substring(0, Math.Min(2, words[0].Length)).ToUpperInvariant();
+    }
+    // Cùng công thức với window.toneOf() trong aris-shell.js
+    int Tone(string name)
+    {
+        uint h = 0;
+        foreach (var ch in name ?? "") h = unchecked(h * 31 + ch);
+        return (int)(h % 6) + 1;
+    }
+    bool HasImg(string? url) => !string.IsNullOrWhiteSpace(url) && url != "/images/default-avatar.png" && !url.Contains("ui-avatars.com");
+    string? SizeText(string? s) => string.IsNullOrWhiteSpace(s) ? null : (s.Contains("nhân", StringComparison.OrdinalIgnoreCase) ? s : s + " nhân sự");
+    string Excerpt(string text, int max) => text.Length <= max ? text : text.Substring(0, text.LastIndexOf(' ', max) > 40 ? text.LastIndexOf(' ', max) : max) + "…";
+    string Ago(DateTime utc)
+    {
+        var span = DateTime.UtcNow - utc;
+        if (span.TotalMinutes < 1) return "Vừa xong";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes} phút trước";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours} giờ trước";
+        if (span.TotalDays < 2) return "Hôm qua";
+        if (span.TotalDays < 7) return $"{(int)span.TotalDays} ngày trước";
+        return utc.ToLocalTime().ToString("dd/MM/yyyy");
+    }
+    var myCompanyId = Model.ViewerCompanyId;
+    var hiringCount = companies.Count(c => c.OpenJobCount > 0);
+    var verifiedCount = companies.Count(c => c.IsVerified);
+    var spot = featured.FirstOrDefault();
+    // Ảnh cho thẻ nổi bật: ảnh bìa công ty, hoặc ảnh thật đầu tiên trong bài công ty đăng
+    var spotPhoto = spot == null ? null : (HasImg(spot.CoverPhotoUrl) ? spot.CoverPhotoUrl
+        : Model.Culture.Where(c => c.Company.Id == spot.Id).SelectMany(c => c.Media).Where(m => !m.IsVideo).Select(m => m.Url).FirstOrDefault());
+
+    var fillers = companies.Take(12).Select(c => new
+    {
+        name = c.CompanyName,
+        avatar = HasImg(c.AvatarUrl) ? c.AvatarUrl : null,
+        href = "/Company/Details/" + c.Id,
+        sub = c.OpenJobCount > 0 ? $"{c.OpenJobCount} việc đang tuyển" : (c.Industry ?? "Xem công ty"),
+        org = true
+    });
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/aris-stories.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pages/company-discover.css" asp-append-version="true" />
+}
+
+<div class="cx" id="cx">
+    @if (FeatureGate.Stories)
+    {
+        <!-- 1. Một ngày ở công ty -->
+        <section class="fx-card stories cx-stories" id="cxStories" aria-labelledby="cxStoriesTitle">
+            <header class="stories__head">
+                <span class="fx-live" aria-hidden="true"></span>
+                <h2 class="stories__title" id="cxStoriesTitle">Một ngày ở công ty <span>· tin 24 giờ</span></h2>
+                <div class="stories__navs">
+                    <button class="stories__nav" type="button" data-st-step="-1" aria-label="Xem các tin trước" disabled><i data-lucide="chevron-left"></i></button>
+                    <button class="stories__nav" type="button" data-st-step="1" aria-label="Xem các tin tiếp theo" disabled><i data-lucide="chevron-right"></i></button>
+                </div>
+            </header>
+            <div class="stories__track" id="cxStoryTrack" role="list">
+                @for (var i = 0; i < 7; i++)
+                {
+                    <span class="st st--skel" aria-hidden="true"><span class="st__ring"><span class="a-skel"></span></span><span class="a-skel st__skel-name"></span></span>
+                }
+            </div>
+        </section>
+    }
+
+    <!-- 2. Tìm kiếm & lọc -->
+    <section class="fx-card cx-hero" aria-labelledby="cxTitle">
+        <div class="cx-hero__art" aria-hidden="true"></div>
+        @if (hiringCount > 0)
+        {
+            <span class="cx-hero__kicker"><span class="fx-live" aria-hidden="true"></span><b class="a-num">@hiringCount</b>&nbsp;công ty đang tuyển</span>
+        }
+        <h1 class="cx-hero__title" id="cxTitle">Công ty đang tuyển trên Aris</h1>
+        <p class="cx-hero__sub">Xem họ làm gì, văn phòng trông ra sao và đang cần ai — trước khi gửi CV.</p>
+
+        <dl class="cx-stats">
+            <div><dt>Doanh nghiệp</dt><dd class="a-num">@companies.Count</dd></div>
+            <div><dt>Vị trí đang mở</dt><dd class="a-num">@totalOpen</dd></div>
+            @if (verifiedCount > 0)
+            {
+                <div><dt>Đã xác minh</dt><dd class="a-num">@verifiedCount</dd></div>
+            }
+        </dl>
+
+        <form class="cx-search" role="search" id="cxSearch" autocomplete="off">
+            <i data-lucide="search"></i>
+            <input class="cx-search__input" id="cxQ" type="search" placeholder="Tên công ty, lĩnh vực hoặc thành phố…" aria-label="Tìm công ty">
+            <span class="a-kbd cx-search__kbd" aria-hidden="true">/</span>
+            <button class="a-btn a-btn--ink cx-search__go" type="submit">Tìm<i data-lucide="arrow-right"></i></button>
+        </form>
+
+        <div class="cx-bar">
+            <div class="cx-chips" role="group" aria-label="Lọc công ty">
+                <button class="cx-chip" type="button" data-filter="all" aria-pressed="true">Tất cả</button>
+                @foreach (var ind in Model.TopIndustries)
+                {
+                    <button class="cx-chip" type="button" data-filter="industry" data-value="@ind" aria-pressed="false">@ind</button>
+                }
+                <button class="cx-chip" type="button" data-filter="hiring" aria-pressed="false"><i data-lucide="briefcase"></i>Đang tuyển</button>
+                <button class="cx-chip" type="button" data-filter="verified" aria-pressed="false"><i data-lucide="badge-check"></i>Đã xác minh</button>
+                @if (Model.FollowEnabled)
+                {
+                    <button class="cx-chip" type="button" data-filter="following" aria-pressed="false"><i data-lucide="heart"></i>Đang theo dõi</button>
+                }
+                <button class="cx-clear" type="button" data-clear hidden><i data-lucide="rotate-ccw"></i>Xoá bộ lọc</button>
+            </div>
+            <div class="cx-tools">
+                <div class="cx-view" role="group" aria-label="Kiểu hiển thị">
+                    <button type="button" data-view="grid" aria-pressed="true" aria-label="Dạng lưới" data-tip="Dạng lưới"><i data-lucide="layout-grid"></i></button>
+                    <button type="button" data-view="list" aria-pressed="false" aria-label="Dạng danh sách" data-tip="Dạng danh sách"><i data-lucide="rows-3"></i></button>
+                </div>
+                <label class="cx-sort">
+                    <i data-lucide="arrow-up-down"></i>
+                    <select id="cxSort" aria-label="Sắp xếp công ty">
+                        <option value="popular">Được quan tâm nhất</option>
+                        <option value="jobs">Đang tuyển nhiều nhất</option>
+                        <option value="name">Tên A → Z</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+    </section>
+
+    @if (spot != null)
+    {
+        var addr = string.IsNullOrWhiteSpace(spot.CompanyAddress) ? null : spot.CompanyAddress;
+        var size = SizeText(spot.CompanySize);
+        <!-- 3. Công ty nổi bật -->
+        <section class="cx-sec" id="cxFeatured" aria-labelledby="cxFeatTitle">
+            <header class="cx-sec__head">
+                <h2 class="cx-sec__title" id="cxFeatTitle">Nổi bật tuần này</h2>
+                <span class="cx-sec__note">Nhiều người theo dõi và đang tuyển nhiều nhất</span>
+            </header>
+            <article class="fx-card cx-spot" data-cid="@spot.Id">
+                <a class="cx-spot__media" href="/Company/Details/@spot.Id" data-tone="@Tone(spot.CompanyName)" tabindex="-1" aria-hidden="true">
+                    @if (spotPhoto != null)
+                    {
+                        <img src="@spotPhoto" alt="" loading="lazy" onerror="this.remove()" />
+                    }
+                    <span class="cx-spot__mono">@OrgInitials(spot.CompanyName)</span>
+                    <span class="cx-spot__plate">
+                        <span class="a-logo a-logo--36" data-tone="@Tone(spot.CompanyName)">@OrgInitials(spot.CompanyName)@if (HasImg(spot.AvatarUrl))
+                            {
+                                <img src="@spot.AvatarUrl" alt="" loading="lazy" onerror="this.remove()" />
+                            }</span>
+                        <span><b>@spot.CompanyName</b><small>@(spot.FoundedYear != null ? $"Thành lập {spot.FoundedYear}" : (spot.Industry ?? "Doanh nghiệp trên Aris"))@(size != null ? " · " + size : "")</small></span>
+                    </span>
+                </a>
+                <div class="cx-spot__body">
+                    <div class="cx-spot__badges">
+                        @if (spot.OpenJobCount > 0)
+                        {
+                            <span class="cx-pill cx-pill--hot"><span class="fx-live" aria-hidden="true"></span>Đang tuyển @spot.OpenJobCount vị trí</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(spot.Industry))
+                        {
+                            <span class="cx-pill">@spot.Industry</span>
+                        }
+                        @if (spot.LatestJobSalary != null && !spot.LatestJobSalary.Contains("thuận", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="cx-pill cx-pill--money">@spot.LatestJobSalary</span>
+                        }
+                    </div>
+                    <h3 class="cx-spot__name"><a href="/Company/Details/@spot.Id">@spot.CompanyName</a>@if (spot.IsVerified)
+                        {
+                            <i data-lucide="badge-check" class="fx-verified" aria-label="Đã xác minh"></i>
+                        }</h3>
+                    <p class="cx-spot__desc">@(string.IsNullOrWhiteSpace(spot.Description) ? "Công ty chưa viết giới thiệu — mở trang công ty để xem việc đang tuyển và nhắn tin trực tiếp." : Excerpt(spot.Description!, 240))</p>
+                    <ul class="cx-spot__facts">
+                        @if (addr != null)
+                        {
+                            <li><i data-lucide="map-pin"></i><span>@addr</span></li>
+                        }
+                        @if (spot.LatestJobTitle != null)
+                        {
+                            <li><i data-lucide="briefcase"></i><span>Mới đăng: <a href="/Jobs?job=@spot.LatestJobId">@spot.LatestJobTitle</a></span></li>
+                        }
+                        @if (Model.FollowEnabled)
+                        {
+                            <li><i data-lucide="heart"></i><span><b class="a-num" data-fcount="@spot.Id">@spot.FollowerCount</b> người theo dõi</span></li>
+                        }
+                    </ul>
+                    <div class="cx-spot__actions">
+                        <a class="a-btn a-btn--sunset" href="/Company/Details/@spot.Id#jobs">@(spot.OpenJobCount > 0 ? $"Xem {spot.OpenJobCount} vị trí đang mở" : "Xem trang công ty")<i data-lucide="arrow-right"></i></a>
+                        @if (Model.FollowEnabled && myCompanyId != spot.Id)
+                        {
+                            <button class="fx-follow fx-follow--solid@(spot.IsFollowing ? " is-on" : "")" type="button" data-follow-co="@spot.Id" aria-pressed="@(spot.IsFollowing ? "true" : "false")">
+                                @if (spot.IsFollowing)
+                                {
+                                    <i data-lucide="check"></i><span>Đang theo dõi</span>
+                                }
+                                else
+                                {
+                                    <i data-lucide="plus"></i><span>Theo dõi</span>
+                                }
+                            </button>
+                        }
+                    </div>
+                </div>
+            </article>
+        </section>
+    }
+
+    <!-- 4. Tất cả công ty (lọc / sắp xếp tại chỗ) -->
+    <section class="cx-sec" id="cxAll" aria-labelledby="cxAllTitle">
+        <header class="cx-sec__head">
+            <div>
+                <h2 class="cx-sec__title" id="cxAllTitle">Tất cả công ty</h2>
+                <p class="cx-sec__sub" id="cxCount" aria-live="polite">Đang hiển thị <b class="a-num">@companies.Count</b> công ty</p>
+            </div>
+        </header>
+
+        @if (!companies.Any())
+        {
+            <div class="fx-card a-empty cx-none">
+                <i data-lucide="building-2"></i>
+                <div class="a-empty__title">Chưa có doanh nghiệp nào</div>
+                <div class="a-empty__text">Các công ty sẽ xuất hiện ở đây khi tham gia Aris.</div>
+            </div>
+        }
+        else
+        {
+            <div class="cx-grid" id="cxGrid" data-view="grid">
+                @foreach (var c in companies)
+                {
+                    var sub = string.Join(" · ", new[] { c.Industry, c.CompanyAddress }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                    var search = string.Join(" ", new[] { c.CompanyName, c.Industry, c.CompanyAddress, c.Description }.Where(x => !string.IsNullOrWhiteSpace(x))).ToLowerInvariant();
+                    <article class="fx-card cx-card" data-cid="@c.Id" data-name="@c.CompanyName" data-industry="@(c.Industry?.Trim() ?? "")" data-search="@search" data-jobs="@c.OpenJobCount" data-followers="@c.FollowerCount" data-verified="@(c.IsVerified ? "1" : "0")" data-following="@(c.IsFollowing ? "1" : "0")">
+                        <a class="cx-card__main" href="/Company/Details/@c.Id">
+                            <span class="a-logo a-logo--44" data-tone="@Tone(c.CompanyName)">@OrgInitials(c.CompanyName)@if (HasImg(c.AvatarUrl))
+                                {
+                                    <img src="@c.AvatarUrl" alt="" loading="lazy" onerror="this.remove()" />
+                                }</span>
+                            <span class="cx-card__text">
+                                <span class="cx-card__name"><span>@c.CompanyName</span>@if (c.IsVerified)
+                                    {
+                                        <i data-lucide="badge-check" class="fx-verified" aria-label="Đã xác minh"></i>
+                                    }</span>
+                                <span class="cx-card__sub">@(string.IsNullOrWhiteSpace(sub) ? "Chưa cập nhật lĩnh vực" : sub)</span>
+                            </span>
+                        </a>
+                        @if (!string.IsNullOrWhiteSpace(c.Description))
+                        {
+                            <p class="cx-card__desc">@Excerpt(c.Description!, 130)</p>
+                        }
+                        @if (c.LatestJobTitle != null)
+                        {
+                            <a class="cx-card__job" href="/Jobs?job=@c.LatestJobId">
+                                <span class="cx-card__job-label">Đang tuyển</span>
+                                <span class="cx-card__job-title">@c.LatestJobTitle</span>
+                                @if (c.LatestJobSalary != null)
+                                {
+                                    <span class="cx-card__job-salary">@c.LatestJobSalary</span>
+                                }
+                            </a>
+                        }
+                        <div class="cx-card__foot">
+                            <span class="cx-stat@(c.OpenJobCount > 0 ? " is-hot" : "")"><i data-lucide="briefcase"></i><b class="a-num">@c.OpenJobCount</b> việc đang tuyển</span>
+                            @if (Model.FollowEnabled)
+                            {
+                                <span class="cx-stat"><i data-lucide="heart"></i><b class="a-num" data-fcount="@c.Id">@c.FollowerCount</b> theo dõi</span>
+                            }
+                            <span class="cx-card__actions">
+                                @if (Model.FollowEnabled && myCompanyId != c.Id)
+                                {
+                                    <button class="fx-follow fx-follow--sm@(c.IsFollowing ? " is-on" : "")" type="button" data-follow-co="@c.Id" aria-pressed="@(c.IsFollowing ? "true" : "false")">
+                                        @if (c.IsFollowing)
+                                        {
+                                            <i data-lucide="check"></i><span>Đang theo dõi</span>
+                                        }
+                                        else
+                                        {
+                                            <i data-lucide="plus"></i><span>Theo dõi</span>
+                                        }
+                                    </button>
+                                }
+                                <a class="cx-card__go" href="/Company/Details/@c.Id" aria-label="Mở trang @c.CompanyName"><i data-lucide="arrow-up-right"></i></a>
+                            </span>
+                        </div>
+                    </article>
+                }
+            </div>
+            <div class="fx-card a-empty cx-none" id="cxNone" hidden>
+                <i data-lucide="search-x"></i>
+                <div class="a-empty__title">Không có công ty phù hợp</div>
+                <div class="a-empty__text">Thử từ khoá khác hoặc bỏ bớt bộ lọc.</div>
+                <button class="a-btn a-btn--secondary a-btn--sm" type="button" data-clear>Xoá bộ lọc</button>
+            </div>
+        }
+    </section>
+
+    <!-- 5. Bảng tin văn hoá + gợi ý -->
+    <div class="cx-split">
+        <section class="cx-sec cx-culture" aria-labelledby="cxCultureTitle">
+            <header class="cx-sec__head">
+                <div>
+                    <h2 class="cx-sec__title" id="cxCultureTitle">Khoảnh khắc từ các công ty</h2>
+                    <p class="cx-sec__sub">Ảnh văn phòng, sự kiện và đội ngũ — do chính công ty đăng</p>
+                </div>
+            </header>
+
+            @if (!Model.Culture.Any())
+            {
+                <div class="fx-card a-empty cx-none">
+                    <i data-lucide="image"></i>
+                    <div class="a-empty__title">Chưa có câu chuyện văn hoá nào</div>
+                    <div class="a-empty__text">Khi các công ty đăng bài có ảnh về văn phòng, sự kiện hay đội ngũ, chúng sẽ xuất hiện ở đây.</div>
+                </div>
+            }
+
+            @foreach (var st in Model.Culture)
+            {
+                var c = st.Company;
+                var media = st.Media.Take(3).ToList();
+                var tags = Regex.Matches(st.Text ?? "", @"#([\p{L}\d_]+)").Select(m => m.Groups[1].Value).Distinct().Take(4).ToList();
+                var quote = Regex.Replace(st.Text ?? "", @"(^|\s)#[\p{L}\d_]+", " ").Trim();
+                <article class="fx-card cx-story" data-cid="@c.Id" data-pid="@st.PostId">
+                    <header class="cx-story__head">
+                        <a class="cx-story__logo" href="/Company/Details/@c.Id" aria-hidden="true" tabindex="-1">
+                            <span class="a-logo a-logo--44" data-tone="@Tone(c.CompanyName)">@OrgInitials(c.CompanyName)@if (HasImg(c.AvatarUrl))
+                                {
+                                    <img src="@c.AvatarUrl" alt="" loading="lazy" onerror="this.remove()" />
+                                }</span>
+                        </a>
+                        <div class="cx-story__who">
+                            <h3><a href="/Company/Details/@c.Id">@c.CompanyName</a>@if (c.IsVerified)
+                                {
+                                    <i data-lucide="badge-check" class="fx-verified" aria-label="Đã xác minh"></i>
+                                }</h3>
+                            <div class="cx-story__meta">
+                                @if (!string.IsNullOrWhiteSpace(c.Industry))
+                                {
+                                    <span>@c.Industry</span>
+                                }
+                                @if (Model.FollowEnabled)
+                                {
+                                    <span><b class="a-num" data-fcount="@c.Id">@c.FollowerCount</b> người theo dõi</span>
+                                }
+                                <span>@Ago(st.CreatedAt)</span>
+                            </div>
+                        </div>
+                        @if (Model.FollowEnabled)
+                        {
+                            <button class="cx-save" type="button" data-save-post="@st.PostId" aria-pressed="@(st.Saved ? "true" : "false")" aria-label="@(st.Saved ? "Bỏ lưu" : "Lưu bài viết")" data-tip="Lưu bài viết"><i data-lucide="bookmark"></i></button>
+                            @if (myCompanyId != c.Id)
+                            {
+                                <button class="fx-follow fx-follow--sm@(c.IsFollowing ? " is-on" : "")" type="button" data-follow-co="@c.Id" aria-pressed="@(c.IsFollowing ? "true" : "false")">
+                                    @if (c.IsFollowing)
+                                    {
+                                        <i data-lucide="check"></i><span>Đang theo dõi</span>
+                                    }
+                                    else
+                                    {
+                                        <i data-lucide="plus"></i><span>Theo dõi</span>
+                                    }
+                                </button>
+                            }
+                        }
+                    </header>
+
+                    <div class="cx-collage cx-collage--n@(media.Count)">
+                        @for (var i = 0; i < media.Count; i++)
+                        {
+                            var m = media[i];
+                            <figure class="cx-collage__item">
+                                @if (m.IsVideo)
+                                {
+                                    <video src="@m.Url" muted playsinline loop preload="metadata" controls></video>
+                                }
+                                else
+                                {
+                                    <img src="@m.Url" alt="Ảnh từ @c.CompanyName" loading="lazy" data-lb="@st.PostId" />
+                                }
+                                @if (i == media.Count - 1 && st.Media.Count > media.Count)
+                                {
+                                    <span class="cx-collage__more">+@(st.Media.Count - media.Count)</span>
+                                }
+                            </figure>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(st.Title) || !string.IsNullOrWhiteSpace(quote))
+                    {
+                        <blockquote class="cx-quote">
+                            <i data-lucide="quote" aria-hidden="true"></i>
+                            <div>
+                                @if (!string.IsNullOrWhiteSpace(st.Title))
+                                {
+                                    <b>@st.Title</b>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(quote))
+                                {
+                                    <span>@Excerpt(quote, 260)</span>
+                                }
+                            </div>
+                        </blockquote>
+                    }
+
+                    <footer class="cx-story__foot">
+                        <div class="cx-story__tags">
+                            @foreach (var t in tags)
+                            {
+                                <span class="cx-tag">#@t</span>
+                            }
+                            <span class="cx-story__stats"><i data-lucide="heart"></i>@st.LikeCount<i data-lucide="message-circle"></i>@st.CommentCount</span>
+                        </div>
+                        <div class="cx-story__actions">
+                            <a class="a-btn a-btn--secondary a-btn--sm" href="/Dashboard?post=@st.PostId">Xem bài viết</a>
+                            <a class="a-btn a-btn--primary a-btn--sm" href="/Company/Details/@c.Id#jobs">@(c.OpenJobCount > 0 ? $"Xem {c.OpenJobCount} vị trí đang tuyển" : "Tìm hiểu văn hoá & đãi ngộ")<i data-lucide="arrow-up-right"></i></a>
+                        </div>
+                    </footer>
+                </article>
+            }
+        </section>
+
+        <aside class="cx-side" aria-label="Gợi ý cho bạn">
+            <section class="fx-card cx-reco" aria-labelledby="cxRecoTitle">
+                <h2 class="cx-reco__title" id="cxRecoTitle">Gợi ý cho bạn</h2>
+                <div class="cx-reco__who">@Model.ViewerName@(Model.ViewerTitle != null ? $" ({Model.ViewerTitle})" : "")</div>
+                <p class="cx-reco__why">
+                    @if (Model.SuggestionsMatched)
+                    {
+                        <text>Công ty đang tuyển vị trí gần với chức danh <b>@Model.ViewerTitle</b> của bạn.</text>
+                    }
+                    else if (Model.ViewerTitle == null)
+                    {
+                        <text>Thêm chức danh vào hồ sơ để nhận gợi ý sát hơn. Dưới đây là công ty vừa đăng tuyển.</text>
+                    }
+                    else
+                    {
+                        <text>Chưa có vị trí khớp với "@Model.ViewerTitle" — đây là công ty vừa đăng tuyển.</text>
+                    }
+                </p>
+                <div class="cx-reco__list">
+                    @foreach (var s in Model.Suggestions)
+                    {
+                        <div class="cx-reco__row">
+                            <a href="/Company/Details/@s.CompanyId" aria-hidden="true" tabindex="-1">
+                                <span class="a-logo a-logo--36" data-tone="@Tone(s.CompanyName)">@OrgInitials(s.CompanyName)@if (HasImg(s.AvatarUrl))
+                                    {
+                                        <img src="@s.AvatarUrl" alt="" loading="lazy" onerror="this.remove()" />
+                                    }</span>
+                            </a>
+                            <div class="cx-reco__text">
+                                <a class="cx-reco__name" href="/Company/Details/@s.CompanyId">@s.CompanyName</a>
+                                <a class="cx-reco__job" href="/Jobs/Details/@s.JobId">Đang tuyển: @s.JobTitle</a>
+                            </div>
+                            <a class="fx-follow fx-follow--sm" href="/Jobs/Details/@s.JobId">Ứng tuyển</a>
+                        </div>
+                    }
+                    @if (!Model.Suggestions.Any())
+                    {
+                        <p class="cx-reco__why">Hiện chưa có vị trí nào đang mở.</p>
+                    }
+                </div>
+                <a class="cx-reco__more" href="@(Model.ViewerTitle == null ? "/Profile" : "/Jobs")">@(Model.ViewerTitle == null ? "Cập nhật chức danh trong hồ sơ" : "Xem tất cả việc làm")<i data-lucide="arrow-right"></i></a>
+            </section>
+
+        </aside>
+    </div>
+</div>
+
+<script>
+    window.__STORY_ME__ = {
+        currentUserId: @Model.ViewerId,
+        currentUserName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ViewerName ?? "Tôi")),
+        currentUserAvatar: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ViewerAvatar ?? "/images/default-avatar.png")),
+        isBusiness: @(Model.ViewerIsBusiness ? "true" : "false"),
+        companyId: @(Model.ViewerCompanyId?.ToString() ?? "null")
+    };
+    window.__CX__ = {
+        followEnabled: @(Model.FollowEnabled ? "true" : "false"),
+        fillers: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(fillers))
+    };
+</script>
+
+@section Scripts {
+    <script src="~/js/aris-stories.js" asp-append-version="true"></script>
+    <script src="~/js/pages/company-discover.js" asp-append-version="true"></script>
+}

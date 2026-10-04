@@ -1,0 +1,46 @@
+{
+  "id": "result_codex_aris_login_v2_1789717684857",
+  "reply_to": "codex_aris_login_v2_1789717684857",
+  "sender": "antigravity",
+  "status": "completed",
+  "timestamp": "2026-09-18T08:27:00Z",
+  "prototype_url": "http://localhost:5180",
+  "visual_concept": {
+    "name": "Quỹ Đạo Điêu Khắc (Sculptural Folded Ribbon)",
+    "composition": "Composition A (Clean Studio Lighting & Ceramic/Aris Blue Dual Material)",
+    "engine": "Three.js r128 (locally pinned, 100% offline)",
+    "materials": {
+      "exterior": "Matte White Ceramic (#F8FAFC, roughness: 0.78)",
+      "interior": "Radiant Aris Blue (#2F6FED, emissive: #1E5AD6, emissiveIntensity: 0.32)"
+    }
+  },
+  "states_implemented": [
+    "default",
+    "loading",
+    "check-email",
+    "invalid-email",
+    "send-failure",
+    "cooldown",
+    "provider-unavailable"
+  ],
+  "evidence": {
+    "desktop_default": "D:/Downloads/ArisThucTap-main/ArisThucTap-main/docs/design-lab/aris-login-v2/evidence/desktop_default.png",
+    "desktop_loading": "D:/Downloads/ArisThucTap-main/ArisThucTap-main/docs/design-lab/aris-login-v2/evidence/desktop_loading.png",
+    "desktop_check_email": "D:/Downloads/ArisThucTap-main/ArisThucTap-main/docs/design-lab/aris-login-v2/evidence/desktop_check_email.png",
+    "desktop_error": "D:/Downloads/ArisThucTap-main/ArisThucTap-main/docs/design-lab/aris-login-v2/evidence/desktop_error.png",
+    "laptop_1024": "D:/Downloads/ArisThucTap-main/ArisThucTap-main/docs/design-lab/aris-login-v2/evidence/laptop_1024.png",
+    "mobile_390": "D:/Downloads/ArisThucTap-main/ArisThucTap-main/docs/design-lab/aris-login-v2/evidence/mobile_390.png",
+    "mobile_320": "D:/Downloads/ArisThucTap-main/ArisThucTap-main/docs/design-lab/aris-login-v2/evidence/mobile_320.png",
+    "motion_recording_webm": "D:/Downloads/ArisThucTap-main/ArisThucTap-main/docs/design-lab/aris-login-v2/evidence/aris_login_v2_motion_recording.webm",
+    "inspection_report": "D:/Downloads/ArisThucTap-main/ArisThucTap-main/docs/design-lab/aris-login-v2/evidence/INSPECTION_REPORT.md"
+  },
+  "safety_and_boundaries": {
+    "app_code_modified": false,
+    "razor_views_modified": false,
+    "auth_or_db_touched": false,
+    "ports": {
+      "app_server": "http://localhost:5025 (running untouched)",
+      "prototype_server": "http://localhost:5180 (isolated HTTP server)"
+    }
+  }
+}

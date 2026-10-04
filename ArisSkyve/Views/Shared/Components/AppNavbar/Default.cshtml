@@ -1,0 +1,303 @@
+@model ArisSkyve.ViewComponents.AppNavbarViewModel
+@{
+    var isBusiness = Model.IsBusiness;
+    var active = Model.Active;
+    string? Cur(params string[] keys) => keys.Contains(active) ? "page" : null;
+    var unread = Model.UnreadMessages > 99 ? "99+" : Model.UnreadMessages.ToString();
+}
+
+@* ================= SIDEBAR (desktop / tablet) ================= *@
+<aside class="a-side" aria-label="Điều hướng chính">
+    <div class="a-side__head">
+        <a class="a-brand" asp-controller="Dashboard" asp-action="Index" aria-label="Aris Careers — về Trang chủ" data-label="Aris — Trang chủ">
+            @await Html.PartialAsync("_ArisMark", 34)
+            <span class="a-brand__text">
+                <span class="a-brand__name">Aris<span class="a-brand__tag">Careers</span></span>
+            </span>
+        </a>
+        <button class="a-side__toggle" type="button" aria-expanded="true" aria-label="Thu gọn thanh điều hướng (Ctrl \)">
+            <i data-lucide="chevrons-left"></i>
+        </button>
+    </div>
+
+    <nav class="a-side__nav">
+        <span class="a-indicator" data-axis="y" data-inset="9"></span>
+
+        <div class="a-side__group">
+            <div class="a-side__label">Chính</div>
+            <a class="a-side__item" asp-controller="Dashboard" asp-action="Index" aria-current="@Cur("Home")" data-label="Trang chủ">
+                <i data-lucide="home"></i><span class="a-side__item-label">Trang chủ</span>
+            </a>
+            @if (!isBusiness)
+            {
+                <a class="a-side__item" asp-controller="Jobs" asp-action="Index" aria-current="@Cur("Jobs")" data-label="Việc làm">
+                    <i data-lucide="briefcase"></i><span class="a-side__item-label">Việc làm</span>
+                </a>
+                <a class="a-side__item" asp-controller="Resume" asp-action="Index" aria-current="@Cur("Resume", "Profile")" data-label="Hồ sơ &amp; CV">
+                    <i data-lucide="file-text"></i><span class="a-side__item-label">Hồ sơ &amp; CV</span>
+                </a>
+                <a class="a-side__item" asp-controller="JobApplications" asp-action="MyApplications" id="railApplications" aria-current="@Cur("Applications")" data-label="Đơn ứng tuyển">
+                    <i data-lucide="file-check"></i><span class="a-side__item-label">Đơn ứng tuyển</span>
+                </a>
+            }
+            else
+            {
+                <a class="a-side__item" asp-controller="Employer" asp-action="Index" aria-current="@Cur("Employer", "Dashboard")" data-label="Tuyển dụng">
+                    <i data-lucide="gauge"></i><span class="a-side__item-label">Tuyển dụng</span>
+                    @if (Model.NewApplicants > 0)
+                    {
+                        <span class="a-badge a-badge--accent a-num" aria-label="@Model.NewApplicants ứng viên mới">@Model.NewApplicants</span>
+                    }
+                </a>
+                <a class="a-side__item" asp-controller="Jobs" asp-action="Index" aria-current="@Cur("Jobs")" data-label="Tin đã đăng">
+                    <i data-lucide="briefcase"></i><span class="a-side__item-label">Tin đã đăng</span>
+                </a>
+            }
+        </div>
+
+        <div class="a-side__group">
+            <div class="a-side__label">Giao tiếp</div>
+            <a class="a-side__item" asp-controller="Chat" asp-action="Index" aria-current="@Cur("Network")" data-label="Tin nhắn">
+                <i data-lucide="message-circle"></i><span class="a-side__item-label">Tin nhắn</span>
+                @if (Model.UnreadMessages > 0)
+                {
+                    <span class="a-badge a-badge--accent a-num" aria-label="@Model.UnreadMessages tin chưa đọc">@unread</span>
+                }
+            </a>
+            <a class="a-side__item" href="/Chat/Index?tab=friends" aria-current="@Cur("Friends")" data-label="Mạng lưới kết nối">
+                <i data-lucide="users"></i><span class="a-side__item-label">Mạng lưới kết nối</span>
+            </a>
+        </div>
+
+        <div class="a-side__group">
+            <div class="a-side__label">Khám phá</div>
+            @if (!isBusiness)
+            {
+                <a class="a-side__item" asp-controller="Company" asp-action="Index" aria-current="@Cur("Companies")" data-label="Khám phá công ty">
+                    <i data-lucide="building-2"></i><span class="a-side__item-label">Khám phá công ty</span>
+                </a>
+                <a class="a-side__item" href="/JobApplications/MyApplications?tab=interview" data-label="Lịch phỏng vấn">
+                    <i data-lucide="calendar-clock"></i><span class="a-side__item-label">Lịch phỏng vấn</span>
+                    @if (Model.HasUpcomingInterview)
+                    {
+                        <span class="a-side__pip" aria-label="Có lịch phỏng vấn sắp tới"></span>
+                    }
+                </a>
+            }
+            else
+            {
+                <a class="a-side__item" asp-controller="Company" asp-action="Edit" aria-current="@Cur("CompanyEdit")" data-label="Công ty của tôi">
+                    <i data-lucide="building-2"></i><span class="a-side__item-label">Công ty của tôi</span>
+                </a>
+                <a class="a-side__item" asp-controller="Company" asp-action="Index" aria-current="@Cur("Companies")" data-label="Khám phá công ty">
+                    <i data-lucide="compass"></i><span class="a-side__item-label">Khám phá công ty</span>
+                </a>
+            }
+        </div>
+    </nav>
+
+    <div class="a-side__create">
+        <button class="a-btn a-btn--sunset" type="button" data-action="compose" data-label="Tạo bài viết (N)">
+            <i data-lucide="plus-square"></i><span class="a-side__create-text">Tạo bài viết</span>
+        </button>
+    </div>
+
+    @if (!isBusiness)
+    {
+        <div class="a-side__card">
+            <div class="a-side__card-top">
+                <span class="a-ring" data-p="@Model.ProfilePercent" role="img" aria-label="Hồ sơ hoàn thiện @Model.ProfilePercent%"><span>@Model.ProfilePercent%</span></span>
+                <div>
+                    <div class="a-side__card-title">Độ hoàn thiện hồ sơ</div>
+                    <div class="a-side__card-sub">
+                        @if (Model.ProfileMissing.Count > 0)
+                        {
+                            <text>Còn thiếu: @string.Join(", ", Model.ProfileMissing)</text>
+                        }
+                        else
+                        {
+                            <text>Hồ sơ đã sẵn sàng để nhà tuyển dụng tìm thấy</text>
+                        }
+                    </div>
+                </div>
+            </div>
+            @if (Model.ProfilePercent < 100)
+            {
+                <a class="a-btn a-btn--secondary a-btn--sm a-btn--block" asp-controller="Profile" asp-action="Index">Hoàn thiện hồ sơ</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="a-side__card">
+            <div class="a-side__card-top">
+                <span class="a-ring" data-p="@(Model.ActiveJobs > 0 ? 100 : 0)" role="img" aria-label="@Model.ActiveJobs tin đang mở"><span>@Model.ActiveJobs</span></span>
+                <div>
+                    <div class="a-side__card-title">Tuyển dụng tuần này</div>
+                    <div class="a-side__card-sub">@Model.ActiveJobs tin đang mở · @Model.NewApplicants ứng viên mới</div>
+                </div>
+            </div>
+            <a class="a-btn a-btn--secondary a-btn--sm a-btn--block" asp-controller="Jobs" asp-action="Index">Đăng tin tuyển dụng</a>
+        </div>
+    }
+
+    <div class="a-side__foot">
+        <button class="a-side__item" type="button" data-action="theme" data-label="Giao diện">
+            <i data-lucide="moon"></i><span class="a-side__item-label">Giao diện</span>
+        </button>
+        <a class="a-side__item" asp-controller="Settings" asp-action="Index" aria-current="@Cur("Settings")" data-label="Cài đặt">
+            <i data-lucide="settings"></i><span class="a-side__item-label">Cài đặt</span>
+        </a>
+        <button class="a-side__me" type="button" data-action="account" aria-haspopup="menu" aria-expanded="false" aria-controls="accountPop" data-label="@Model.FullName">
+            <span class="a-avatar a-avatar--36" data-tone="@Model.Tone" data-online="true">
+                @if (Model.HasRealAvatar)
+                {
+                    <img src="@Model.AvatarUrl" alt="" onerror="this.remove();" />
+                }
+                else
+                {
+                    @Model.Initials
+                }
+            </span>
+            <span class="a-side__me-text">
+                <span class="a-side__me-name d-block">@Model.FullName</span>
+                <span class="a-side__me-mail d-block">@Model.Email</span>
+            </span>
+            <i data-lucide="chevrons-up-down"></i>
+        </button>
+    </div>
+</aside>
+
+@* ================= THANH TRÊN (desktop / tablet) ================= *@
+<header class="a-top">
+    <button class="a-top__search" type="button" data-action="palette" aria-label="Tìm kiếm (Ctrl K)">
+        <i data-lucide="search"></i>
+        <span class="a-top__search-text">Tìm việc làm, công ty, bài viết, đồng nghiệp…</span>
+        <span class="a-kbd">Ctrl K</span>
+    </button>
+    @if (Model.Chips.Count > 0)
+    {
+        <div class="a-top__chips" aria-label="Lọc nhanh">
+            @foreach (var c in Model.Chips)
+            {
+                <a class="a-chip" href="@c.Href">@c.Label</a>
+            }
+        </div>
+    }
+    <div class="a-top__actions">
+        <button class="a-top__icon" type="button" id="notifBellBtn" data-action="notifications" data-tip="Thông báo" data-tip-side="bottom" aria-label="Thông báo" aria-haspopup="dialog" aria-controls="notifPop">
+            <i data-lucide="bell"></i>
+            <span class="a-badge a-badge--accent a-num" id="notifBadge" style="display:none;"></span>
+        </button>
+        <button class="a-top__icon" type="button" data-action="compose" data-tip="Tạo bài viết (N)" data-tip-side="bottom" aria-label="Tạo bài viết">
+            <i data-lucide="plus-square"></i>
+        </button>
+    </div>
+</header>
+
+@* ================= THANH TAB (mobile) ================= *@
+<nav class="a-tabbar" aria-label="Điều hướng chính">
+    <a class="a-tabbar__item" asp-controller="Dashboard" asp-action="Index" aria-current="@Cur("Home")"><i data-lucide="home"></i><span>Trang chủ</span></a>
+    @if (!isBusiness)
+    {
+        <a class="a-tabbar__item" asp-controller="Jobs" asp-action="Index" aria-current="@Cur("Jobs")"><i data-lucide="briefcase"></i><span>Việc làm</span></a>
+    }
+    else
+    {
+        <a class="a-tabbar__item" asp-controller="Employer" asp-action="Index" aria-current="@Cur("Employer", "Dashboard")"><i data-lucide="gauge"></i><span>Tuyển dụng</span></a>
+    }
+    <a class="a-tabbar__item" asp-controller="Chat" asp-action="Index" aria-current="@Cur("Network")">
+        <i data-lucide="message-circle"></i><span>Tin nhắn</span>
+        @if (Model.UnreadMessages > 0)
+        {
+            <span class="a-badge a-badge--accent a-num">@unread</span>
+        }
+    </a>
+    <button class="a-tabbar__item" type="button" data-action="notifications"><i data-lucide="bell"></i><span>Thông báo</span></button>
+    <a class="a-tabbar__item" asp-controller="Profile" asp-action="Index" aria-current="@Cur("Profile", "Resume", "Settings")"><i data-lucide="circle-user"></i><span>Tôi</span></a>
+</nav>
+
+@* ================= POPOVER: Thông báo & Tài khoản ================= *@
+<div class="a-pop" id="notifPop" role="dialog" aria-label="Thông báo" hidden style="width: 380px; padding: 0;">
+    <div id="notifList">
+        <div class="a-empty" style="padding: 24px 16px; text-align: center;">
+            <div class="a-empty__text">Đang tải thông báo…</div>
+        </div>
+    </div>
+</div>
+
+<div class="a-pop" id="accountPop" role="menu" aria-label="Menu tài khoản" hidden style="width: 248px; padding: 4px;">
+    <div class="a-menu__label" style="display: flex; gap: 10px; align-items: center; padding: 10px;">
+        <span class="a-avatar a-avatar--32" data-tone="@Model.Tone">
+            @if (Model.HasRealAvatar)
+            {
+                <img src="@Model.AvatarUrl" alt="" onerror="this.remove();" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+            }
+            else
+            {
+                @Model.Initials
+            }
+        </span>
+        <div style="min-width:0; overflow:hidden;">
+            <div style="font-weight:600; font-size:13px; color:var(--text); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">@Model.FullName</div>
+            <div style="font-size:11px; color:var(--text-3); font-weight:400; letter-spacing:0; text-transform:none;">@(isBusiness ? "Tài khoản doanh nghiệp" : "Tài khoản ứng viên")</div>
+        </div>
+    </div>
+    <div class="a-menu__sep"></div>
+    <a class="a-menu__item" asp-controller="Profile" asp-action="Index" role="menuitem"><i data-lucide="circle-user"></i><span>Hồ sơ của tôi</span></a>
+    @if (!isBusiness)
+    {
+        <a class="a-menu__item" asp-controller="Resume" asp-action="Index" role="menuitem"><i data-lucide="file-text"></i><span>CV của tôi</span></a>
+        <a class="a-menu__item" asp-controller="Account" asp-action="BecomeEmployer" role="menuitem"><i data-lucide="building-2"></i><span>Đăng tuyển trên Aris</span></a>
+    }
+    else
+    {
+        <a class="a-menu__item" asp-controller="Employer" asp-action="Index" role="menuitem"><i data-lucide="gauge"></i><span>Bảng tuyển dụng</span></a>
+        <a class="a-menu__item" asp-controller="Company" asp-action="Edit" role="menuitem"><i data-lucide="building-2"></i><span>Hồ sơ công ty</span></a>
+    }
+    <a class="a-menu__item" asp-controller="Settings" asp-action="Index" role="menuitem"><i data-lucide="settings"></i><span>Cài đặt</span></a>
+    <div class="a-menu__sep"></div>
+    <form asp-controller="Account" asp-action="Logout" method="post" style="margin: 0;">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="a-menu__item a-menu__item--danger" role="menuitem" style="width: 100%;">
+            <i data-lucide="log-out"></i><span>Đăng xuất</span>
+        </button>
+    </form>
+</div>
+
+@if (Model.IncludeChatWidget)
+{
+    @await Html.PartialAsync("_ChatWidget", Model.UserId)
+}
+
+@* Khởi tạo thông báo + tự tạo icon Lucide cho nội dung chèn động (SignalR, AJAX, cuộn vô hạn) *@
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        if (window.ArisNotifications && document.getElementById("notifBellBtn")) {
+            ArisNotifications.init({
+                bellBtn: document.getElementById("notifBellBtn"),
+                badge: document.getElementById("notifBadge"),
+                list: document.getElementById("notifList")
+            });
+        }
+
+        if (!window.lucide) return;
+        window.lucide.createIcons();
+
+        let pending = false;
+        const observer = new MutationObserver(function (mutations) {
+            if (pending) return;
+            const hasNewIcon = mutations.some(m => Array.from(m.addedNodes).some(function (node) {
+                if (node.nodeType !== 1) return false;
+                return node.matches?.("i[data-lucide]") || node.querySelector?.("i[data-lucide]");
+            }));
+            if (!hasNewIcon) return;
+            pending = true;
+            requestAnimationFrame(function () {
+                if (window.lucide) window.lucide.createIcons();
+                pending = false;
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    });
+</script>

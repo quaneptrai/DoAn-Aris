@@ -1,0 +1,316 @@
+@model ArisSkyve.Application.DTOs.CompanyDetailsViewModel
+@{
+    var company = Model.Company;
+    ViewData["Title"] = company.CompanyName + " - Doanh nghiệp";
+    ViewData["ActiveNav"] = "Companies";
+    Layout = "_AppLayout";
+
+    // Cùng công thức với window.toneOf() / orgInitials() trong aris-shell.js
+    int Tone(string? name)
+    {
+        uint h = 0;
+        foreach (var ch in name ?? "") h = unchecked(h * 31 + ch);
+        return (int)(h % 6) + 1;
+    }
+    string OrgInitials(string? name)
+    {
+        var words = (name ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return "AR";
+        if (words.Length > 1) return (words[0][0].ToString() + words[1][0]).ToUpperInvariant();
+        return words[0].Substring(0, Math.Min(2, words[0].Length)).ToUpperInvariant();
+    }
+    bool HasImg(string? url) => !string.IsNullOrWhiteSpace(url) && !url.Contains("default-avatar.png") && !url.Contains("ui-avatars.com");
+    string Ago(DateTime utc)
+    {
+        var d = (int)Math.Max(0, (DateTime.UtcNow - utc).TotalDays);
+        return d == 0 ? "Hôm nay" : d == 1 ? "Hôm qua" : d < 30 ? $"{d} ngày trước" : utc.ToLocalTime().ToString("dd/MM/yyyy");
+    }
+
+    var tone = Tone(company.CompanyName);
+    var initials = OrgInitials(company.CompanyName);
+    var logo = HasImg(company.AvatarUrl) ? company.AvatarUrl : null;
+    var firstPhoto = Model.Moments.FirstOrDefault(m => !m.IsVideo)?.Url;
+    var cover = HasImg(company.CoverPhotoUrl) ? company.CoverPhotoUrl : firstPhoto;
+    var size = string.IsNullOrWhiteSpace(company.CompanySize) ? null : (company.CompanySize.Contains("nhân") ? company.CompanySize : company.CompanySize + " nhân sự");
+    var website = string.IsNullOrWhiteSpace(company.WebsiteUrl) ? null : company.WebsiteUrl;
+    var websiteText = website?.Replace("https://", "").Replace("http://", "").TrimEnd('/');
+    var description = string.IsNullOrWhiteSpace(company.Description) ? null : company.Description.Trim();
+    var tagline = description == null ? null : (description.IndexOf('.') is int dot && dot > 20 && dot < 180 ? description.Substring(0, dot + 1) : (description.Length > 160 ? description.Substring(0, description.LastIndexOf(' ', 160) > 40 ? description.LastIndexOf(' ', 160) : 160) + "…" : description));
+    var openJobs = Model.Jobs.Where(j => j.isActive).ToList();
+    var closedJobs = Model.Jobs.Where(j => !j.isActive).ToList();
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/company-profile.css" asp-append-version="true" />
+}
+
+<div class="co" id="co" data-cid="@company.Id">
+    <nav class="co-crumb" aria-label="Đường dẫn">
+        <a asp-controller="Company" asp-action="Index">Khám phá công ty</a>
+        <i data-lucide="chevron-right" aria-hidden="true"></i>
+        <span aria-current="page">@company.CompanyName</span>
+    </nav>
+
+    <!-- Đầu trang: ảnh bìa + nhận diện + số liệu thật + hành động -->
+    <header class="co-hero">
+        <div class="co-hero__cover" data-tone="@tone">
+            @if (cover != null)
+            {
+                <img src="@cover" alt="Ảnh bìa @company.CompanyName" onerror="this.remove()" />
+            }
+            <span class="co-hero__mono" aria-hidden="true">@initials</span>
+            <div class="co-hero__badges">
+                @if (Model.OpenJobCount > 0)
+                {
+                    <span class="co-badge"><span class="fx-live" aria-hidden="true"></span>Đang tuyển @Model.OpenJobCount vị trí</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(company.Industry))
+                {
+                    <span class="co-badge">@company.Industry</span>
+                }
+            </div>
+            <button class="co-hero__share" type="button" data-co-share data-tip="Sao chép liên kết" aria-label="Chia sẻ trang công ty"><i data-lucide="share-2"></i></button>
+        </div>
+
+        <div class="co-hero__body">
+            <span class="co-hero__logo fx-ring fx-ring--sq"><span class="a-logo" data-tone="@tone">@initials@if (logo != null)
+                {
+                    <img src="@logo" alt="" onerror="this.remove()" />
+                }</span></span>
+
+            <div class="co-hero__id">
+                <h1 class="co-hero__name">@company.CompanyName@if (company.IsVerified)
+                    {
+                        <i data-lucide="badge-check" class="fx-verified" aria-label="Doanh nghiệp đã xác minh"></i>
+                    }</h1>
+                @if (tagline != null)
+                {
+                    <p class="co-hero__tagline">@tagline</p>
+                }
+                <ul class="co-hero__meta">
+                    @if (!string.IsNullOrWhiteSpace(company.CompanyAddress))
+                    {
+                        <li><i data-lucide="map-pin"></i>@company.CompanyAddress</li>
+                    }
+                    @if (size != null)
+                    {
+                        <li><i data-lucide="users"></i>@size</li>
+                    }
+                    @if (company.FoundedYear != null)
+                    {
+                        <li><i data-lucide="calendar"></i>Thành lập @company.FoundedYear</li>
+                    }
+                    @if (website != null)
+                    {
+                        <li><i data-lucide="globe"></i><a href="@website" target="_blank" rel="noopener">@websiteText</a></li>
+                    }
+                </ul>
+            </div>
+
+            <div class="co-hero__side">
+                <dl class="co-stats">
+                    @if (Model.FollowEnabled)
+                    {
+                        <div><dt>Người theo dõi</dt><dd class="a-num" id="coFollowers">@Model.FollowerCount</dd></div>
+                    }
+                    <div><dt>Việc đang tuyển</dt><dd class="a-num">@Model.OpenJobCount</dd></div>
+                    <div><dt>Bài đăng</dt><dd class="a-num">@Model.PostCount</dd></div>
+                </dl>
+                <div class="co-hero__cta">
+                    @if (Model.IsOwner)
+                    {
+                        <a asp-controller="Company" asp-action="Edit" class="a-btn a-btn--secondary"><i data-lucide="square-pen"></i>Sửa trang công ty</a>
+                    }
+                    else
+                    {
+                        @if (Model.FollowEnabled)
+                        {
+                            <button class="a-btn co-follow@(Model.IsFollowing ? " is-on" : "")" type="button" data-co-follow="@company.Id" aria-pressed="@(Model.IsFollowing ? "true" : "false")">
+                                <i data-lucide="@(Model.IsFollowing ? "check" : "plus")"></i><span>@(Model.IsFollowing ? "Đang theo dõi" : "Theo dõi")</span>
+                            </button>
+                        }
+                        <a class="a-btn a-btn--secondary" href="/Chat?userId=@company.UserId"><i data-lucide="message-circle"></i>Nhắn tin</a>
+                    }
+                    @if (Model.OpenJobCount > 0)
+                    {
+                        <a class="a-btn a-btn--sunset" href="#jobs">Xem @Model.OpenJobCount việc làm<i data-lucide="arrow-down"></i></a>
+                    }
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Thanh mục (dính khi cuộn) -->
+    <nav class="co-tabs" id="coTabs" aria-label="Mục trên trang">
+        <span class="co-tabs__ind" aria-hidden="true"></span>
+        <a href="#about" class="co-tab" aria-current="true">Tổng quan</a>
+        <a href="#jobs" class="co-tab">Việc đang tuyển <span class="co-tab__n">@Model.OpenJobCount</span></a>
+        @if (Model.Moments.Any())
+        {
+            <a href="#moments" class="co-tab">Khoảnh khắc <span class="co-tab__n">@Model.Moments.Count</span></a>
+        }
+    </nav>
+
+    <div class="co-grid">
+        <main class="co-main">
+            <section class="fx-card co-sec" id="about" aria-labelledby="aboutTitle">
+                <h2 class="co-sec__title" id="aboutTitle">Giới thiệu</h2>
+                @if (description != null)
+                {
+                    <div class="co-about">@description</div>
+                }
+                else
+                {
+                    <p class="co-muted">@company.CompanyName chưa viết phần giới thiệu. Bạn vẫn có thể xem các vị trí đang tuyển bên dưới hoặc nhắn tin trực tiếp cho công ty.</p>
+                }
+                <dl class="co-facts">
+                    <div class="co-fact"><dt><i data-lucide="layers"></i>Lĩnh vực</dt><dd>@(company.Industry ?? "Chưa cập nhật")</dd></div>
+                    <div class="co-fact"><dt><i data-lucide="users"></i>Quy mô</dt><dd>@(size ?? "Chưa cập nhật")</dd></div>
+                    <div class="co-fact"><dt><i data-lucide="calendar"></i>Thành lập</dt><dd>@(company.FoundedYear?.ToString() ?? "Chưa cập nhật")</dd></div>
+                    <div class="co-fact"><dt><i data-lucide="badge-check"></i>Xác minh</dt><dd>@(company.IsVerified ? "Đã xác minh" : "Chưa xác minh")</dd></div>
+                </dl>
+            </section>
+
+            <section class="co-sec co-sec--plain" id="jobs" aria-labelledby="jobsTitle">
+                <header class="co-sec__head">
+                    <h2 class="co-sec__title" id="jobsTitle">Việc đang tuyển</h2>
+                    <span class="co-sec__count a-num">@openJobs.Count</span>
+                </header>
+                @if (openJobs.Any())
+                {
+                    <div class="co-jobs">
+                        @foreach (var job in openJobs)
+                        {
+                            var city = job.Locations?.FirstOrDefault()?.City;
+                            var isNew = job.CreatedAt >= DateTime.UtcNow.AddDays(-3);
+                            <article class="co-job">
+                                <div class="co-job__main">
+                                    <h3 class="co-job__title"><a href="/Jobs?job=@job.Id">@job.Title</a>@if (isNew)
+                                        {
+                                            <span class="co-job__new">Mới</span>
+                                        }</h3>
+                                    <div class="co-job__tags">
+                                        <span class="co-job__salary">@(string.IsNullOrWhiteSpace(job.Salary) ? "Thoả thuận" : job.Salary)</span>
+                                        @if (!string.IsNullOrWhiteSpace(city))
+                                        {
+                                            <span>@city</span>
+                                        }
+                                        <span>@(string.IsNullOrWhiteSpace(job.WorkTime) ? "Toàn thời gian" : job.WorkTime)</span>
+                                        @if (!string.IsNullOrWhiteSpace(job.Category))
+                                        {
+                                            <span>@job.Category</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="co-job__side">
+                                    <span class="co-job__time">Đăng @Ago(job.CreatedAt).ToLower()</span>
+                                    <a class="a-btn a-btn--ink a-btn--sm" href="/Jobs?job=@job.Id">Ứng tuyển</a>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="fx-card a-empty co-empty">
+                        <i data-lucide="briefcase"></i>
+                        <div class="a-empty__title">Hiện chưa có vị trí đang mở</div>
+                        <div class="a-empty__text">@(Model.FollowEnabled ? "Theo dõi công ty để thấy tin tuyển dụng mới ngay trên Bảng tin." : "Quay lại sau để xem các cơ hội mới.")</div>
+                    </div>
+                }
+                @if (closedJobs.Any())
+                {
+                    <details class="co-closed">
+                        <summary>Đã ngừng tuyển (@closedJobs.Count)</summary>
+                        <ul>
+                            @foreach (var job in closedJobs)
+                            {
+                                <li><a href="/Jobs/Details/@job.Id">@job.Title</a><span>@job.CreatedAt.ToLocalTime().ToString("MM/yyyy")</span></li>
+                            }
+                        </ul>
+                    </details>
+                }
+            </section>
+
+            @if (Model.Moments.Any())
+            {
+                <section class="co-sec co-sec--plain" id="moments" aria-labelledby="momentsTitle">
+                    <header class="co-sec__head">
+                        <h2 class="co-sec__title" id="momentsTitle">Khoảnh khắc tại @company.CompanyName</h2>
+                        <a class="co-sec__link" href="/Dashboard?post=@Model.Moments[0].PostId">Xem trên Bảng tin<i data-lucide="arrow-up-right"></i></a>
+                    </header>
+                    <div class="co-moments co-moments--n@(Math.Min(Model.Moments.Count, 5))">
+                        @for (var i = 0; i < Model.Moments.Count; i++)
+                        {
+                            var m = Model.Moments[i];
+                            <figure class="co-moment">
+                                @if (m.IsVideo)
+                                {
+                                    <video src="@m.Url" muted playsinline loop preload="metadata" controls></video>
+                                }
+                                else
+                                {
+                                    <img src="@m.Url" alt="Ảnh từ @company.CompanyName" loading="lazy" data-co-lb />
+                                }
+                                @if (!string.IsNullOrWhiteSpace(m.Caption))
+                                {
+                                    <figcaption>@(m.Caption!.Length > 90 ? m.Caption.Substring(0, 90) + "…" : m.Caption)</figcaption>
+                                }
+                            </figure>
+                        }
+                    </div>
+                </section>
+            }
+        </main>
+
+        <aside class="co-side" aria-label="Thông tin nhanh">
+            <section class="fx-card co-card">
+                <h2 class="co-card__title">Thông tin nhanh</h2>
+                <dl class="co-info">
+                    @if (!string.IsNullOrWhiteSpace(company.CompanyAddress))
+                    {
+                        <div>
+                            <dt>Trụ sở</dt>
+                            <dd><span id="coAddress">@company.CompanyAddress</span><button class="co-copy" type="button" data-co-copy data-tip="Sao chép địa chỉ" aria-label="Sao chép địa chỉ"><i data-lucide="copy"></i></button></dd>
+                        </div>
+                    }
+                    @if (website != null)
+                    {
+                        <div><dt>Website</dt><dd><a href="@website" target="_blank" rel="noopener">@websiteText</a></dd></div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(company.TaxCode))
+                    {
+                        <div><dt>Mã số thuế</dt><dd class="a-num">@company.TaxCode</dd></div>
+                    }
+                    @if (company.FoundedYear != null)
+                    {
+                        <div><dt>Thành lập</dt><dd>@company.FoundedYear</dd></div>
+                    }
+                    @if (size != null)
+                    {
+                        <div><dt>Quy mô</dt><dd>@size</dd></div>
+                    }
+                </dl>
+            </section>
+
+            @if (!Model.IsOwner)
+            {
+                <section class="fx-card co-card co-talk">
+                    <span class="co-talk__logo"><span class="a-logo a-logo--44" data-tone="@tone">@initials@if (logo != null)
+                        {
+                            <img src="@logo" alt="" onerror="this.remove()" />
+                        }</span></span>
+                    <div>
+                        <h2 class="co-card__title">Có câu hỏi về công ty?</h2>
+                        <p class="co-muted">Nhắn trực tiếp cho bộ phận tuyển dụng của @company.CompanyName trên Aris — về vị trí, văn phòng hay quy trình phỏng vấn.</p>
+                    </div>
+                    <a class="a-btn a-btn--secondary a-btn--block" href="/Chat?userId=@company.UserId"><i data-lucide="message-circle"></i>Nhắn tin</a>
+                </section>
+            }
+        </aside>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/company.js" asp-append-version="true"></script>
+}

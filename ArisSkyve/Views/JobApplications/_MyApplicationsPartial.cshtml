@@ -1,0 +1,366 @@
+@model ArisSkyve.Application.DTOs.MyApplicationsViewModel
+@using ArisSkyve.Infrastructure.Services.Recruitment
+
+@{
+    var apps = Model?.Applications ?? new List<ArisSkyve.Application.DTOs.MyApplicationItemViewModel>();
+    var totalCount = apps.Count;
+    var processingCount = apps.Count(a => a.Status == "Submitted" || a.Status == "UnderReview" || a.Status == "Shortlisted");
+    var interviewCount = apps.Count(a => a.Status == "InterviewScheduled" || a.Status == "Offered");
+    var finishedCount = apps.Count(a => a.Status == "Hired" || a.Status == "Rejected" || a.Status == "Withdrawn");
+    // Việc đang chờ chính ứng viên làm: xác nhận lịch, trả lời offer.
+    var todoCount = apps.Count(a => a.NextStepKey is "confirm" or "offer");
+
+    (string tagClass, string label, int stepIndex) GetStatusInfo(string status) => status switch
+    {
+        "Submitted" => ("a-status--brand", "Đã nộp", 1),
+        "UnderReview" => ("a-status--brand", "Đang xem xét", 2),
+        "Shortlisted" => ("a-status--brand", "Vào danh sách rút gọn", 3),
+        "InterviewScheduled" => ("a-status--accent", "Mời phỏng vấn", 4),
+        "Offered" => ("a-status--success", "Nhận offer", 5),
+        "Hired" => ("a-status--success", "Đã nhận việc", 5),
+        "Rejected" => ("a-status--danger", "Chưa phù hợp", -1),
+        "Withdrawn" => ("a-status--neutral", "Đã rút đơn", 0),
+        _ => ("a-status--neutral", status, 1)
+    };
+
+    string NextTone(string key) => key switch
+    {
+        "confirm" or "offer" => "action",
+        "prepare" => "brand",
+        "hired" => "ok",
+        "rejected" => "danger",
+        _ => "muted"
+    };
+
+    string Weekday(DateTime utc) => VnTime.ToLocal(utc).DayOfWeek switch
+    {
+        DayOfWeek.Monday => "Thứ Hai",
+        DayOfWeek.Tuesday => "Thứ Ba",
+        DayOfWeek.Wednesday => "Thứ Tư",
+        DayOfWeek.Thursday => "Thứ Năm",
+        DayOfWeek.Friday => "Thứ Sáu",
+        DayOfWeek.Saturday => "Thứ Bảy",
+        _ => "Chủ nhật"
+    };
+
+    string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "A";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
+        return (parts[0][0].ToString() + parts[^1][0].ToString()).ToUpper();
+    }
+
+    int GetTone(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return 1;
+        int hash = 0;
+        foreach (char c in name) hash = (hash << 5) - hash + c;
+        return (Math.Abs(hash) % 6) + 1;
+    }
+}
+
+@Html.AntiForgeryToken()
+
+<!-- Bộ lọc tab phân đoạn -->
+<div class="app-filter" id="appFilter">
+    <div class="a-seg" role="tablist" aria-label="Lọc đơn ứng tuyển" id="appFilterSeg">
+        <span class="a-seg__thumb"></span>
+        <button class="a-seg__btn" type="button" role="tab" data-tab="all" aria-selected="true">
+            Tất cả <span class="a-num">@totalCount</span>
+        </button>
+        <button class="a-seg__btn" type="button" role="tab" data-tab="todo" aria-selected="false">
+            Cần bạn trả lời <span class="a-num">@todoCount</span>
+        </button>
+        <button class="a-seg__btn" type="button" role="tab" data-tab="processing" aria-selected="false">
+            Đang xử lý <span class="a-num">@processingCount</span>
+        </button>
+        <button class="a-seg__btn" type="button" role="tab" data-tab="interview" aria-selected="false">
+            Phỏng vấn &amp; offer <span class="a-num">@interviewCount</span>
+        </button>
+        <button class="a-seg__btn" type="button" role="tab" data-tab="finished" aria-selected="false">
+            Kết thúc <span class="a-num">@finishedCount</span>
+        </button>
+    </div>
+</div>
+
+@if (!apps.Any())
+{
+    <div class="a-empty" style="padding: 48px 24px;">
+        <i data-lucide="file-check"></i>
+        <div class="a-empty__title">Bạn chưa ứng tuyển việc nào</div>
+        <div class="a-empty__text">Tìm kiếm cơ hội nghề nghiệp phù hợp và nộp hồ sơ nhanh chóng chỉ với một cú bấm.</div>
+        <div style="display:flex;gap:10px;margin-top:14px;">
+            <a class="a-btn a-btn--primary" href="/Jobs">Khám phá việc làm</a>
+            <a class="a-btn a-btn--secondary" href="/Resume">Quản lý CV</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="app-list" id="appList">
+        @foreach (var app in apps)
+        {
+            var (tagClass, statusLabel, currentStep) = GetStatusInfo(app.Status);
+            var isRejected = app.Status == "Rejected";
+            var isWithdrawn = app.Status == "Withdrawn";
+            var isOffer = app.Status == "Offered" || app.Status == "Hired";
+
+            var category = (app.Status == "Submitted" || app.Status == "UnderReview" || app.Status == "Shortlisted") ? "processing"
+                         : (app.Status == "InterviewScheduled" || app.Status == "Offered") ? "interview" : "finished";
+            var isTodo = app.NextStepKey is "confirm" or "offer";
+
+            var logo = app.CompanyLogo;
+            var cTone = GetTone(app.CompanyName);
+            var cInit = GetInitials(app.CompanyName);
+            var actions = app.NextStepActions ?? new List<string>();
+
+            <article class="app-card" id="app-@app.Id" data-application-id="@app.Id" data-category="@category" data-todo="@(isTodo ? "1" : "0")">
+                <header class="app-card__head">
+                    @if (!string.IsNullOrWhiteSpace(logo) && logo != "/images/default-company.png")
+                    {
+                        <img src="@logo" class="app-card__logo" alt="@app.CompanyName" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{className:'a-logo app-card__logo',dataset:{tone:'@cTone'},textContent:'@cInit'}))">
+                    }
+                    else
+                    {
+                        <span class="a-logo app-card__logo" data-tone="@cTone">@cInit</span>
+                    }
+
+                    <div class="app-card__main">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                            <div>
+                                <a href="/Jobs/Details/@app.JobId" class="app-card__title">@app.JobTitle</a>
+                                <div class="app-card__meta">
+                                    <b>@app.CompanyName</b>
+                                    @if (!string.IsNullOrWhiteSpace(app.Salary))
+                                    {
+                                        <span>·</span>
+                                        <span class="a-tag a-tag--sm">@app.Salary</span>
+                                    }
+                                    <span>·</span>
+                                    <span>Nộp ngày @VnTime.Format(app.AppliedAt, "dd/MM/yyyy")</span>
+                                    @if (app.MatchScore.HasValue)
+                                    {
+                                        var tier = MatchInsight.Tier(app.MatchScore);
+                                        <span>·</span>
+                                        <span class="app-match" data-tier="@tier.Key" title="Mức phù hợp AI chấm giữa CV đã nộp và tin">@Math.Round(app.MatchScore.Value) điểm · @tier.Label</span>
+                                    }
+                                </div>
+                            </div>
+                            <span class="a-status @tagClass">@statusLabel</span>
+                        </div>
+                    </div>
+                </header>
+
+                @if (!isWithdrawn)
+                {
+                    <!-- Dòng quỹ đạo tiến trình 5 bước -->
+                    <div class="orbit-timeline" aria-label="Tiến trình ứng tuyển">
+                        @{
+                            var fillPercent = isRejected ? 100 : Math.Min(100, Math.Max(0, (currentStep - 1) * 25));
+                        }
+                        <div class="orbit-timeline__track">
+                            <div class="orbit-timeline__fill" style="width: @(fillPercent)%"></div>
+                        </div>
+
+                        <div class="orbit-step @(currentStep >= 1 ? "is-passed" : "") @(currentStep == 1 && !isRejected ? "is-current" : "")">
+                            <span class="orbit-step__dot"><i data-lucide="check"></i></span>
+                            <span class="orbit-step__label">Đã nộp</span>
+                        </div>
+                        <div class="orbit-step @(currentStep >= 2 ? "is-passed" : "") @(currentStep == 2 && !isRejected ? "is-current" : "")">
+                            <span class="orbit-step__dot"><i data-lucide="check"></i></span>
+                            <span class="orbit-step__label">Đang xem xét</span>
+                        </div>
+                        <div class="orbit-step @(currentStep >= 3 ? "is-passed" : "") @(currentStep == 3 && !isRejected ? "is-current" : "")">
+                            <span class="orbit-step__dot"><i data-lucide="check"></i></span>
+                            <span class="orbit-step__label">Rút gọn</span>
+                        </div>
+                        <div class="orbit-step @(currentStep >= 4 ? "is-passed" : "") @(currentStep == 4 && !isRejected ? "is-current" : "")">
+                            <span class="orbit-step__dot"><i data-lucide="check"></i></span>
+                            <span class="orbit-step__label">Phỏng vấn</span>
+                        </div>
+                        @if (isRejected)
+                        {
+                            <div class="orbit-step is-danger">
+                                <span class="orbit-step__dot"><i data-lucide="x"></i></span>
+                                <span class="orbit-step__label">Chưa phù hợp</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="orbit-step @(currentStep == 5 ? "is-passed is-current" : "")">
+                                <span class="orbit-step__dot"><i data-lucide="check"></i></span>
+                                <span class="orbit-step__label">@(app.Status == "Hired" ? "Nhận việc" : "Offer")</span>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(app.NextStepTitle) && !isWithdrawn)
+                {
+                    <!-- Bước tiếp theo (RecruitmentFlow.ForCandidate) -->
+                    <section class="app-next" data-tone="@NextTone(app.NextStepKey)">
+                        <div class="app-next__text">
+                            <div class="app-next__title">@app.NextStepTitle</div>
+                            <p>@app.NextStepText</p>
+                        </div>
+                        <div class="app-next__actions">
+                            @foreach (var act in actions)
+                            {
+                                switch (act)
+                                {
+                                    case "acceptInterview":
+                                        <button type="button" class="a-btn a-btn--primary a-btn--sm" data-app-act="acceptInterview" data-id="@app.Id">
+                                            <i data-lucide="calendar-check"></i> Xác nhận tham gia
+                                        </button>
+                                        break;
+                                    case "declineInterview":
+                                        <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-app-act="declineInterview" data-id="@app.Id" data-title="@app.JobTitle">
+                                            <i data-lucide="calendar-x"></i> @(app.InterviewResponse == "Accepted" ? "Xin đổi lịch" : "Báo bận, đề xuất giờ khác")
+                                        </button>
+                                        break;
+                                    case "ics":
+                                        <a class="a-btn a-btn--ghost a-btn--sm" href="/JobApplications/InterviewIcs?applicationId=@app.Id">
+                                            <i data-lucide="calendar-plus"></i> Thêm vào lịch
+                                        </a>
+                                        break;
+                                    case "joinRoom":
+                                        <a class="a-btn a-btn--primary a-btn--sm" href="/Interview/Room/@app.Id" target="_blank" rel="noopener">
+                                            <i data-lucide="video"></i> Vào phòng
+                                        </a>
+                                        break;
+                                    case "acceptOffer":
+                                        <button type="button" class="a-btn a-btn--primary a-btn--sm" data-app-act="acceptOffer" data-id="@app.Id" data-title="@app.JobTitle">
+                                            <i data-lucide="badge-check"></i> Nhận offer
+                                        </button>
+                                        break;
+                                    case "declineOffer":
+                                        <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-app-act="declineOffer" data-id="@app.Id" data-title="@app.JobTitle">
+                                            Từ chối offer
+                                        </button>
+                                        break;
+                                    case "insight":
+                                        <button type="button" class="a-btn @(isRejected ? "a-btn--primary" : "a-btn--secondary") a-btn--sm" data-insight-app="@app.Id">
+                                            @if (isRejected)
+                                            {
+                                                <i data-lucide="route"></i> <span>Xem lý do &amp; lộ trình kỹ năng</span>
+                                            }
+                                            else
+                                            {
+                                                <i data-lucide="sparkles"></i> <span>AI đánh giá CV với tin này</span>
+                                            }
+                                        </button>
+                                        break;
+                                }
+                            }
+                        </div>
+                    </section>
+                }
+
+                @if (app.Status == "InterviewScheduled" && app.InterviewAt.HasValue)
+                {
+                    <div class="app-interview-box">
+                        <i data-lucide="calendar"></i>
+                        <div class="app-interview-box__info">
+                            <div>
+                                <strong>Phỏng vấn vòng @app.InterviewRound:</strong>
+                                @VnTime.Format(app.InterviewAt.Value, "HH:mm"), @Weekday(app.InterviewAt.Value) @VnTime.Format(app.InterviewAt.Value, "dd/MM/yyyy")
+                                · @app.InterviewDurationMinutes phút
+                            </div>
+                            <div class="a-help" style="margin-top:2px;">
+                                @if (app.IsVideoCall)
+                                {
+                                    <span>Trực tuyến qua Aris Video Call</span>
+                                }
+                                else
+                                {
+                                    <span>Địa điểm: @(app.InterviewLocation ?? "Tại văn phòng công ty")</span>
+                                }
+                            </div>
+                            @if (app.InterviewResponse == "Declined" && app.ProposedSlots.Any())
+                            {
+                                <div class="a-help" style="margin-top:4px;">
+                                    Giờ bạn đã đề xuất:
+                                    @string.Join(", ", app.ProposedSlots.Select(s => VnTime.Format(s, "HH:mm dd/MM")))
+                                </div>
+                            }
+                        </div>
+                        <span class="app-chip" data-state="@app.InterviewResponse">
+                            @(app.InterviewResponse switch { "Accepted" => "Đã xác nhận", "Declined" => "Đã xin đổi lịch", _ => "Chờ bạn xác nhận" })
+                        </span>
+                    </div>
+                }
+
+                @if (isOffer && (app.OfferSalary != null || app.OfferStartDate.HasValue || app.OfferExpiresAt.HasValue))
+                {
+                    <div class="app-offer">
+                        <i data-lucide="award"></i>
+                        <dl>
+                            @if (!string.IsNullOrWhiteSpace(app.OfferSalary))
+                            {
+                                <div><dt>Mức lương</dt><dd>@app.OfferSalary</dd></div>
+                            }
+                            @if (app.OfferStartDate.HasValue)
+                            {
+                                <div><dt>Ngày bắt đầu</dt><dd>@VnTime.Format(app.OfferStartDate.Value, "dd/MM/yyyy")</dd></div>
+                            }
+                            @if (app.OfferExpiresAt.HasValue && app.Status == "Offered")
+                            {
+                                <div><dt>Trả lời trước</dt><dd>@VnTime.Format(app.OfferExpiresAt.Value, "dd/MM/yyyy")</dd></div>
+                            }
+                        </dl>
+                    </div>
+                }
+
+                @if (isRejected)
+                {
+                    <div class="app-reject">
+                        <div class="app-reject__label">
+                            <i data-lucide="message-square-warning"></i>
+                            @(string.IsNullOrWhiteSpace(app.RejectionLabel) ? "Hồ sơ chưa phù hợp lần này" : app.RejectionLabel)
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(app.StatusNote))
+                        {
+                            <p class="app-reject__note">“@app.StatusNote”</p>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(app.MatchSummary))
+                        {
+                            <p class="app-reject__ai"><i data-lucide="sparkles"></i> AI: @app.MatchSummary</p>
+                        }
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(app.StatusNote))
+                {
+                    <div class="app-note">
+                        <strong>Lời nhắn từ nhà tuyển dụng:</strong> @app.StatusNote
+                    </div>
+                }
+
+                <footer class="app-card__foot">
+                    <a href="/Jobs/Details/@app.JobId" class="a-btn a-btn--ghost a-btn--sm">
+                        Xem tin tuyển dụng <i data-lucide="arrow-up-right"></i>
+                    </a>
+                    @if (app.CanWithdraw)
+                    {
+                        <button type="button" class="a-btn a-btn--ghost a-btn--sm withdraw-application-btn" data-id="@app.Id" data-title="@app.JobTitle" style="color:var(--danger)">
+                            <i data-lucide="arrow-left"></i> Rút đơn
+                        </button>
+                    }
+                </footer>
+            </article>
+        }
+    </div>
+}
+
+<!-- Dialog xác nhận rút đơn -->
+<div class="a-scrim" id="withdrawScrim" hidden></div>
+<div class="a-dialog confirm" id="withdrawDialog" role="alertdialog" aria-modal="true" hidden>
+    <div class="confirm__body">
+        <div class="confirm__title" id="withdrawTitle">Rút đơn ứng tuyển?</div>
+        <div class="confirm__text" id="withdrawText">Nhà tuyển dụng sẽ không còn thấy hồ sơ ứng tuyển này. Hành động này không thể hoàn tác.</div>
+    </div>
+    <div class="confirm__btns">
+        <button type="button" id="confirmWithdrawBtn" style="color:var(--danger);font-weight:600">Rút đơn</button>
+        <button type="button" id="cancelWithdrawBtn">Giữ đơn</button>
+    </div>
+</div>

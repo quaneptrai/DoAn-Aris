@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aris Career Studio — Login V5: Trường Cộng Hưởng (Resonance)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Palette: Deep Ink Theater & Warm Architectural Pearl Bay */
+      --ink-base: #070B14;
+      --ink-depth: #0B1120;
+      --pearl-bay: #F0EEE8;
+      --pearl-surface: #FFFFFF;
+      --pearl-border: #E2DFD7;
+      --pearl-border-focus: #355CFF;
+      --text-dark: #172031;
+      --text-muted: #64748B;
+      --text-light-sub: #94A3B8;
+      --cobalt: #355CFF;
+      --cobalt-hover: #2348E0;
+      --cobalt-glow: rgba(53, 92, 255, 0.25);
+      --ice-accent: #8EC5FC;
+      --apricot-accent: #F08A5D;
+      
+      --font-display: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      --font-body: 'Inter', -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: var(--font-body);
+      background-color: var(--ink-base);
+      color: var(--text-dark);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Fullscreen Split Architecture */
+    .page-layout {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* -------------------------------------------------------------
+       LEFT REGION (~62%): IMMERSIVE INK KINETIC SCENE
+       ------------------------------------------------------------- */
+    .stage-dark-scene {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(ellipse at 25% 45%, rgba(47, 85, 237, 0.18) 0%, transparent 60%),
+                  radial-gradient(ellipse at 80% 85%, rgba(11, 17, 32, 0.9) 0%, transparent 70%),
+                  var(--ink-base);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* Header in Dark Stage */
+    .dark-header {
+      height: 80px;
+      padding: 0 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 30;
+    }
+
+    .brand-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .brand-svg {
+      width: 32px;
+      height: 32px;
+    }
+    .brand-name {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.02em;
+    }
+
+    .header-motion-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-light-sub);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .header-motion-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #FFFFFF;
+    }
+    .header-motion-btn.active {
+      border-color: var(--cobalt);
+      color: #93C5FD;
+    }
+
+    /* Hero Typography (Preserved Negative Space) */
+    .hero-narrative {
+      position: relative;
+      z-index: 20;
+      padding: 0 56px 40px 56px;
+      max-width: 580px;
+      pointer-events: none;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 56px;
+      line-height: 1.12;
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      color: #FFFFFF;
+      margin-bottom: 18px;
+      text-shadow: 0 4px 28px rgba(3, 6, 12, 0.9);
+      pointer-events: auto;
+    }
+    .hero-title span.line { display: block; }
+    .hero-title .title-gradient {
+      background: linear-gradient(135deg, #FFFFFF 30%, #8EC5FC 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      font-size: 17px;
+      line-height: 1.6;
+      color: var(--text-light-sub);
+      max-width: 440px;
+      text-shadow: 0 2px 16px rgba(3, 6, 12, 0.9);
+      pointer-events: auto;
+    }
+
+    /* 3D WebGL Canvas Layer */
+    .canvas-container {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      overflow: hidden;
+    }
+    #resonanceCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Dark Stage Bottom Credits */
+    .dark-footer {
+      height: 52px;
+      padding: 0 48px;
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      color: rgba(148, 163, 184, 0.6);
+      position: relative;
+      z-index: 30;
+    }
+
+    /* -------------------------------------------------------------
+       RIGHT REGION (~38%): STRUCTURAL FULL-HEIGHT WARM PEARL BAY
+       ------------------------------------------------------------- */
+    .bay-pearl-auth {
+      width: 460px;
+      min-width: 460px;
+      max-width: 460px;
+      height: 100vh;
+      background: var(--pearl-bay);
+      border-left: 1px solid rgba(53, 92, 255, 0.22);
+      box-shadow: -16px 0 48px rgba(0, 0, 0, 0.35);
+      position: relative;
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px 44px 32px 44px;
+      overflow-y: auto;
+    }
+
+    /* Architectural Seam Accent (Subtle Cobalt Edge Indicator) */
+    .bay-pearl-auth::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 2px;
+      background: linear-gradient(180deg, rgba(53, 92, 255, 0) 0%, rgba(53, 92, 255, 0.6) 35%, rgba(142, 197, 252, 0.7) 65%, rgba(53, 92, 255, 0) 100%);
+      pointer-events: none;
+    }
+
+    .auth-inner-column {
+      width: 100%;
+      max-width: 372px;
+      margin: 0 auto;
+    }
+
+    /* Bay Header */
+    .bay-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 36px;
+    }
+    .bay-brand-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+    .bay-brand-tag svg { width: 20px; height: 20px; }
+
+    .bay-mode-badge {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Editorial Greeting */
+    .auth-greeting-group {
+      margin-bottom: 24px;
+    }
+    .auth-greeting {
+      font-family: var(--font-display);
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1.15;
+      color: var(--text-dark);
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .auth-subline {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .form-instruction {
+      font-size: 14px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 16px;
+    }
+
+    /* Form Fields & Controls */
+    .field-wrap {
+      margin-bottom: 18px;
+    }
+    .field-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+    .field-input-inset {
+      width: 100%;
+      height: 54px;
+      background: #FFFFFF;
+      border: 1px solid var(--pearl-border);
+      border-radius: 10px;
+      padding: 0 18px;
+      font-family: var(--font-body);
+      font-size: 16px;
+      color: var(--text-dark);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
+      transition: all 0.2s ease;
+    }
+    .field-input-inset:focus {
+      outline: none;
+      border-color: var(--cobalt);
+      box-shadow: 0 0 0 3px rgba(53, 92, 255, 0.16), inset 0 1px 2px rgba(0, 0, 0, 0.02);
+      background: #FFFFFF;
+    }
+    .field-input-inset.has-error {
+      border-color: #DC2626;
+      background: #FEF2F2;
+    }
+    .field-error-notice {
+      display: none;
+      font-size: 12px;
+      font-weight: 500;
+      color: #DC2626;
+      margin-top: 6px;
+    }
+    .field-error-notice.visible { display: block; }
+
+    /* Primary Submit CTA */
+    .btn-submit-cta {
+      width: 100%;
+      height: 54px;
+      background: var(--cobalt);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 10px;
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 22px;
+      box-shadow: 0 4px 14px rgba(53, 92, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transition: all 0.2s ease;
+    }
+    .btn-submit-cta:hover {
+      background: var(--cobalt-hover);
+      box-shadow: 0 6px 18px rgba(53, 92, 255, 0.38);
+      transform: translateY(-1px);
+    }
+    .btn-submit-cta:active {
+      transform: translateY(1px);
+    }
+    .btn-submit-cta:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .cta-label-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cta-arrow-box {
+      width: 28px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
+    }
+    .btn-submit-cta:hover .cta-arrow-box {
+      transform: translateX(2px);
+    }
+
+    .auth-helper-note {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    /* Divider */
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      margin: 22px 0 18px 0;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid var(--pearl-border);
+    }
+    .auth-divider span {
+      padding: 0 14px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: lowercase;
+    }
+
+    /* Full-Width Social Buttons */
+    .social-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-social-full {
+      width: 100%;
+      height: 48px;
+      background: #FFFFFF;
+      border: 1px solid var(--pearl-border);
+      border-radius: 10px;
+      color: #1E293B;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      transition: all 0.2s ease;
+    }
+    .btn-social-full:hover {
+      background: #FAFAFA;
+      border-color: #CBD5E1;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Accepted / Check Email State View */
+    .state-accepted-bay {
+      display: none;
+      padding: 16px 0;
+      text-align: center;
+    }
+    .state-accepted-bay.active { display: block; }
+
+    .check-circle-icon {
+      width: 60px;
+      height: 60px;
+      background: rgba(53, 92, 255, 0.1);
+      border: 1px solid rgba(53, 92, 255, 0.25);
+      color: var(--cobalt);
+      border-radius: 50%;
+      margin: 0 auto 20px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .check-greeting {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .check-subtext {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .check-email-pill {
+      background: #FFFFFF;
+      border: 1px solid var(--pearl-border);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin: 16px 0 20px 0;
+      word-break: break-all;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    }
+    .btn-return-link {
+      background: transparent;
+      border: none;
+      color: var(--cobalt);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* Bay Footer */
+    .bay-foot {
+      padding-top: 24px;
+      border-top: 1px solid rgba(226, 223, 215, 0.7);
+      text-align: center;
+    }
+    .register-line {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .register-line a {
+      color: var(--cobalt);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .bay-legal-links {
+      font-size: 12px;
+      color: #94A3B8;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    /* Dev Review Dock */
+    .review-dock {
+      position: fixed;
+      bottom: 18px;
+      left: 31%;
+      transform: translateX(-50%);
+      background: rgba(7, 11, 20, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+    }
+    .review-dock.hidden { display: none; }
+    .dock-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94A3B8;
+      margin-right: 4px;
+    }
+    .btn-tab {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #CBD5E1;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-tab:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.08); }
+    .btn-tab.active {
+      background: rgba(53, 92, 255, 0.3);
+      border-color: rgba(53, 92, 255, 0.6);
+      color: #93C5FD;
+    }
+
+    /* -------------------------------------------------------------
+       RESPONSIVE DESIGN (390px & 320px)
+       ------------------------------------------------------------- */
+    @media (max-width: 960px) {
+      .page-layout {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+      }
+      .stage-dark-scene {
+        min-height: 380px;
+        height: 48vh;
+        flex: none;
+      }
+      .dark-header { padding: 0 24px; height: 64px; }
+      .hero-narrative { padding: 0 24px 24px 24px; }
+      .hero-title { font-size: 36px; }
+      .hero-desc { font-size: 14px; }
+      .dark-footer { display: none; }
+
+      .bay-pearl-auth {
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+        height: auto;
+        border-left: none;
+        border-top: 2px solid var(--cobalt);
+        padding: 40px 24px 32px 24px;
+        box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.3);
+      }
+      .bay-pearl-auth::before { display: none; }
+      .auth-inner-column { max-width: 100%; }
+      .auth-greeting { font-size: 34px; }
+      .review-dock { left: 50%; bottom: 12px; width: 92%; overflow-x: auto; justify-content: center; }
+    }
+
+    @media (max-width: 480px) {
+      .hero-title { font-size: 30px; }
+      .auth-greeting { font-size: 30px; }
+      .field-input-inset, .btn-submit-cta { height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-layout">
+    
+    <!-- LEFT: IMMERSIVE INK SCENE -->
+    <main class="stage-dark-scene">
+      
+      <!-- Top Bar in Dark Scene -->
+      <header class="dark-header">
+        <a href="#" class="brand-group">
+          <!-- Official Aris Trajectory Brand Mark -->
+          <svg class="brand-svg" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="arisLogoGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#2F6FED"/>
+                <stop offset="100%" stop-color="#7EC8F5"/>
+              </linearGradient>
+            </defs>
+            <path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30" stroke="url(#arisLogoGrad)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="brand-name">Aris</span>
+        </a>
+
+        <button class="header-motion-btn" id="btnPauseMotion" onclick="togglePause()" title="Bật/Tắt chuyển động">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          <span id="txtPauseMotion">Tạm dừng</span>
+        </button>
+      </header>
+
+      <!-- Editorial Narrative (Clear of Particles) -->
+      <section class="hero-narrative">
+        <h1 class="hero-title">
+          <span class="line">Mở lối riêng.</span>
+          <span class="line title-gradient">Bứt phá cùng Aris.</span>
+        </h1>
+        <p class="hero-desc">
+          Cơ hội tiếp theo bắt đầu từ đây.
+        </p>
+      </section>
+
+      <!-- 3D Interactive Canvas -->
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="resonanceCanvas"></canvas>
+      </div>
+
+      <!-- Dark Stage Bottom Credits -->
+      <footer class="dark-footer">
+        <span>© 2026 Aris Career Platform. Trường cộng hưởng tương lai.</span>
+      </footer>
+    </main>
+
+    <!-- RIGHT: STRUCTURAL FULL-HEIGHT WARM PEARL AUTH BAY -->
+    <aside class="bay-pearl-auth" id="pearlAuthBay">
+      
+      <div class="auth-inner-column">
+        
+        <!-- Bay Header -->
+        <div class="bay-top-bar">
+          <div class="bay-brand-tag">
+            <svg viewBox="0 0 200 200" fill="none">
+              <path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30" stroke="#355CFF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Aris Studio</span>
+          </div>
+          <span class="bay-mode-badge">Đăng nhập nhanh</span>
+        </div>
+
+        <!-- State 1: Active Login Form -->
+        <div id="formViewSection">
+          
+          <div class="auth-greeting-group">
+            <h2 class="auth-greeting">Chào bạn.</h2>
+            <p class="auth-subline">Cơ hội tiếp theo bắt đầu từ đây.</p>
+          </div>
+
+          <p class="form-instruction">Nhập email để nhận liên kết đăng nhập.</p>
+
+          <form id="v5AuthForm" onsubmit="submitForm(event)">
+            
+            <div class="field-wrap">
+              <label class="field-label" for="userEmail">Email của bạn</label>
+              <input type="email" id="userEmail" class="field-input-inset" placeholder="ten@vidu.com" required autocomplete="email" onfocus="handleFocus(true)" onblur="handleFocus(false)">
+              <p class="field-error-notice" id="errMail">Vui lòng nhập địa chỉ email hợp lệ (ví dụ: ban@vidu.com).</p>
+            </div>
+
+            <button type="submit" class="btn-submit-cta" id="btnSubmit">
+              <span class="cta-label-wrap">
+                <span id="lblSubmit">Gửi liên kết đăng nhập</span>
+              </span>
+              <span class="cta-arrow-box">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </span>
+            </button>
+
+            <p class="auth-helper-note">Không cần mật khẩu.</p>
+
+            <div class="auth-divider"><span>hoặc</span></div>
+
+            <!-- Full-Width Social Buttons -->
+            <div class="social-stack">
+              <button type="button" class="btn-social-full">
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z"/></svg>
+                <span>Tiếp tục với Google</span>
+              </button>
+              <button type="button" class="btn-social-full">
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#1877F2" d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.31V9h2.284V7.017c0-2.255 1.343-3.501 3.4-3.501.985 0 2.014.176 2.014.176v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.497l-.4 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z"/></svg>
+                <span>Tiếp tục với Facebook</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- State 2: Check Email Accepted View -->
+        <div class="state-accepted-bay" id="stateAcceptedBay">
+          <div class="check-circle-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+            </svg>
+          </div>
+          <h3 class="check-greeting">Kiểm tra email của bạn</h3>
+          <p class="check-subtext">Chúng tôi đã gửi liên kết đăng nhập an toàn đến:</p>
+          <div class="check-email-pill" id="dispSentEmail">ban@vidu.com</div>
+          <p class="check-subtext" style="margin-bottom: 22px;">Nhấp vào liên kết trong email để đăng nhập ngay mà không cần mật khẩu.</p>
+          <button type="button" class="btn-return-link" onclick="backToLogin()">← Nhập lại địa chỉ email</button>
+        </div>
+
+      </div>
+
+      <!-- Bay Footer -->
+      <footer class="bay-foot">
+        <p class="register-line">Chưa có tài khoản? <a href="#">Đăng ký ngay</a></p>
+        <div class="bay-legal-links">
+          <span>Bảo mật</span>
+          <span>•</span>
+          <span>Điều khoản</span>
+          <span>•</span>
+          <span>Trợ giúp</span>
+        </div>
+      </footer>
+    </aside>
+
+  </div>
+
+  <!-- Dev Review Dock -->
+  <aside class="review-dock" id="reviewDock">
+    <span class="dock-title">V5 Bay Review:</span>
+    <button class="btn-tab active" onclick="setScreenState('default')">Mặc định</button>
+    <button class="btn-tab" onclick="setScreenState('loading')">Đang gửi</button>
+    <button class="btn-tab" onclick="setScreenState('check-email')">Hộp thư</button>
+    <button class="btn-tab" onclick="setScreenState('error')">Báo lỗi</button>
+    <span style="opacity:0.3; color:#FFFFFF;">|</span>
+    <button class="btn-tab" onclick="restartEntrance()">Phát lại</button>
+  </aside>
+
+  <!-- Locally Pinned Three.js -->
+  <script src="vendor/three.min.js"></script>
+
+  <script>
+    /* =========================================================================
+       ARIS — RESONANCE / TRƯỜNG CỘNG HƯỞNG (V5 High-Craft Physics Simulation)
+       - Continuous Curvature PBR Materials with PMREM Environment Reflection
+       - Layer 1: 4 Smooth Sculptural Bodies (Sapphire, Titanium Obsidian, Bronze, Pearl)
+       - Layer 2: 4,000 Smooth Instanced Sphere Bodies with Multi-Scale Hierarchy
+       - Layer 3: 1,800 Distant Cosmic Dust Points
+       - Authored Asymmetric Logarithmic Stream with Seam Integration & Typographic Clearance
+       - Real Local Pointer Dynamics: Radial Repulsion, Velocity Wake, Swirl Curl,
+         Mouse-Down Knot Compression & Surge Recoil Wave, Typing Damping
+       ========================================================================= */
+
+    let scene, camera, renderer;
+    let anchorMeshes = [];
+    let instancedMesh;
+    let deepDust;
+    let cobaltPointLight, apricotPointLight;
+
+    // Simulation Body Counts
+    const NUM_BODIES = 4000;
+    const NUM_ANCHORS = 4;
+    const NUM_DUST = 1800;
+
+    // Particle Buffers (Float32 for performance)
+    const pX = new Float32Array(NUM_BODIES);
+    const pY = new Float32Array(NUM_BODIES);
+    const pZ = new Float32Array(NUM_BODIES);
+    const vX = new Float32Array(NUM_BODIES);
+    const vY = new Float32Array(NUM_BODIES);
+    const vZ = new Float32Array(NUM_BODIES);
+
+    // Orbital Stream Parameters
+    const orbitT = new Float32Array(NUM_BODIES);
+    const orbitSpeed = new Float32Array(NUM_BODIES);
+    const radialOffset = new Float32Array(NUM_BODIES);
+    const verticalOffset = new Float32Array(NUM_BODIES);
+    const depthOffset = new Float32Array(NUM_BODIES);
+    const sizeScale = new Float32Array(NUM_BODIES);
+
+    const dummy = new THREE.Object3D();
+
+    // Interaction & Animation State
+    let animClock = 0;
+    let entranceProgress = 0;
+    let isPaused = false;
+    let isTyping = false;
+    let typingDamp = 1.0;
+    let isSurging = false;
+    let surgeFactor = 0.0;
+    let isStatePulse = false;
+    let statePulseTime = 0;
+
+    // 3D Pointer World Coordinates & Velocity
+    const pointer3D = new THREE.Vector3(999, 999, 0);
+    const prevPointer3D = new THREE.Vector3(999, 999, 0);
+    const pointerVel = new THREE.Vector3(0, 0, 0);
+    let isPointerInArt = false;
+    let isPointerPressed = false;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function initResonanceEngine() {
+      const container = document.getElementById('canvasContainer');
+      const canvas = document.getElementById('resonanceCanvas');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      // 1. Scene & Camera
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+
+      // 2. High-Performance WebGL Renderer
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance'
+      });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.2;
+
+      // 3. PMREM Environmental Reflection Lighting (Claude Recommendation #5)
+      const pmremGenerator = new THREE.PMREMGenerator(renderer);
+      pmremGenerator.compileEquirectangularShader();
+
+      const envCanvas = document.createElement('canvas');
+      envCanvas.width = 512;
+      envCanvas.height = 256;
+      const ctx = envCanvas.getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 0, 256);
+      grad.addColorStop(0.0, '#101B36'); // Deep cobalt sky
+      grad.addColorStop(0.4, '#1E3B8A'); // Cobalt horizon
+      grad.addColorStop(0.65, '#0B1120'); // Dark horizon
+      grad.addColorStop(1.0, '#03060C'); // Ink floor
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 512, 256);
+
+      // Subtle warm sunset rim glint on one side
+      const radial = ctx.createRadialGradient(380, 70, 10, 380, 70, 160);
+      radial.addColorStop(0, 'rgba(240, 138, 93, 0.55)');
+      radial.addColorStop(1, 'transparent');
+      ctx.fillStyle = radial;
+      ctx.fillRect(0, 0, 512, 256);
+
+      const envTexture = new THREE.CanvasTexture(envCanvas);
+      envTexture.mapping = THREE.EquirectangularReflectionMapping;
+      const envMap = pmremGenerator.fromEquirectangular(envTexture).texture;
+      scene.environment = envMap;
+
+      // 4. Directional & Point Lighting Rig
+      const ambientLight = new THREE.AmbientLight(0x060914, 1.2);
+      scene.add(ambientLight);
+
+      // Ice directional key light
+      const keyLight = new THREE.DirectionalLight(0xA4C8FF, 1.4);
+      keyLight.position.set(-2.5, 4.5, 5.0);
+      scene.add(keyLight);
+
+      // Cobalt rim backlight
+      const rimLight = new THREE.DirectionalLight(0x2855FF, 1.6);
+      rimLight.position.set(4.0, -2.0, -3.0);
+      scene.add(rimLight);
+
+      // Core point light
+      cobaltPointLight = new THREE.PointLight(0x355CFF, 3.5, 14);
+      cobaltPointLight.position.set(0.4, 0.1, 0.9);
+      scene.add(cobaltPointLight);
+
+      // Apricot accent light
+      apricotPointLight = new THREE.PointLight(0xF08A5D, 1.6, 9);
+      apricotPointLight.position.set(1.1, -1.0, 0.6);
+      scene.add(apricotPointLight);
+
+      // 5. Layer 1: Smooth Continuous Curvature Sculptural Bodies
+      buildSmoothFocalBodies();
+
+      // 6. Layer 2: 4,000 Smooth Instanced Sphere Micro-Bodies
+      buildCrystallineStream();
+
+      // 7. Layer 3: Deep Atmospheric Dust (Points)
+      buildDeepDustField();
+
+      // Framing
+      updateCameraFraming();
+
+      // Event Listeners
+      window.addEventListener('resize', onResize);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mousedown', onMouseDown);
+      window.addEventListener('mouseup', onMouseUp);
+
+      if (prefersReducedMotion) {
+        entranceProgress = 1.0;
+        isPaused = true;
+        document.getElementById('txtPauseMotion').textContent = 'Đã tắt chuyển động';
+      }
+
+      // Start 60fps Loop
+      requestAnimationFrame(simulationLoop);
+    }
+
+    /* Build 4 smooth continuous-curvature sculptural bodies (No low-poly rocks) */
+    function buildSmoothFocalBodies() {
+      // 1. Primary Gravitational Nucleus: Smooth Royal Sapphire Sphere
+      const nucleusGeo = new THREE.SphereGeometry(0.36, 36, 36);
+      const nucleusMat = new THREE.MeshStandardMaterial({
+        color: 0x1A3DA8,
+        roughness: 0.16,
+        metalness: 0.88,
+        emissive: 0x152E75,
+        emissiveIntensity: 0.25
+      });
+      const nucleusMesh = new THREE.Mesh(nucleusGeo, nucleusMat);
+      scene.add(nucleusMesh);
+      anchorMeshes.push({
+        mesh: nucleusMesh,
+        angle: 2.8,
+        speed: 0.26,
+        centerX: 0.35,
+        centerY: -0.1,
+        rx: 0.65,
+        ry: 0.55,
+        baseZ: 0.7,
+        rotSpeed: { x: 0.4, y: 0.5, z: 0.2 }
+      });
+
+      // 2. Apex Monolith: Smooth Polished Titanium Obsidian Ellipsoid
+      const apexGeo = new THREE.SphereGeometry(0.25, 32, 32);
+      apexGeo.scale(0.85, 1.35, 0.85);
+      const apexMat = new THREE.MeshStandardMaterial({
+        color: 0x1E2433,
+        roughness: 0.12,
+        metalness: 0.94,
+        emissive: 0x1E3B8A,
+        emissiveIntensity: 0.2
+      });
+      const apexMesh = new THREE.Mesh(apexGeo, apexMat);
+      scene.add(apexMesh);
+      anchorMeshes.push({
+        mesh: apexMesh,
+        angle: 0.7,
+        speed: 0.22,
+        centerX: 0.95,
+        centerY: 0.85,
+        rx: 0.95,
+        ry: 0.65,
+        baseZ: 0.4,
+        rotSpeed: { x: 0.3, y: -0.4, z: 0.2 }
+      });
+
+      // 3. Lower Stabilizer: Warm Satin Bronze Sphere
+      const bronzeGeo = new THREE.SphereGeometry(0.24, 32, 32);
+      const bronzeMat = new THREE.MeshStandardMaterial({
+        color: 0x8A4D32,
+        roughness: 0.22,
+        metalness: 0.84,
+        emissive: 0x4A2010,
+        emissiveIntensity: 0.22
+      });
+      const bronzeMesh = new THREE.Mesh(bronzeGeo, bronzeMat);
+      scene.add(bronzeMesh);
+      anchorMeshes.push({
+        mesh: bronzeMesh,
+        angle: 4.7,
+        speed: 0.24,
+        centerX: 0.7,
+        centerY: -1.25,
+        rx: 0.85,
+        ry: 0.55,
+        baseZ: -0.3,
+        rotSpeed: { x: -0.3, y: 0.4, z: 0.3 }
+      });
+
+      // 4. Luminous Pearl Satellite (Matching the Pearl Bay Material)
+      const pearlGeo = new THREE.SphereGeometry(0.19, 32, 32);
+      const pearlMat = new THREE.MeshStandardMaterial({
+        color: 0xF0EEE8,
+        roughness: 0.18,
+        metalness: 0.28,
+        emissive: 0x2A364F,
+        emissiveIntensity: 0.15
+      });
+      const pearlMesh = new THREE.Mesh(pearlGeo, pearlMat);
+      scene.add(pearlMesh);
+      anchorMeshes.push({
+        mesh: pearlMesh,
+        angle: 1.6,
+        speed: 0.32,
+        centerX: -0.1,
+        centerY: 0.7,
+        rx: 0.5,
+        ry: 0.4,
+        baseZ: 0.55,
+        rotSpeed: { x: 0.5, y: 0.3, z: -0.2 }
+      });
+    }
+
+    /* Build 4,000 smooth instanced sphere micro-bodies with continuous curvature & environment reflections */
+    function buildCrystallineStream() {
+      // High-quality smooth sphere geometry (not faceted gravel!)
+      const sphereGeo = new THREE.SphereGeometry(0.032, 16, 16);
+      const sphereMat = new THREE.MeshStandardMaterial({
+        color: 0xFFFFFF,
+        roughness: 0.26,
+        metalness: 0.76
+      });
+
+      instancedMesh = new THREE.InstancedMesh(sphereGeo, sphereMat, NUM_BODIES);
+      instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+      // Authored Color Palette with Pearl Bay Affinity
+      const cCobalt = new THREE.Color(0x1B3EB8);      // Deep resonance cobalt (38%)
+      const cAzure = new THREE.Color(0x3578FF);       // Electric luminous azure (26%)
+      const cPearl = new THREE.Color(0xF0EEE8);       // Warm architectural pearl (18%)
+      const cMidnight = new THREE.Color(0x081024);    // Deep shadow navy for volumetric occlusion (10%)
+      const cApricot = new THREE.Color(0xF08A5D);     // Restrained warm apricot accent (8%)
+
+      for (let i = 0; i < NUM_BODIES; i++) {
+        const u = i / NUM_BODIES;
+        orbitT[i] = u * Math.PI * 2.0;
+        orbitSpeed[i] = 0.32 + Math.random() * 0.26;
+
+        // Dynamic stream dispersion envelope
+        const envDisp = 0.18 + 0.38 * Math.sin(orbitT[i] * 0.5 + 1.2);
+        radialOffset[i] = (Math.random() - 0.5) * envDisp;
+        verticalOffset[i] = (Math.random() - 0.5) * (envDisp * 0.85);
+        depthOffset[i] = (Math.random() - 0.5) * (envDisp * 1.3);
+
+        // Power-law multi-scale distribution
+        const rScale = Math.random();
+        if (rScale < 0.60) {
+          sizeScale[i] = 0.5 + Math.random() * 0.35; // Fine stardust beads
+        } else if (rScale < 0.88) {
+          sizeScale[i] = 0.9 + Math.random() * 0.45; // Medium satellite beads
+        } else {
+          sizeScale[i] = 1.5 + Math.random() * 0.85; // Focal celestial beads
+        }
+
+        // Initial positions (gathered tensioned nucleus)
+        pX[i] = (Math.random() - 0.5) * 0.3;
+        pY[i] = (Math.random() - 0.5) * 0.3;
+        pZ[i] = (Math.random() - 0.5) * 0.3;
+        vX[i] = 0;
+        vY[i] = 0;
+        vZ[i] = 0;
+
+        // Color Distribution
+        const rCol = Math.random();
+        if (rCol < 0.38) {
+          instancedMesh.setColorAt(i, cCobalt);
+        } else if (rCol < 0.64) {
+          instancedMesh.setColorAt(i, cAzure);
+        } else if (rCol < 0.82) {
+          instancedMesh.setColorAt(i, cPearl);
+        } else if (rCol < 0.92) {
+          instancedMesh.setColorAt(i, cMidnight);
+        } else {
+          instancedMesh.setColorAt(i, cApricot);
+        }
+      }
+
+      if (instancedMesh.instanceColor) {
+        instancedMesh.instanceColor.needsUpdate = true;
+      }
+      scene.add(instancedMesh);
+    }
+
+    /* Build 1,800 distant cosmic dust nodes providing cosmic scale */
+    function buildDeepDustField() {
+      const dustGeo = new THREE.BufferGeometry();
+      const posArray = new Float32Array(NUM_DUST * 3);
+
+      for (let i = 0; i < NUM_DUST * 3; i += 3) {
+        posArray[i] = (Math.random() - 0.5) * 16.0;
+        posArray[i + 1] = (Math.random() - 0.5) * 11.0;
+        posArray[i + 2] = -2.5 - Math.random() * 5.5;
+      }
+      dustGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+      const dustMat = new THREE.PointsMaterial({
+        color: 0x7CA5D8,
+        size: 0.02,
+        transparent: true,
+        opacity: 0.4
+      });
+
+      deepDust = new THREE.Points(dustGeo, dustMat);
+      scene.add(deepDust);
+    }
+
+    /* Compute Responsive Camera Setup */
+    function updateCameraFraming() {
+      const container = document.getElementById('canvasContainer');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      const aspect = width / height;
+
+      camera.aspect = aspect;
+
+      if (aspect < 0.8) {
+        // Mobile portrait: framed vertically
+        camera.position.set(0.1, 0.3, 8.6);
+      } else if (aspect < 1.3) {
+        // Tablet: balanced framing
+        camera.position.set(0.2, 0.1, 7.8);
+      } else {
+        // Desktop: wide view focused on open kinetic stage
+        camera.position.set(0.25, 0.0, 7.0);
+      }
+
+      camera.lookAt(0.25, 0.0, 0.0);
+      camera.updateProjectionMatrix();
+    }
+
+    function onResize() {
+      const container = document.getElementById('canvasContainer');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      updateCameraFraming();
+    }
+
+    /* Pointer Raycasting & Velocity Tracking */
+    function onMouseMove(e) {
+      const container = document.getElementById('canvasContainer');
+      const rect = container.getBoundingClientRect();
+
+      // Check if pointer is within the dark stage region
+      isPointerInArt = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
+
+      if (isPointerInArt) {
+        const normX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+        const normY = -((e.clientY - rect.top) / rect.height - 0.5) * 2;
+
+        const vec = new THREE.Vector3(normX, normY, 0.5);
+        vec.unproject(camera);
+        vec.sub(camera.position).normalize();
+        const distance = -camera.position.z / vec.z;
+        const worldPos = camera.position.clone().add(vec.multiplyScalar(distance));
+
+        pointer3D.copy(worldPos);
+      } else {
+        pointer3D.set(999, 999, 0);
+      }
+    }
+
+    function onMouseDown(e) {
+      if (isPointerInArt) {
+        isPointerPressed = true;
+      }
+    }
+
+    function onMouseUp(e) {
+      if (isPointerPressed) {
+        isPointerPressed = false;
+        // Unleash surge shockwave!
+        isSurging = true;
+        surgeFactor = 1.0;
+      }
+    }
+
+    function handleFocus(focused) {
+      isTyping = focused;
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      const btn = document.getElementById('btnPauseMotion');
+      const txt = document.getElementById('txtPauseMotion');
+      if (isPaused) {
+        btn.classList.add('active');
+        txt.textContent = 'Phát tiếp';
+      } else {
+        btn.classList.remove('active');
+        txt.textContent = 'Tạm dừng';
+      }
+    }
+
+    function restartEntrance() {
+      entranceProgress = 0;
+      for (let i = 0; i < NUM_BODIES; i++) {
+        pX[i] = (Math.random() - 0.5) * 0.3;
+        pY[i] = (Math.random() - 0.5) * 0.3;
+        pZ[i] = (Math.random() - 0.5) * 0.3;
+        vX[i] = 0;
+        vY[i] = 0;
+        vZ[i] = 0;
+      }
+    }
+
+    // Main 60fps Physics & Render Loop
+    let lastTime = performance.now();
+
+    function simulationLoop(now) {
+      requestAnimationFrame(simulationLoop);
+
+      const dt = Math.min((now - lastTime) / 1000, 0.08);
+      lastTime = now;
+
+      if (!isPaused) {
+        animClock += dt;
+
+        // 1. Entrance Choreography over 3.2s
+        if (entranceProgress < 1.0) {
+          entranceProgress += dt * 0.31;
+          if (entranceProgress > 1.0) entranceProgress = 1.0;
+        }
+        const easeExpansion = 1 - Math.pow(1 - entranceProgress, 3);
+
+        // 2. Typing Damping Interpolation (smoothly blends to 0.20 when typing)
+        const targetDamping = isTyping ? 0.20 : 1.0;
+        typingDamp += (targetDamping - typingDamp) * (dt * 4.0);
+
+        // 3. Pointer Velocity Calculation
+        if (pointer3D.x < 900 && prevPointer3D.x < 900) {
+          pointerVel.set(
+            (pointer3D.x - prevPointer3D.x) / Math.max(dt, 0.01),
+            (pointer3D.y - prevPointer3D.y) / Math.max(dt, 0.01),
+            0
+          ).clampLength(0, 16);
+        } else {
+          pointerVel.set(0, 0, 0);
+        }
+        prevPointer3D.copy(pointer3D);
+
+        // 4. Surge Factor Decay
+        if (isSurging) {
+          surgeFactor = Math.max(0, surgeFactor - dt * 2.2);
+          if (surgeFactor === 0) isSurging = false;
+        }
+
+        // 5. Update Sculptural Focal Bodies (Layer 1)
+        for (let i = 0; i < NUM_ANCHORS; i++) {
+          const a = anchorMeshes[i];
+          a.angle += dt * a.speed;
+          const ang = a.angle;
+
+          const targetX = a.centerX + Math.cos(ang) * (a.rx * easeExpansion);
+          const targetY = a.centerY + Math.sin(ang) * (a.ry * easeExpansion);
+          const targetZ = a.baseZ + Math.sin(ang * 1.4) * 0.35;
+
+          a.mesh.position.set(targetX, targetY, targetZ);
+          a.mesh.rotation.x += dt * a.rotSpeed.x;
+          a.mesh.rotation.y += dt * a.rotSpeed.y;
+          a.mesh.rotation.z += dt * a.rotSpeed.z;
+        }
+
+        // 6. Update Crystalline Stream (Layer 2 Physics)
+        const R_INFLUENCE = 1.7;
+        const R_SQ = R_INFLUENCE * R_INFLUENCE;
+        const isPointerActive = (pointer3D.x < 900);
+
+        for (let i = 0; i < NUM_BODIES; i++) {
+          orbitT[i] += dt * orbitSpeed[i] * 0.65;
+          const t = orbitT[i];
+
+          /* Asymmetric Logarithmic Celestial Stream */
+          const baseRadiusX = (2.1 + Math.cos(t) * 0.45) * easeExpansion;
+          const baseRadiusY = (1.55 + Math.sin(t) * 0.35) * easeExpansion;
+
+          const cx = 0.45;
+          const cy = 0.02;
+
+          const rawX = Math.cos(t) * baseRadiusX;
+          const rawY = Math.sin(t) * baseRadiusY + Math.sin(t * 2.0) * 0.25;
+
+          const cosRot = 0.951;
+          const sinRot = -0.309;
+          const rotX = rawX * cosRot - rawY * sinRot;
+          const rotY = rawX * sinRot + rawY * cosRot;
+
+          let bx = cx + rotX + radialOffset[i] * easeExpansion;
+          let by = cy + rotY + verticalOffset[i] * easeExpansion;
+
+          // Deep perspective Z:
+          // Front stage reaches Z ~ +1.3; rear stage dives to Z ~ -3.6
+          const zDepth = Math.cos(t) * 1.55 - Math.sin(t * 0.5) * 0.95;
+          let bz = (zDepth + depthOffset[i]) * easeExpansion;
+
+          // Physics Force Integration
+          let fx = 0, fy = 0, fz = 0;
+
+          // A. Local Pointer Forces
+          if (isPointerActive) {
+            const dx = pX[i] - pointer3D.x;
+            const dy = pY[i] - pointer3D.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < R_SQ && distSq > 0.001) {
+              const dist = Math.sqrt(distSq);
+              const normDx = dx / dist;
+              const normDy = dy / dist;
+              const falloff = 1.0 - (dist / R_INFLUENCE);
+
+              // Radial Repulsion (or Compression if mouse pressed)
+              const repelMult = isPointerPressed ? -3.8 : 4.8;
+              const fRepel = (falloff * repelMult) / (dist + 0.18);
+              fx += normDx * fRepel;
+              fy += normDy * fRepel;
+
+              // Directional Wake from Cursor Velocity
+              const fWake = falloff * 0.38;
+              fx += pointerVel.x * fWake;
+              fy += pointerVel.y * fWake;
+
+              // Swirling Curl / Vortex
+              const fCurl = falloff * 2.4;
+              fx += -normDy * fCurl;
+              fy += normDx * fCurl;
+            }
+          }
+
+          // B. Surge Release Force
+          if (surgeFactor > 0) {
+            const sdx = pX[i] - pointer3D.x;
+            const sdy = pY[i] - pointer3D.y;
+            const sDist = Math.sqrt(sdx * sdx + sdy * sdy) + 0.1;
+            const sForce = (surgeFactor * 6.8) / sDist;
+            fx += (sdx / sDist) * sForce;
+            fy += (sdy / sDist) * sForce;
+          }
+
+          // C. Typography Clearance Barrier
+          if (pX[i] < -1.15 && pY[i] > -1.6 && pY[i] < 1.7 && pZ[i] > -1.2) {
+            const clearForce = (-1.15 - pX[i]) * 5.0;
+            fx += clearForce;
+            fz -= clearForce * 0.8;
+          }
+
+          // D. Pearl Bay Seam Barrier: Keep particles strictly to the left of the seam (X < 2.5)
+          if (pX[i] > 2.4) {
+            const seamForce = (pX[i] - 2.4) * 6.0;
+            fx -= seamForce;
+          }
+
+          // E. Recapture Spring Force back into primary orbit
+          const springK = 3.4;
+          fx += (bx - pX[i]) * springK;
+          fy += (by - pY[i]) * springK;
+          fz += (bz - pZ[i]) * springK;
+
+          // F. Velocity integration with time-based drag
+          const drag = 0.92;
+          vX[i] = (vX[i] + fx * dt * typingDamp) * drag;
+          vY[i] = (vY[i] + fy * dt * typingDamp) * drag;
+          vZ[i] = (vZ[i] + fz * dt * typingDamp) * drag;
+
+          pX[i] += vX[i] * dt;
+          pY[i] += vY[i] * dt;
+          pZ[i] += vZ[i] * dt;
+
+          dummy.position.set(pX[i], pY[i], pZ[i]);
+          dummy.rotation.x = t * 1.5 + i * 0.1;
+          dummy.rotation.y = animClock * 0.8 + i * 0.2;
+          dummy.rotation.z = Math.sin(t) * 0.5;
+
+          const s = sizeScale[i] * Math.min(1.0, easeExpansion * 1.2);
+          dummy.scale.set(s, s, s);
+
+          dummy.updateMatrix();
+          instancedMesh.setMatrixAt(i, dummy.matrix);
+        }
+
+        instancedMesh.instanceMatrix.needsUpdate = true;
+
+        // 7. Update Distant Dust (Layer 3)
+        if (deepDust) {
+          deepDust.rotation.y = animClock * 0.012;
+          deepDust.rotation.x = Math.sin(animClock * 0.008) * 0.02;
+        }
+
+        // 8. Simulated State Pulse Gesture
+        if (isStatePulse) {
+          statePulseTime += dt * 5.0;
+          cobaltPointLight.intensity = 3.5 + Math.sin(statePulseTime) * 2.5;
+        } else {
+          cobaltPointLight.intensity = 3.5;
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    /* Form Handlers & State Transitions */
+    function submitForm(e) {
+      e.preventDefault();
+      const email = document.getElementById('userEmail').value.trim();
+      const errEl = document.getElementById('errMail');
+      const inputEl = document.getElementById('userEmail');
+
+      if (!email || !email.includes('@') || !email.includes('.')) {
+        inputEl.classList.add('has-error');
+        errEl.classList.add('visible');
+        return;
+      }
+
+      inputEl.classList.remove('has-error');
+      errEl.classList.remove('visible');
+      setScreenState('loading');
+
+      // Simulated network roundtrip
+      setTimeout(() => {
+        document.getElementById('dispSentEmail').textContent = email;
+        setScreenState('check-email');
+      }, 1200);
+    }
+
+    function setScreenState(state) {
+      const btn = document.getElementById('btnSubmit');
+      const lbl = document.getElementById('lblSubmit');
+      const input = document.getElementById('userEmail');
+      const err = document.getElementById('errMail');
+      const formView = document.getElementById('formViewSection');
+      const acceptView = document.getElementById('stateAcceptedBay');
+
+      isStatePulse = false;
+      input.classList.remove('has-error');
+      err.classList.remove('visible');
+
+      document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active'));
+
+      if (state === 'default') {
+        formView.style.display = 'block';
+        acceptView.classList.remove('active');
+        btn.disabled = false;
+        input.disabled = false;
+        lbl.textContent = 'Gửi liên kết đăng nhập';
+      } else if (state === 'loading') {
+        formView.style.display = 'block';
+        acceptView.classList.remove('active');
+        btn.disabled = true;
+        input.disabled = true;
+        lbl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Đang gửi...';
+        isStatePulse = true;
+      } else if (state === 'check-email') {
+        formView.style.display = 'none';
+        acceptView.classList.add('active');
+      } else if (state === 'error') {
+        formView.style.display = 'block';
+        acceptView.classList.remove('active');
+        btn.disabled = false;
+        input.disabled = false;
+        lbl.textContent = 'Gửi liên kết đăng nhập';
+        input.classList.add('has-error');
+        err.classList.add('visible');
+      }
+    }
+
+    function backToLogin() {
+      setScreenState('default');
+      document.getElementById('userEmail').focus();
+    }
+
+    // Launch on DOM ready
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('clean') === 'true' || window.location.hash.includes('clean')) {
+        document.getElementById('reviewDock').classList.add('hidden');
+      }
+      initResonanceEngine();
+      const reqState = params.get('state');
+      if (reqState) setScreenState(reqState);
+    });
+  </script>
+  <style>
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+</body>
+</html>

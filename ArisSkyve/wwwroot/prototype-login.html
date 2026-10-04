@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aris Career Studio — Login Prototype (Quỹ Đạo Mới)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --aris-canvas-bg: #FAFBFC;
+      --aris-card-bg: #FFFFFF;
+      --aris-card-border: #E2E8F0;
+      --aris-card-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 20px 25px -5px rgba(15, 23, 42, 0.04);
+      --aris-text-primary: #0F172A;
+      --aris-text-secondary: #475569;
+      --aris-text-muted: #64748B;
+      --aris-brand-primary: #2F6FED;
+      --aris-brand-hover: #1E5AD6;
+      --aris-brand-surface: #EFF5FF;
+      --aris-color-danger: #DC2626;
+      --aris-color-danger-text: #991B1B;
+      --aris-color-danger-bg: #FEF2F2;
+      --aris-input-border: #CBD5E1;
+      --aris-input-height: 50px;
+      --aris-radius: 12px;
+      --aris-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--aris-font);
+      background-color: var(--aris-canvas-bg);
+      color: var(--aris-text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Prototype Toolbar */
+    .prototype-bar {
+      background: #0F172A;
+      color: #F8FAFC;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .prototype-title {
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-prototype {
+      background: #2F6FED;
+      color: white;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .prototype-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .btn-state {
+      background: #1E293B;
+      border: 1px solid #334155;
+      color: #E2E8F0;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+    .btn-state:hover { background: #334155; }
+    .btn-state.active {
+      background: #2F6FED;
+      border-color: #2F6FED;
+      color: white;
+      font-weight: 600;
+    }
+    .viewport-toggle {
+      border-left: 1px solid #334155;
+      padding-left: 12px;
+      margin-left: 6px;
+      display: flex;
+      gap: 6px;
+    }
+
+    /* App Frame Container */
+    .app-viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), margin 0.3s;
+      width: 100%;
+      min-height: calc(100vh - 46px);
+      background: var(--aris-canvas-bg);
+      position: relative;
+    }
+    .app-viewport.viewport-mobile {
+      max-width: 390px;
+      margin: 24px auto;
+      border: 1px solid #CBD5E1;
+      border-radius: 36px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+      min-height: 844px;
+    }
+
+    /* Layout Header */
+    .auth-header {
+      padding: 40px 64px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .app-viewport.viewport-mobile .auth-header {
+      padding: 24px 24px 16px;
+    }
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--aris-text-primary);
+    }
+    .brand-logo svg {
+      width: 34px;
+      height: 34px;
+    }
+    .brand-name {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .header-nav-link {
+      font-size: 14px;
+      color: var(--aris-text-secondary);
+      text-decoration: none;
+    }
+    .header-nav-link strong {
+      color: var(--aris-brand-primary);
+      margin-left: 4px;
+    }
+    .header-nav-link:hover strong {
+      text-decoration: underline;
+    }
+
+    /* Main Stage */
+    .auth-main {
+      flex: 1;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 30px 64px 60px;
+      display: grid;
+      grid-template-columns: 1.15fr 400px;
+      gap: 80px;
+      align-items: center;
+      position: relative;
+    }
+    .app-viewport.viewport-mobile .auth-main {
+      display: flex;
+      flex-direction: column;
+      padding: 10px 20px 40px;
+      gap: 24px;
+    }
+
+    /* Left Narrative Hero */
+    .narrative-hero {
+      position: relative;
+      padding-right: 20px;
+    }
+    .hero-badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--aris-brand-primary);
+      background: var(--aris-brand-surface);
+      padding: 6px 12px;
+      border-radius: 999px;
+      margin-bottom: 24px;
+    }
+    .hero-title {
+      font-size: 64px;
+      line-height: 1.08;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--aris-text-primary);
+      margin-bottom: 24px;
+    }
+    .hero-subtitle {
+      font-size: 18px;
+      line-height: 1.5;
+      color: var(--aris-text-secondary);
+      max-width: 480px;
+      margin-bottom: 40px;
+    }
+    .app-viewport.viewport-mobile .hero-badge {
+      margin-bottom: 12px;
+      font-size: 11px;
+    }
+    .app-viewport.viewport-mobile .hero-title {
+      font-size: 32px;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+    .app-viewport.viewport-mobile .hero-subtitle {
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    /* Trajectory Curve Visualization */
+    .trajectory-canvas {
+      position: relative;
+      width: 100%;
+      height: 180px;
+      overflow: visible;
+    }
+    .app-viewport.viewport-mobile .trajectory-canvas {
+      height: 90px;
+      margin-bottom: 10px;
+    }
+    .trajectory-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .orbit-curve {
+      fill: none;
+      stroke: url(#trajectoryGrad);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-dasharray: 1000;
+      stroke-dashoffset: 0;
+      animation: drawCurve 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    }
+    @keyframes drawCurve {
+      from { stroke-dashoffset: 1000; }
+      to { stroke-dashoffset: 0; }
+    }
+    .trajectory-node {
+      fill: #2F6FED;
+      filter: drop-shadow(0 0 6px rgba(47, 111, 237, 0.5));
+    }
+    .node-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      fill: var(--aris-text-secondary);
+    }
+
+    /* Right Login Dock / Card */
+    .login-dock {
+      background: var(--aris-card-bg);
+      border: 1px solid var(--aris-card-border);
+      border-radius: 20px;
+      padding: 36px 32px;
+      box-shadow: var(--aris-card-shadow);
+      width: 100%;
+      transition: all 0.2s ease;
+    }
+    .app-viewport.viewport-mobile .login-dock {
+      padding: 28px 20px;
+      border-radius: 16px;
+    }
+
+    .form-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--aris-text-primary);
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .form-subtitle {
+      font-size: 14px;
+      color: var(--aris-text-secondary);
+      margin-bottom: 28px;
+      line-height: 1.45;
+    }
+
+    /* Form Fields */
+    .field-group {
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .field-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--aris-text-primary);
+      margin-bottom: 8px;
+    }
+    .field-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .field-input {
+      width: 100%;
+      height: var(--aris-input-height);
+      padding: 0 16px;
+      border: 1px solid var(--aris-input-border);
+      border-radius: var(--aris-radius);
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--aris-text-primary);
+      background: #FFFFFF;
+      transition: all 0.15s ease-out;
+      outline: none;
+    }
+    .field-input:hover {
+      border-color: #94A3B8;
+    }
+    .field-input:focus {
+      border-color: var(--aris-brand-primary);
+      box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.18);
+    }
+    .field-input.has-error {
+      border-color: var(--aris-color-danger) !important;
+      background: #FFFDFD;
+    }
+    .field-input.has-error:focus {
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+    }
+
+    .field-feedback-error {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--aris-color-danger-text);
+      font-size: 13px;
+      font-weight: 500;
+      margin-top: 8px;
+    }
+    .field-feedback-error svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      fill: var(--aris-color-danger);
+    }
+
+    /* Primary CTA */
+    .btn-submit {
+      width: 100%;
+      height: var(--aris-input-height);
+      background: var(--aris-brand-primary);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--aris-radius);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background-color 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.1s;
+    }
+    .btn-submit:hover:not(:disabled) {
+      background: var(--aris-brand-hover);
+    }
+    .btn-submit:active:not(:disabled) {
+      transform: scale(0.985);
+    }
+    .btn-submit:disabled {
+      opacity: 0.85;
+      cursor: not-allowed;
+    }
+
+    .form-caption {
+      font-size: 12px;
+      color: var(--aris-text-muted);
+      text-align: center;
+      margin-top: 12px;
+      line-height: 1.4;
+    }
+
+    /* Divider */
+    .divider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0 20px;
+      color: #94A3B8;
+      font-size: 12px;
+      text-transform: lowercase;
+    }
+    .divider-line {
+      flex: 1;
+      height: 1px;
+      background: #E2E8F0;
+    }
+
+    /* Social Auth */
+    .social-auth-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .btn-social {
+      height: 46px;
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-radius: var(--aris-radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #334155;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-social:hover {
+      background: #F8FAFC;
+      border-color: #94A3B8;
+    }
+    .btn-social svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Check Email Screen Component */
+    .check-email-screen {
+      text-align: center;
+      padding: 10px 0;
+    }
+    .mail-icon-wrap {
+      width: 64px;
+      height: 64px;
+      border-radius: 999px;
+      background: var(--aris-brand-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      color: var(--aris-brand-primary);
+    }
+    .mail-icon-wrap svg {
+      width: 32px;
+      height: 32px;
+      stroke: var(--aris-brand-primary);
+      stroke-width: 2;
+      fill: none;
+    }
+    .email-target {
+      font-weight: 600;
+      color: var(--aris-text-primary);
+      word-break: break-all;
+    }
+    .btn-resend {
+      width: 100%;
+      height: 46px;
+      background: #F8FAFC;
+      border: 1px solid #CBD5E1;
+      border-radius: var(--aris-radius);
+      color: var(--aris-text-primary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 24px;
+      transition: all 0.15s;
+    }
+    .btn-resend:hover:not(:disabled) {
+      background: #EFF5FF;
+      border-color: #93C5FD;
+      color: #1D4ED8;
+    }
+    .btn-resend:disabled {
+      color: #94A3B8;
+      cursor: not-allowed;
+    }
+    .link-change-email {
+      display: inline-block;
+      margin-top: 16px;
+      color: var(--aris-brand-primary);
+      font-size: 13px;
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .link-change-email:hover { text-decoration: underline; }
+
+    /* Spinner */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.35);
+      border-top-color: #FFFFFF;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Footer */
+    .auth-footer {
+      padding: 24px 64px 32px;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--aris-text-muted);
+    }
+    .app-viewport.viewport-mobile .auth-footer {
+      flex-direction: column;
+      gap: 12px;
+      padding: 20px 24px;
+      text-align: center;
+    }
+    .footer-links {
+      display: flex;
+      gap: 20px;
+    }
+    .app-viewport.viewport-mobile .footer-links {
+      justify-content: center;
+    }
+    .footer-links a {
+      color: var(--aris-text-muted);
+      text-decoration: none;
+    }
+    .footer-links a:hover { color: var(--aris-brand-primary); }
+
+    /* Accessibility reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .orbit-curve { animation: none; stroke-dashoffset: 0; }
+      .spinner { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Prototype State Controller Bar -->
+  <div class="prototype-bar">
+    <div class="prototype-title">
+      <span>Aris Career Studio</span>
+      <span class="badge-prototype">Prototype Figma</span>
+    </div>
+    <div class="prototype-controls">
+      <span style="color:#94A3B8; font-size:12px; margin-right:4px;">Trạng thái:</span>
+      <button class="btn-state active" onclick="setState('default')">1. Default</button>
+      <button class="btn-state" onclick="setState('loading')">2. Loading</button>
+      <button class="btn-state" onclick="setState('check-email')">3. Check Email</button>
+      <button class="btn-state" onclick="setState('error')">4. Error</button>
+
+      <div class="viewport-toggle">
+        <button class="btn-state active" id="btnDesk" onclick="setViewport('desktop')">Desktop (1440px)</button>
+        <button class="btn-state" id="btnMob" onclick="setViewport('mobile')">Mobile (390px)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive App Viewport -->
+  <div class="app-viewport" id="viewportContainer">
+
+    <!-- Header -->
+    <header class="auth-header">
+      <a href="#" class="brand-logo">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="logoGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#2F6FED"/>
+              <stop offset="100%" stop-color="#7EC8F5"/>
+            </linearGradient>
+          </defs>
+          <path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30" fill="none" stroke="url(#logoGrad)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="brand-name">Aris</span>
+      </a>
+      <div class="header-nav-link">
+        Chưa có tài khoản? <a href="#" style="text-decoration:none;"><strong>Đăng ký</strong></a>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="auth-main">
+      
+      <!-- Left Hero Storytelling -->
+      <section class="narrative-hero">
+        <div class="hero-badge">KHỞI ĐẦU TỪ BẠN</div>
+        <h1 class="hero-title">
+          Một bước mới.<br>
+          Một quỹ đạo mới.
+        </h1>
+        <p class="hero-subtitle">
+          Kết nối năng lực của bạn với những cơ hội phù hợp trên nền tảng tuyển dụng & phát triển sự nghiệp Aris.
+        </p>
+
+        <!-- Dynamic Orbital Curve Graphic -->
+        <div class="trajectory-canvas">
+          <svg class="trajectory-svg" viewBox="0 0 600 160" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="trajectoryGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="rgba(47, 111, 237, 0.1)"/>
+                <stop offset="50%" stop-color="#2F6FED"/>
+                <stop offset="100%" stop-color="#7EC8F5"/>
+              </linearGradient>
+            </defs>
+            <path class="orbit-curve" d="M 20,130 C 140,155 260,110 380,50 C 470,8 540,25 580,20"/>
+            <!-- Milestone Nodes -->
+            <circle class="trajectory-node" cx="120" cy="138" r="4.5"/>
+            <text class="node-label" x="120" y="156" text-anchor="middle">01 • HỒ SƠ</text>
+
+            <circle class="trajectory-node" cx="340" cy="72" r="4.5"/>
+            <text class="node-label" x="340" y="94" text-anchor="middle">02 • CƠ HỘI</text>
+
+            <circle class="trajectory-node" cx="520" cy="22" r="4.5"/>
+            <text class="node-label" x="520" y="44" text-anchor="middle">03 • KẾT NỐI</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Right Login Card -->
+      <section class="login-dock" id="loginCard">
+        <!-- Dynamic state content injected by JS -->
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="auth-footer">
+      <div>© 2026 Aris Career Platform. Tất cả quyền được bảo lưu.</div>
+      <div class="footer-links">
+        <a href="#">Trợ giúp</a>
+        <a href="#">Điều khoản</a>
+        <a href="#">Quyền riêng tư</a>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    let currentState = 'default';
+    let currentViewport = 'desktop';
+    let inputEmailValue = '';
+    let resendSeconds = 45;
+    let resendTimer = null;
+
+    function renderCard() {
+      const card = document.getElementById('loginCard');
+
+      if (currentState === 'check-email') {
+        card.innerHTML = `
+          <div class="check-email-screen">
+            <div class="mail-icon-wrap">
+              <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <h2 class="form-title">Kiểm tra email của bạn</h2>
+            <p class="form-subtitle">
+              Chúng tôi vừa gửi liên kết đăng nhập an toàn tới <br>
+              <span class="email-target">${inputEmailValue || 'ban@example.com'}</span>.<br><br>
+              Vui lòng kiểm tra hộp thư đến và cả thư mục rác (Spam).
+            </p>
+            <button class="btn-resend" id="btnResend" disabled onclick="handleResend()">
+              Gửi lại liên kết (${resendSeconds}s)
+            </button>
+            <div>
+              <a class="link-change-email" onclick="setState('default')">← Đổi địa chỉ email khác</a>
+            </div>
+          </div>
+        `;
+        startCooldown();
+        return;
+      }
+
+      // Default, Loading, Error States
+      const isError = (currentState === 'error');
+      const isLoading = (currentState === 'loading');
+
+      card.innerHTML = `
+        <h2 class="form-title">Chào mừng bạn trở lại</h2>
+        <p class="form-subtitle">Đăng nhập để tiếp tục hành trình của bạn.</p>
+
+        <form onsubmit="handleFormSubmit(event)">
+          <div class="field-group">
+            <label class="field-label" for="emailInput">Email</label>
+            <div class="field-input-wrap">
+              <input
+                id="emailInput"
+                type="text"
+                class="field-input ${isError ? 'has-error' : ''}"
+                placeholder="ban@example.com"
+                value="${isError ? 'user@invalid' : (isLoading ? 'nguyenvana@gmail.com' : inputEmailValue)}"
+                ${isLoading ? 'disabled' : ''}
+                aria-invalid="${isError}"
+                aria-describedby="${isError ? 'emailError' : ''}"
+                required
+              />
+            </div>
+            ${isError ? `
+              <div class="field-feedback-error" id="emailError" role="alert">
+                <svg viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                <span>Email chưa đúng định dạng (ví dụ: ban@example.com)</span>
+              </div>
+            ` : ''}
+          </div>
+
+          <button type="submit" class="btn-submit" ${isLoading ? 'disabled' : ''}>
+            ${isLoading ? `
+              <div class="spinner"></div>
+              <span>Đang gửi yêu cầu...</span>
+            ` : `
+              <span>Gửi liên kết đăng nhập</span>
+            `}
+          </button>
+
+          <p class="form-caption">
+            Bạn sẽ nhận được liên kết qua email, không cần mật khẩu.
+          </p>
+
+          <div class="divider-row">
+            <div class="divider-line"></div>
+            <span>hoặc tiếp tục với</span>
+            <div class="divider-line"></div>
+          </div>
+
+          <div class="social-auth-grid">
+            <button type="button" class="btn-social" ${isLoading ? 'disabled' : ''}>
+              <svg viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z"/></svg>
+              <span>Google</span>
+            </button>
+            <button type="button" class="btn-social" ${isLoading ? 'disabled' : ''}>
+              <svg viewBox="0 0 18 18"><path fill="#1877F2" d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.31V9h2.284V7.017c0-2.255 1.343-3.501 3.4-3.501.985 0 2.014.176 2.014.176v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.497l-.4 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z"/></svg>
+              <span>Facebook</span>
+            </button>
+          </div>
+        </form>
+      `;
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('emailInput');
+      const val = input.value.trim();
+      if (!val || !val.includes('@') || !val.includes('.')) {
+        setState('error');
+        return;
+      }
+      inputEmailValue = val;
+      setState('loading');
+      setTimeout(() => {
+        setState('check-email');
+      }, 1200);
+    }
+
+    function setState(state) {
+      currentState = state;
+      document.querySelectorAll('.prototype-controls .btn-state').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent.toLowerCase().includes(state.replace('-', ' '))) {
+          btn.classList.add('active');
+        }
+      });
+      renderCard();
+    }
+
+    function setViewport(vp) {
+      currentViewport = vp;
+      const container = document.getElementById('viewportContainer');
+      document.getElementById('btnDesk').classList.toggle('active', vp === 'desktop');
+      document.getElementById('btnMob').classList.toggle('active', vp === 'mobile');
+      if (vp === 'mobile') {
+        container.classList.add('viewport-mobile');
+      } else {
+        container.classList.remove('viewport-mobile');
+      }
+    }
+
+    function startCooldown() {
+      clearInterval(resendTimer);
+      resendSeconds = 45;
+      const btn = document.getElementById('btnResend');
+      if (!btn) return;
+      btn.disabled = true;
+      resendTimer = setInterval(() => {
+        resendSeconds--;
+        if (resendSeconds <= 0) {
+          clearInterval(resendTimer);
+          btn.disabled = false;
+          btn.textContent = 'Gửi lại liên kết';
+        } else {
+          btn.textContent = `Gửi lại liên kết (${resendSeconds}s)`;
+        }
+      }, 1000);
+    }
+
+    function handleResend() {
+      alert('Đã gửi lại liên kết đăng nhập tới ' + (inputEmailValue || 'ban@example.com'));
+      startCooldown();
+    }
+
+    // Initial Render
+    renderCard();
+  </script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+@{
+    Layout = "~/Views/Shared/_AuthLayout.cshtml";
+    ViewData["Title"] = "Tạo tài khoản — Aris Careers";
+    ViewData["ReturnView"] = "Register";
+    var submittedEmail = ViewBag.SubmittedEmail as string;
+    var hasSentLink = !string.IsNullOrEmpty(ViewBag.Message as string);
+    var returnUrl = ViewBag.ReturnUrl as string;
+    var error = ViewBag.Error as string;
+    var intent = (ViewBag.Intent as string) == "business" ? "business" : "candidate";
+}
+
+@if (hasSentLink)
+{
+    @await Html.PartialAsync("_AuthSent")
+}
+else
+{
+    <section class="auth-card" aria-labelledby="authTitle">
+        <header class="auth-head">
+            <span class="auth-mark" aria-hidden="true">@await Html.PartialAsync("_ArisMark", 30)</span>
+            <h1 class="auth-title" id="authTitle">Tạo tài khoản Aris</h1>
+            <p class="auth-sub">Miễn phí cho cả ứng viên lẫn nhà tuyển dụng. Chưa tới một phút.</p>
+        </header>
+
+        <nav class="auth-tabs is-right" aria-label="Đăng nhập hoặc tạo tài khoản">
+            <span class="auth-tabs__thumb" aria-hidden="true"></span>
+            <a class="auth-tab" asp-action="Login" asp-route-returnUrl="@returnUrl"><i data-lucide="log-in"></i>Đăng nhập</a>
+            <a class="auth-tab" asp-action="Register" asp-route-returnUrl="@returnUrl" aria-current="page"><i data-lucide="user-plus"></i>Tạo tài khoản</a>
+        </nav>
+
+        @if (error != null)
+        {
+            <div class="auth-alert" role="alert"><i data-lucide="alert-circle"></i><span>@error</span></div>
+        }
+
+        <fieldset class="auth-roles" id="authRoles">
+            <legend class="auth-roles__legend">Bạn dùng Aris để</legend>
+            <label class="auth-role">
+                <input type="radio" name="roleChoice" value="candidate" @(intent == "candidate" ? "checked" : "") />
+                <span class="auth-role__ic"><i data-lucide="user-search"></i></span>
+                <span class="auth-role__text">
+                    <b>Tìm việc</b>
+                    <span>Tạo CV, ứng tuyển, theo dõi đơn</span>
+                </span>
+                <span class="auth-role__check" aria-hidden="true"><i data-lucide="check"></i></span>
+            </label>
+            <label class="auth-role">
+                <input type="radio" name="roleChoice" value="business" @(intent == "business" ? "checked" : "") />
+                <span class="auth-role__ic"><i data-lucide="building-2"></i></span>
+                <span class="auth-role__text">
+                    <b>Tuyển người</b>
+                    <span>Đăng tin, nhận hồ sơ, kể chuyện văn hoá</span>
+                </span>
+                <span class="auth-role__check" aria-hidden="true"><i data-lucide="check"></i></span>
+            </label>
+        </fieldset>
+
+        @await Html.PartialAsync("_AuthSocial", intent)
+
+        <div class="auth-sep"><span>hoặc tiếp tục với email</span></div>
+
+        <form asp-action="RequestMagicLink" method="post" class="auth-form" id="authForm" novalidate>
+            <input type="hidden" name="returnView" value="Register" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+            <input type="hidden" name="intent" value="@intent" id="authIntent" />
+            <label class="auth-field" for="authEmail">
+                <span class="auth-field__row">
+                    <span class="a-label" id="authEmailLabel">@(intent == "business" ? "Email công việc" : "Email")</span>
+                    <span class="auth-ok" id="authEmailOk" hidden><i data-lucide="check-circle-2"></i>Hợp lệ</span>
+                </span>
+                <span class="auth-input">
+                    <i data-lucide="mail"></i>
+                    <input type="email" name="email" id="authEmail" placeholder="@(intent == "business" ? "tuyendung@congty.com" : "ten@vidu.com")" value="@submittedEmail" autocomplete="email" inputmode="email" required aria-describedby="authEmailHint authNote" />
+                </span>
+                <span class="auth-hint" id="authEmailHint" hidden>Email chưa đúng định dạng, ví dụ: ten@congty.com</span>
+            </label>
+            <p class="auth-note" id="authNote"><i data-lucide="shield-check"></i><span>Không cần đặt mật khẩu. Aris gửi liên kết xác nhận tới email này, hết hạn sau 30 phút.</span></p>
+            <button class="a-btn a-btn--sunset auth-submit" type="submit" id="authSubmit">
+                <span>Tạo tài khoản</span><i data-lucide="arrow-right"></i>
+            </button>
+            <p class="auth-legal">Bằng việc tạo tài khoản, bạn đồng ý với <b>Điều khoản sử dụng</b> và <b>Chính sách quyền riêng tư</b> của Aris.</p>
+        </form>
+
+        <p class="auth-switch">Đã có tài khoản? <a asp-action="Login" asp-route-returnUrl="@returnUrl">Đăng nhập</a></p>
+    </section>
+}
+
+@section Scripts {
+    <script src="~/js/pages/auth.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,139 @@
+/* Earth <-> Gargantua scene bridge.
+   There is deliberately no duplicate black-hole artwork here. Chat transitions
+   animate the real .aris-gargantua-root / black-hole-scene WebGL component. */
+.aris-scene-portal {
+  position: fixed;
+  inset: 0;
+  z-index: 8050;
+  pointer-events: none;
+  opacity: 0;
+  background: #000;
+  will-change: opacity;
+}
+
+body.aris-scene-leaving,
+body.aris-scene-entering {
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+.aris-transition-piece {
+  will-change: transform, opacity, filter !important;
+  transform-origin: center !important;
+  backface-visibility: hidden;
+}
+body.aris-scene-leaving .aris-transition-piece {
+  z-index: 8100 !important;
+  animation: arisIntoRealHole 760ms cubic-bezier(.72, 0, .92, .34) var(--aris-warp-delay, 0ms) both !important;
+}
+body.aris-scene-entering .aris-transition-piece {
+  z-index: 8100 !important;
+  animation: arisCastFromRealHole 820ms cubic-bezier(.16, 1, .3, 1) var(--aris-warp-delay, 0ms) both !important;
+}
+body.aris-scene-leaving .aris-transition-piece:not(nav):not(.aris-navbar):not(.aris-bh-signal),
+body.aris-scene-entering .aris-transition-piece:not(nav):not(.aris-navbar):not(.aris-bh-signal) {
+  position: relative;
+}
+
+/* A short black hand-off hides the document reload. It is a veil, not a
+   rendered portal; the only visible black hole is the live Chat scene. */
+body.aris-scene-leaving .aris-scene-portal {
+  animation: arisBlackHandoffIn 980ms cubic-bezier(.76, 0, .24, 1) both;
+}
+body.aris-scene-entering .aris-scene-portal {
+  animation: arisBlackHandoffOut 720ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+/* The actual WebGL Gargantua supplies the scene motion. */
+body.aris-leave-hole .aris-gargantua-root {
+  animation: arisRealHoleConsume 980ms cubic-bezier(.7, 0, .9, .35) both !important;
+  transform-origin: 50% 48% !important;
+}
+body.aris-enter-from-earth .aris-gargantua-root {
+  animation: arisRealHoleRelease 1100ms cubic-bezier(.16, 1, .3, 1) both !important;
+  transform-origin: 50% 48% !important;
+}
+body.aris-leave-earth .aris-earth-root {
+  animation: arisEarthFallAway 980ms cubic-bezier(.7, 0, .9, .35) both !important;
+}
+body.aris-enter-from-hole .aris-earth-root {
+  animation: arisEarthReturn 960ms cubic-bezier(.16, 1, .3, 1) both !important;
+}
+
+@keyframes arisIntoRealHole {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0) brightness(1);
+  }
+  30% {
+    opacity: 1;
+    transform: translate3d(var(--aris-drift-x), var(--aris-drift-y), 0) scale(.97);
+    filter: blur(0) brightness(1.04);
+  }
+  72% {
+    opacity: .72;
+    filter: blur(2px) brightness(1.28);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--aris-pull-x), var(--aris-pull-y), 0) scale(.018) rotate(var(--aris-warp-rotate));
+    filter: blur(8px) brightness(1.75);
+  }
+}
+@keyframes arisCastFromRealHole {
+  0% {
+    opacity: 0;
+    transform: translate3d(var(--aris-pull-x), var(--aris-pull-y), 0) scale(.016) rotate(var(--aris-warp-rotate));
+    filter: blur(10px) brightness(2);
+  }
+  46% {
+    opacity: .92;
+    filter: blur(1px) brightness(1.12);
+  }
+  76% {
+    opacity: 1;
+    transform: translate3d(var(--aris-cast-x), var(--aris-cast-y), 0) scale(1.025);
+    filter: none;
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: none;
+  }
+}
+@keyframes arisBlackHandoffIn {
+  0%, 60% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes arisBlackHandoffOut {
+  0% { opacity: 1; }
+  38% { opacity: .96; }
+  100% { opacity: 0; }
+}
+@keyframes arisRealHoleConsume {
+  0% { transform: scale(1); filter: brightness(1) saturate(1); }
+  48% { transform: scale(1.1); filter: brightness(1.18) saturate(1.2); }
+  100% { transform: scale(1.48); filter: brightness(1.62) saturate(1.35) blur(2px); }
+}
+@keyframes arisRealHoleRelease {
+  0% { transform: scale(1.55); filter: brightness(1.8) saturate(1.4) blur(7px); opacity: .4; }
+  38% { opacity: 1; }
+  72% { transform: scale(.985); filter: brightness(1.08) saturate(1.12) blur(0); }
+  100% { transform: scale(1); filter: none; opacity: 1; }
+}
+@keyframes arisEarthFallAway {
+  0% { transform: scale(1); filter: none; opacity: 1; }
+  100% { transform: scale(.72); filter: brightness(.42) blur(5px); opacity: .18; }
+}
+@keyframes arisEarthReturn {
+  0% { transform: scale(.68); filter: brightness(.4) blur(7px); opacity: .12; }
+  68% { transform: scale(1.025); filter: brightness(1.08) blur(0); opacity: 1; }
+  100% { transform: scale(1); filter: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aris-transition-piece,
+  .aris-scene-portal,
+  .aris-gargantua-root,
+  .aris-earth-root { animation: none !important; }
+}

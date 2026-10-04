@@ -1,0 +1,21 @@
+{
+  "status": "idle",
+  "conversation_id": "0c87a08a-40d3-4923-bd20-6db46d4bbe81",
+  "transport": "agentapi (local environment CLI)",
+  "agentapi_bin": "C:/Users/tohka/.gemini/antigravity-cli/bin\\agentapi.BAT",
+  "agentapi_verified": true,
+  "auth": "inherited_from_runtime_environment (no credentials stored)",
+  "last_updated": "2026-09-18T10:27:24.764359+00:00",
+  "last_event": "Status refreshed",
+  "queue": {
+    "inbox_count": 0,
+    "outbox_count": 8,
+    "processed_count": 7
+  },
+  "usage": {
+    "send_request": "Drop a JSON file into docs/agent-bridge/inbox/ (e.g. req_001.json) with fields: 'id', 'sender', 'title', 'content'",
+    "read_response": "Antigravity writes responses to docs/agent-bridge/outbox/ (e.g. res_001.json)",
+    "safety_policy": "Text-only exchange. Executable code or arbitrary command execution requests are strictly rejected.",
+    "stop_bridge": "Run `python bridge.py --stop` or run `.\\stop-bridge.ps1`"
+  }
+}

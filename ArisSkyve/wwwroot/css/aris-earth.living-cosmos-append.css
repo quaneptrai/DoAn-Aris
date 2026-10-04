@@ -1,0 +1,25 @@
+/* Appended by Living Cosmos Restore — keep Earth, raise constellation above it */
+body.aris-home-earth-stage #arisCosmicCanvas,
+body.aris-home-earth-stage .aris-cosmos-canvas {
+  display: none !important;
+}
+body.aris-home-earth-stage #arisCosmicConstellationStage,
+body.aris-home-earth-stage .aris-cosmic-stage {
+  position: fixed !important;
+  top: 76px !important;
+  right: 22px !important;
+  z-index: 60 !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+body.aris-home-earth-stage .aris-earth-root {
+  z-index: 1;
+}
+body.aris-home-earth-stage .aris-earth-scrim,
+body.aris-home-earth-stage .aris-earth-readability,
+body.aris-home-earth-stage .aris-earth-veil {
+  background: rgba(2, 6, 18, 0.28) !important;
+  opacity: 0.55 !important;
+  pointer-events: none !important;
+}

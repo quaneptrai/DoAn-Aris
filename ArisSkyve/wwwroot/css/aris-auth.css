@@ -1,0 +1,1663 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+/**
+ * Aris Career Platform — Authentication Living Stage & Sculptural Auth Stylesheet
+ * Integrates WebGL Smoked Translucent Material Stage with WCAG AAA contrast,
+ * accessible controls, refined typography, and responsive ergonomics.
+ */
+
+:root {
+  --auth-ink-base: #060913;
+  --auth-ink-depth: #0A1020;
+  --auth-cobalt: #2F6FED;
+  --auth-cobalt-hover: #1E54C4;
+  --auth-cobalt-glow: rgba(47, 111, 237, 0.35);
+  --auth-cyan: #7EC8F5;
+  --auth-satin-rim: rgba(240, 244, 250, 0.35);
+  --auth-text-title: #FFFFFF;
+  --auth-text-body: #94A3B8;
+  --auth-text-muted: #64748B;
+  --auth-border-subtle: rgba(255, 255, 255, 0.12);
+  --auth-input-bg: rgba(255, 255, 255, 0.045);
+  --auth-input-focus-bg: rgba(255, 255, 255, 0.075);
+  --auth-font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --auth-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* =========================================================================
+   1. GLOBAL RESET & FULL-VIEWPORT INK STAGE
+   ========================================================================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100%;
+  background-color: var(--auth-ink-base) !important;
+  background-image:
+    radial-gradient(ellipse 75% 60% at 50% 36%, #0B162E 0%, #070D1B 55%, #03050A 100%) !important;
+  background-attachment: fixed !important;
+  color: var(--auth-text-title);
+  font-family: var(--auth-font-body);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 3D WebGL Canvas Container */
+.canvas-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#resonanceCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* =========================================================================
+   2. APP NAVIGATION HEADER & RESTRAINED CONTROLS
+   ========================================================================= */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.brand-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #FFFFFF;
+  pointer-events: auto;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.brand-group:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  color: #FFFFFF;
+}
+
+.brand-svg {
+  width: 26px;
+  height: 26px;
+  filter: drop-shadow(0 0 10px rgba(47, 111, 237, 0.45));
+}
+
+.brand-name {
+  font-family: var(--auth-font-display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.nav-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #CBD5E1;
+  font-family: var(--auth-font-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 5px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
+}
+
+.nav-btn:active {
+  transform: scale(0.97);
+}
+
+.nav-btn.active {
+  border-color: var(--auth-cobalt);
+  color: #93C5FD;
+  background: rgba(47, 111, 237, 0.18);
+}
+
+/* Fixed Clean App Footer */
+.app-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.60);
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* =========================================================================
+   3. CENTER STAGE & SCULPTURAL AUTH OBJECT (DOM CONTENT SHELL)
+   ========================================================================= */
+.stage-center {
+  position: relative;
+  z-index: 20;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 76px 20px 52px 20px;
+  box-sizing: border-box;
+}
+
+/**
+ * .auth-glass-card sits exactly over the WebGL smoked glass material plate.
+ * In normal WebGL mode, the background is transparent so the physical 3D smoked
+ * glass plate, satin rim, and subtle cobalt interference sheen render the actual
+ * material directly underneath the form controls.
+ */
+.auth-glass-card {
+  width: 100%;
+  max-width: 432px;
+  margin: 0 auto;
+  position: relative;
+  border-radius: 20px;
+  padding: 34px 30px;
+  background: transparent;
+  border: 1px solid transparent;
+  pointer-events: auto;
+  transition: max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-glass-card.mode-register {
+  max-width: 440px;
+}
+
+/* Defensive rule: Ensure legacy or competing brand/mode tags are suppressed */
+.card-top-bar,
+.card-brand-tag,
+.auth-mode-pill {
+  display: none !important;
+}
+
+/* Static fallback when WebGL is unavailable or user requests reduced motion */
+.webgl-fallback .auth-glass-card,
+body.has-no-webgl .auth-glass-card {
+  background: rgba(11, 17, 32, 0.88) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.13) !important;
+  box-shadow:
+    0 24px 64px -12px rgba(0, 0, 0, 0.75),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    0 0 0 1px rgba(47, 111, 237, 0.12) !important;
+}
+
+/* =========================================================================
+   4. FORM TYPOGRAPHY & INTENTIONAL HIERARCHY
+   ========================================================================= */
+.greeting-group {
+  margin-bottom: 22px;
+  text-align: left;
+}
+
+.greeting-title {
+  font-family: var(--auth-font-display);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--auth-text-title);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin-bottom: 6px;
+}
+
+.greeting-subline {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--auth-text-body);
+}
+
+/* Social Login Grid (Refined Side-by-Side) */
+.auth-social-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.btn-social-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 10px;
+  color: #E2E8F0;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.btn-social-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+.btn-social-item:active {
+  transform: scale(0.985);
+}
+
+/* Hairline Divider */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 16px 0 18px 0;
+  color: var(--auth-text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-divider span {
+  padding: 0 10px;
+}
+
+/* Accessible High-Contrast Form Fields */
+.field-wrap {
+  margin-bottom: 15px;
+  position: relative;
+  text-align: left;
+}
+
+.auth-input-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #CBD5E1;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.auth-input-field {
+  width: 100%;
+  height: 46px;
+  background: var(--auth-input-bg);
+  border: 1px solid var(--auth-border-subtle);
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 14.5px;
+  color: #FFFFFF !important;
+  font-family: var(--auth-font-body);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  /* Keep inputs rock-solid stationary during typing */
+  transform: none !important;
+}
+
+.auth-input-field::placeholder {
+  color: rgba(148, 163, 184, 0.50);
+}
+
+.auth-input-field:focus {
+  outline: none;
+  background: var(--auth-input-focus-bg);
+  border-color: var(--auth-cobalt);
+  box-shadow: 0 0 0 3px var(--auth-cobalt-glow);
+  color: #FFFFFF;
+}
+
+/* Primary Action Submit Button */
+.btn-auth-primary {
+  width: 100%;
+  height: 46px;
+  background: linear-gradient(135deg, #2F6FED 0%, #1B4CB8 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  color: #FFFFFF;
+  font-family: var(--auth-font-display);
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px -3px rgba(47, 111, 237, 0.42);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-auth-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -3px rgba(47, 111, 237, 0.55);
+  color: #FFFFFF;
+}
+
+.btn-auth-primary:active {
+  transform: scale(0.985);
+}
+
+.btn-auth-primary svg {
+  transition: transform 0.2s ease;
+}
+
+.btn-auth-primary:hover svg {
+  transform: translateX(3px);
+}
+
+.btn-auth-primary:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Mode Switch Link */
+.auth-mode-switch {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--auth-text-body);
+}
+
+.auth-mode-switch-link {
+  color: var(--auth-cyan);
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin-left: 4px;
+  transition: color 0.2s ease;
+}
+
+.auth-mode-switch-link:hover {
+  color: #93C5FD;
+  text-decoration: underline;
+}
+
+/* Demoted Secondary Demo Affordances (Quiet Footer Links) */
+.auth-demo-tray {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.auth-demo-tray-label {
+  font-size: 11.5px;
+  color: var(--auth-text-muted);
+  letter-spacing: 0.01em;
+}
+
+.auth-demo-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-demo-link {
+  background: transparent;
+  border: none;
+  color: #93C5FD;
+  font-size: 11.5px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.btn-demo-link:hover {
+  color: #FFFFFF;
+  background: rgba(47, 111, 237, 0.15);
+  text-decoration: underline;
+}
+
+.demo-sep {
+  color: rgba(255, 255, 255, 0.18);
+  font-size: 12px;
+}
+
+/* =========================================================================
+   5. STAGED MORPH CONTENT TRANSITIONS (LOGIN <-> REGISTER)
+   ========================================================================= */
+.auth-mode-panel {
+  transition: opacity 0.28s cubic-bezier(0.4, 0.0, 0.2, 1),
+              transform 0.28s cubic-bezier(0.4, 0.0, 0.2, 1),
+              filter 0.28s ease;
+  pointer-events: auto;
+}
+
+.auth-mode-panel.is-leaving {
+  opacity: 0;
+  transform: scale(0.98) translateY(-8px);
+  filter: blur(4px);
+  pointer-events: none !important;
+}
+
+.auth-mode-panel.is-entering {
+  opacity: 0;
+  transform: scale(0.98) translateY(10px);
+  filter: blur(4px);
+  pointer-events: none !important;
+}
+
+.auth-mode-panel.is-materializing > * {
+  animation: contentSettle 0.40s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.auth-mode-panel.is-materializing > *:nth-child(1) { animation-delay: 0.00s; }
+.auth-mode-panel.is-materializing > *:nth-child(2) { animation-delay: 0.04s; }
+.auth-mode-panel.is-materializing > *:nth-child(3) { animation-delay: 0.08s; }
+.auth-mode-panel.is-materializing > *:nth-child(4) { animation-delay: 0.12s; }
+.auth-mode-panel.is-materializing > *:nth-child(5) { animation-delay: 0.16s; }
+
+@keyframes contentSettle {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* =========================================================================
+   6. CHECK EMAIL SENT CONFIRMATION STATE
+   ========================================================================= */
+.check-email-section {
+  display: none;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.check-email-section.active {
+  display: block;
+  animation: contentSettle 0.40s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.check-icon-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(47, 111, 237, 0.18);
+  border: 1px solid rgba(47, 111, 237, 0.45);
+  color: #7EC8F5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  box-shadow: 0 0 20px rgba(47, 111, 237, 0.30);
+}
+
+.check-email-pill {
+  display: inline-block;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #93C5FD;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 14px;
+  word-break: break-all;
+}
+
+.check-email-guide {
+  font-size: 13px;
+  color: #CBD5E1;
+  line-height: 1.55;
+  margin-bottom: 18px;
+}
+
+.dev-confirm-box {
+  background: rgba(47, 111, 237, 0.14);
+  border: 1px solid rgba(47, 111, 237, 0.32);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.auth-direct-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  height: 40px;
+  width: 100%;
+  color: #CBD5E1;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.auth-direct-action:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #FFFFFF;
+}
+
+/* =========================================================================
+   7. ACCESSIBILITY & FOCUS VISIBLE
+   ========================================================================= */
+:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px #060913, 0 0 0 4px #2F6FED !important;
+}
+
+.auth-input-field:focus-visible {
+  outline: none !important;
+  border-color: #2F6FED !important;
+  box-shadow: 0 0 0 2px #060913, 0 0 0 4px #2F6FED !important;
+}
+
+/* =========================================================================
+   8. RESPONSIVE BREAKPOINTS (DESKTOP, TABLET, MOBILE)
+   ========================================================================= */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0 16px;
+    height: 56px;
+    background: rgba(6, 9, 19, 0.70);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .brand-group {
+    gap: 8px;
+  }
+  .brand-name {
+    font-size: 17px;
+  }
+  .brand-svg {
+    width: 24px;
+    height: 24px;
+  }
+  .nav-btn {
+    padding: 4px 10px;
+    font-size: 11.5px;
+  }
+  .app-footer {
+    display: none;
+  }
+  .stage-center {
+    padding: 72px 16px 36px 16px;
+  }
+  .auth-glass-card {
+    padding: 28px 20px;
+    max-width: 380px;
+  }
+  .greeting-title {
+    font-size: 23px;
+  }
+}
+
+@media (max-width: 480px), (max-height: 680px) {
+  .stage-center {
+    align-items: flex-start !important;
+    padding-top: 64px !important;
+    padding-bottom: 28px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .app-header {
+    padding: 0 10px;
+    height: 52px;
+    background: rgba(6, 9, 19, 0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .brand-name {
+    font-size: 15px;
+  }
+  .brand-group {
+    gap: 6px;
+  }
+  .nav-actions {
+    gap: 5px;
+  }
+  .nav-btn {
+    padding: 3px 7px;
+    font-size: 10.5px;
+  }
+  .stage-center {
+    padding: 60px 10px 24px 10px !important;
+  }
+  .auth-glass-card {
+    padding: 20px 14px;
+    border-radius: 16px;
+    max-width: 100%;
+  }
+  .greeting-group {
+    margin-bottom: 16px;
+  }
+  .greeting-title {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  .greeting-subline {
+    font-size: 12px;
+  }
+  .auth-social-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .auth-divider {
+    margin: 12px 0 14px 0;
+  }
+  .field-wrap {
+    margin-bottom: 12px;
+  }
+  .auth-input-field, .btn-auth-primary {
+    height: 42px;
+    font-size: 14px;
+  }
+  .auth-demo-tray {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 18px;
+    padding-top: 14px;
+  }
+}
+
+/* Reduced Motion Override: Instant, static usable composition */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .auth-glass-card {
+    transition: none !important;
+  }
+}
+
+/* =========================================================================
+   9. NANO-DRAWN INTERFACE (revision "lusion-grade")
+   The WebGL stage measures these controls and draws their edges with nano
+   bodies. So in WebGL mode the CSS border is handed over to the particles;
+   everything below is what makes that handover safe:
+   - the hit area, padding and height never change, only the painted edge
+   - focus keeps a real, visible ring (particles are not an a11y affordance)
+   - .webgl-fallback restores every border, so a no-WebGL page is still a
+     designed interface rather than a set of borderless boxes
+   ========================================================================= */
+
+.nano-stage-ready .auth-input-field,
+.nano-stage-ready .btn-social-item {
+  border-color: rgba(255, 255, 255, 0.045);
+  background: rgba(255, 255, 255, 0.028);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.nano-stage-ready .btn-auth-primary {
+  border-color: transparent;
+  box-shadow: 0 10px 30px -10px rgba(47, 111, 237, 0.55);
+}
+
+/* Focus and hover stay explicit: the nano outline reinforces them, it does
+   not replace them. */
+.nano-stage-ready .auth-input-field:focus {
+  border-color: rgba(47, 111, 237, 0.85);
+  box-shadow: 0 0 0 3px var(--auth-cobalt-glow);
+}
+
+.nano-stage-ready .btn-social-item:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.webgl-fallback .auth-input-field,
+.webgl-fallback .btn-social-item {
+  border-color: var(--auth-border-subtle) !important;
+  background: var(--auth-input-bg) !important;
+}
+
+.webgl-fallback .btn-auth-primary {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* -------------------------------------------------------------------------
+   9.1 Slower, staged panel transfer
+   The bodies now take ~1.15s to travel between the Login and Register
+   layouts. The DOM text has to wait for them: it leaves quickly, and comes
+   back only once its outline has been redrawn underneath it.
+   ------------------------------------------------------------------------- */
+.auth-mode-panel.is-leaving {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.985);
+  transition: opacity 0.22s cubic-bezier(0.4, 0, 1, 1), transform 0.22s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.auth-mode-panel.is-entering {
+  opacity: 0;
+  transform: translateY(10px) scale(0.99);
+}
+
+.auth-mode-panel.is-materializing {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.42s cubic-bezier(0.16, 1, 0.3, 1), transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-mode-panel.is-materializing > * {
+  animation: nanoSettleIn 0.62s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.auth-mode-panel.is-materializing > *:nth-child(1) { animation-delay: 0.00s; }
+.auth-mode-panel.is-materializing > *:nth-child(2) { animation-delay: 0.07s; }
+.auth-mode-panel.is-materializing > *:nth-child(3) { animation-delay: 0.14s; }
+.auth-mode-panel.is-materializing > *:nth-child(4) { animation-delay: 0.21s; }
+.auth-mode-panel.is-materializing > *:nth-child(5) { animation-delay: 0.28s; }
+.auth-mode-panel.is-materializing > *:nth-child(6) { animation-delay: 0.35s; }
+
+@keyframes nanoSettleIn {
+  from { opacity: 0; transform: translateY(9px); filter: blur(3px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* -------------------------------------------------------------------------
+   9.2 Atmosphere: vignette + animated grain
+   Injected by the stage script. Pure DOM, so it adds no GPU render pass and
+   no risk to the WebGL path. Grain is animated because a static grain reads
+   as a compression artefact rather than as film.
+   ------------------------------------------------------------------------- */
+.aris-atmos-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  mix-blend-mode: normal;
+}
+
+.aris-atmos-overlay > span {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.aris-atmos-vignette {
+  background:
+    radial-gradient(ellipse 120% 95% at 50% 45%, rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.42) 82%, rgba(0, 0, 0, 0.72) 100%);
+}
+
+.aris-atmos-grain {
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+  background-size: 160px 160px;
+  animation: nanoGrainShift 0.8s steps(3) infinite;
+}
+
+@keyframes nanoGrainShift {
+  0%   { transform: translate3d(0, 0, 0); }
+  33%  { transform: translate3d(-3%, 2%, 0); }
+  66%  { transform: translate3d(2%, -3%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+/* -------------------------------------------------------------------------
+   9.3 Chrome weight
+   Skip / Replay / Pause were heavier than the brand mark itself. They stay
+   fully operable and keyboard reachable, just quieter, and icon-only once
+   the viewport gets tight.
+   ------------------------------------------------------------------------- */
+.nav-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 12px;
+  padding: 5px 11px;
+}
+
+.nav-btn:hover,
+.nav-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #FFFFFF;
+}
+
+@media (max-width: 560px) {
+  .nav-btn span { display: none; }
+  .nav-btn { padding: 7px 9px; }
+  .nav-actions { gap: 6px; }
+}
+
+/* -------------------------------------------------------------------------
+   9.4 Reduced motion
+   No flow, no grain, no intro. The composition still has to look designed,
+   so the vignette and the fallback card surface stay.
+   ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .aris-atmos-grain { animation: none; opacity: 0.03; }
+  .auth-mode-panel.is-materializing > * { animation: none; }
+
+  .nano-stage-ready .auth-input-field,
+  .nano-stage-ready .btn-social-item {
+    border-color: var(--auth-border-subtle);
+  }
+}
+
+
+/* =========================================================================
+   10. HIGH-CONTRAST FORM TYPOGRAPHY & OPTICAL GLASS BACKING
+   Ensures all text, inputs, labels, and buttons have pristine legibility
+   and WCAG-compliant contrast while nano-particles outline the controls.
+   ========================================================================= */
+
+/* =========================================================================
+   10. CELESTIAL UNBOXED AUTH FORM (NO CARD BOX SILHOUETTE)
+   Form elements float freely in deep cosmos, framed and anchored by 
+   rings of asteroids, planetoids, and streaming cosmic light ribbons
+   ========================================================================= */
+
+/* Dissolve the card box: 100% transparent open spatial anchor */
+.nano-stage-ready .auth-glass-card {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 440px !important;
+  margin: 0 auto !important;
+  border-radius: 0 !important;
+  padding: 16px 12px !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #FFFFFF !important;
+  overflow: visible !important;
+}
+
+/* Remove rectangular card box pseudo-elements */
+.nano-stage-ready .auth-glass-card::before,
+.nano-stage-ready .auth-glass-card::after {
+  display: none !important;
+}
+
+/* Brand Status Badge at Top of Form */
+.auth-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 13px;
+  background: rgba(37, 99, 235, 0.16);
+  border: none;
+  border-radius: 999px;
+  margin-bottom: 16px;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.20);
+}
+
+.badge-status-ring {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-status-dot {
+  width: 7px;
+  height: 7px;
+  background: #10B981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10B981;
+}
+
+.badge-text-primary {
+  font-family: var(--auth-font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #93C5FD;
+}
+
+.badge-text-divider {
+  font-size: 11px;
+  color: rgba(147, 197, 253, 0.4);
+}
+
+.badge-text-sub {
+  font-family: var(--auth-font-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #60A5FA;
+}
+
+/* Headings & Sublines */
+.nano-stage-ready .greeting-group {
+  margin-bottom: 22px !important;
+  text-align: left !important;
+}
+
+.nano-stage-ready .greeting-title {
+  color: #FFFFFF !important;
+  font-family: var(--auth-font-display) !important;
+  font-size: 27px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.22 !important;
+  margin-bottom: 6px !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6) !important;
+}
+
+.nano-stage-ready .greeting-subline {
+  color: #94A3B8 !important;
+  font-size: 14px !important;
+  line-height: 1.55 !important;
+  font-weight: 400 !important;
+}
+
+/* Social Login Grid & Luxury Tiles */
+.nano-stage-ready .auth-social-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+  margin-bottom: 18px !important;
+}
+
+.nano-stage-ready .btn-social-item {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 9px !important;
+  height: 44px !important;
+  background: rgba(15, 23, 42, 0.35) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: none !important;
+  outline: none !important;
+  border-radius: 14px !important;
+  color: #F1F5F9 !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.nano-stage-ready .btn-social-item:hover,
+.nano-stage-ready .btn-social-item:focus-visible {
+  background: rgba(28, 44, 80, 0.50) !important;
+  border: none !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.22) !important;
+}
+
+.nano-stage-ready .btn-social-item:active {
+  transform: scale(0.98) !important;
+}
+
+/* Divider Hairline (Clean Starlight Whisper, No Box) */
+.nano-stage-ready .auth-divider {
+  display: flex !important;
+  align-items: center !important;
+  margin: 18px 0 20px 0 !important;
+  color: #64748B !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.10em !important;
+  text-transform: uppercase !important;
+  border: none !important;
+}
+
+.nano-stage-ready .auth-divider::before,
+.nano-stage-ready .auth-divider::after {
+  content: "" !important;
+  flex: 1 !important;
+  height: 1px !important;
+  background: linear-gradient(90deg, transparent, rgba(147, 197, 253, 0.16), transparent) !important;
+}
+
+.nano-stage-ready .auth-divider span {
+  padding: 0 12px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+/* Field Container & Label Header */
+.nano-stage-ready .field-wrap {
+  margin-bottom: 16px !important;
+  position: relative !important;
+  text-align: left !important;
+}
+
+.auth-label-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 7px !important;
+}
+
+.nano-stage-ready .auth-input-label {
+  color: #E2E8F0 !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  margin-bottom: 0 !important;
+}
+
+.auth-label-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #60A5FA !important;
+  background: rgba(37, 99, 235, 0.18) !important;
+  padding: 2px 8px !important;
+  border-radius: 6px !important;
+  border: none !important;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Left Prefix Email Icon inside Field */
+.auth-input-prefix-icon {
+  position: absolute !important;
+  left: 14px !important;
+  bottom: 15px !important;
+  color: #64748B !important;
+  pointer-events: none !important;
+  transition: color 0.2s ease, filter 0.2s ease !important;
+  z-index: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.nano-stage-ready .field-wrap:focus-within .auth-input-prefix-icon {
+  color: #60A5FA !important;
+  filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.6)) !important;
+}
+
+/* Input Fields: Deep Obsidian Celestial Void (Borderless) */
+.nano-stage-ready .auth-input-field {
+  width: 100% !important;
+  height: 48px !important;
+  padding-left: 44px !important;
+  padding-right: 18px !important;
+  background: rgba(11, 18, 36, 0.45) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: none !important;
+  outline: none !important;
+  border-radius: 14px !important;
+  font-size: 14px !important;
+  color: #FFFFFF !important;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45) !important;
+  transition: box-shadow 0.2s ease, background 0.2s ease !important;
+  transform: none !important;
+}
+
+.nano-stage-ready .auth-input-field::placeholder {
+  color: #94A3B8 !important;
+  opacity: 1 !important;
+}
+
+.nano-stage-ready .auth-input-field:focus {
+  background: rgba(14, 22, 48, 0.65) !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.25), inset 0 2px 6px rgba(0, 0, 0, 0.45) !important;
+  color: #FFFFFF !important;
+}
+
+/* Primary Action Submit Button: Luminous Sapphire Core (Borderless) */
+.nano-stage-ready .btn-auth-primary {
+  width: 100% !important;
+  height: 48px !important;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.72) 0%, rgba(29, 78, 216, 0.80) 50%, rgba(23, 56, 160, 0.88) 100%) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: none !important;
+  outline: none !important;
+  border-radius: 14px !important;
+  color: #FFFFFF !important;
+  font-family: var(--auth-font-display) !important;
+  font-size: 14.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+  box-shadow: 0 8px 26px -4px rgba(37, 99, 235, 0.45), 0 0 24px rgba(59, 130, 246, 0.20) !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background 0.2s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.nano-stage-ready .btn-auth-primary::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 70%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.6s ease;
+}
+
+.nano-stage-ready .btn-auth-primary:hover::after {
+  left: 150%;
+}
+
+.nano-stage-ready .btn-auth-primary:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.85) 0%, rgba(37, 99, 235, 0.90) 50%, rgba(29, 78, 216, 0.95) 100%) !important;
+  border: none !important;
+  box-shadow: 0 10px 32px -2px rgba(37, 99, 235, 0.60), 0 0 32px rgba(96, 165, 250, 0.35) !important;
+  transform: translateY(-1.5px) !important;
+  color: #FFFFFF !important;
+}
+
+.nano-stage-ready .btn-auth-primary:active {
+  transform: scale(0.985) !important;
+}
+
+/* Mode Switch Row */
+.nano-stage-ready .auth-mode-switch {
+  text-align: center !important;
+  margin-top: 16px !important;
+  font-size: 13.5px !important;
+  color: #94A3B8 !important;
+}
+
+.nano-stage-ready .auth-mode-switch-link {
+  color: #60A5FA !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+  padding: 2px 8px !important;
+  border-radius: 6px !important;
+  transition: color 0.2s ease, background 0.2s ease !important;
+}
+
+.nano-stage-ready .auth-mode-switch-link:hover {
+  color: #93C5FD !important;
+  background: rgba(59, 130, 246, 0.12) !important;
+  text-decoration: underline !important;
+}
+
+/* Demo Access Drawer (Truy cập thử nghiệm) */
+.nano-stage-ready .auth-demo-tray {
+  margin-top: 20px !important;
+  padding: 8px 0 0 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: block !important;
+}
+
+.nano-stage-ready .auth-demo-tray-label {
+  display: block !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: #64748B !important;
+  margin-bottom: 8px !important;
+  text-align: center !important;
+}
+
+.nano-stage-ready .auth-demo-links {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+.nano-stage-ready .demo-sep {
+  display: none !important;
+}
+
+.nano-stage-ready .btn-demo-link {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  height: 32px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: none !important;
+  outline: none !important;
+  border-radius: 10px !important;
+  color: #94A3B8 !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: none !important;
+}
+
+.nano-stage-ready .btn-demo-link:hover {
+  background: rgba(59, 130, 246, 0.20) !important;
+  border: none !important;
+  color: #93C5FD !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.25) !important;
+}
+
+.nano-stage-ready .btn-demo-link:active {
+  transform: scale(0.97) !important;
+}
+
+.demo-pill-icon {
+  font-size: 11px;
+}
+
+/* Security Seal Footer */
+.auth-security-seal {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  margin-top: 16px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  font-size: 11.5px !important;
+  color: #64748B !important;
+  font-weight: 500 !important;
+}
+
+.auth-security-seal svg {
+  flex-shrink: 0;
+  color: #60A5FA;
+}
+
+/* =========================================================================
+   11. TYPE INTEGRITY — REAL DOM FONTS NEVER MADE TRANSPARENT
+   ========================================================================= */
+
+.nano-stage-ready .auth-glass-card .nano-glyph,
+.webgl-fallback .nano-glyph {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+  text-shadow: none !important;
+}
+
+.nano-stage-ready .auth-glass-card .nano-glyph::selection {
+  color: #061024;
+  background: rgba(126, 200, 245, 0.85);
+  -webkit-text-fill-color: #061024;
+}
+
+/* Accessible focus visible */
+.nano-stage-ready .auth-input-field:focus-visible {
+  outline: 2px solid #2F6FED !important;
+  outline-offset: 2px;
+}
+
+.nano-stage-ready .btn-auth-primary:focus-visible,
+.nano-stage-ready .btn-social-item:focus-visible {
+  outline: 2px solid rgba(126, 200, 245, 0.95);
+  outline-offset: 3px;
+}
+
+
+/* =========================================================================
+   12. REFINED CONTROLS & TYPOGRAPHY (celestial, not plastic)
+   The unboxed layout stays exactly as it is — no card, no frame. What changes
+   is the finish. The controls were reading as blurred plastic slabs: a 14px
+   backdrop blur, a saturated gradient fill and a 14px radius. A control that
+   floats in a star field should be drawn the way the field is drawn: a
+   hairline of light, a surface that is almost entirely the sky behind it, and
+   type with enough tracking to hold its own without a box around it.
+   ========================================================================= */
+
+/* ---- Social providers: hairline of light, no slab ---------------------- */
+.nano-stage-ready .btn-social-item {
+  height: 46px !important;
+  background: rgba(146, 186, 255, 0.030) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(178, 212, 255, 0.16) !important;
+  border-radius: 11px !important;
+  color: #E6EEFB !important;
+  font-weight: 500 !important;
+  font-size: 13.5px !important;
+  letter-spacing: 0.005em !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+  transition: border-color 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.nano-stage-ready .btn-social-item:hover,
+.nano-stage-ready .btn-social-item:focus-visible {
+  background: rgba(146, 186, 255, 0.070) !important;
+  border-color: rgba(190, 222, 255, 0.38) !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1px) !important;
+}
+
+/* ---- Email field: an inset of night sky, edged with one hairline ------- */
+.nano-stage-ready .auth-input-field {
+  height: 50px !important;
+  background: rgba(6, 12, 26, 0.38) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(178, 212, 255, 0.14) !important;
+  border-radius: 11px !important;
+  font-size: 14.5px !important;
+  letter-spacing: 0.005em !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35) !important;
+}
+
+.nano-stage-ready .auth-input-field::placeholder {
+  color: rgba(163, 185, 214, 0.62) !important;
+  letter-spacing: 0.005em !important;
+}
+
+.nano-stage-ready .auth-input-field:focus,
+.nano-stage-ready .auth-input-field:focus-visible {
+  background: rgba(10, 22, 48, 0.52) !important;
+  border-color: rgba(126, 200, 245, 0.80) !important;
+  box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.20),
+              inset 0 1px 2px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* ---- Primary action: lit from its own edge, not filled with paint ------ */
+.nano-stage-ready .btn-auth-primary {
+  height: 50px !important;
+  background: linear-gradient(180deg,
+              rgba(64, 124, 255, 0.30) 0%,
+              rgba(34, 78, 200, 0.34) 100%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(160, 200, 255, 0.46) !important;
+  border-radius: 11px !important;
+  font-weight: 600 !important;
+  font-size: 14.5px !important;
+  letter-spacing: 0.015em !important;
+  color: #FFFFFF !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24),
+              0 0 34px -14px rgba(96, 156, 255, 0.85) !important;
+  transition: border-color 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.nano-stage-ready .btn-auth-primary:hover {
+  background: linear-gradient(180deg,
+              rgba(78, 140, 255, 0.40) 0%,
+              rgba(40, 90, 220, 0.44) 100%) !important;
+  border-color: rgba(190, 222, 255, 0.72) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32),
+              0 0 44px -12px rgba(110, 170, 255, 1.0) !important;
+  transform: translateY(-1px) !important;
+}
+
+.nano-stage-ready .btn-auth-primary:active {
+  transform: translateY(1px) !important;
+}
+
+/* ---- Demo pills: the quietest thing on the page ----------------------- */
+.nano-stage-ready .btn-demo-link {
+  background: rgba(146, 186, 255, 0.022) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(178, 212, 255, 0.10) !important;
+  color: rgba(198, 214, 238, 0.78) !important;
+  letter-spacing: 0.01em !important;
+}
+
+.nano-stage-ready .btn-demo-link:hover {
+  border-color: rgba(178, 212, 255, 0.26) !important;
+  color: #FFFFFF !important;
+}
+
+/* ---- Typography: tracking does the work a box used to do --------------- */
+.nano-stage-ready .greeting-title {
+  font-weight: 600 !important;
+  font-size: 31px !important;
+  letter-spacing: -0.018em !important;
+  line-height: 1.18 !important;
+  color: #FFFFFF !important;
+  text-shadow: 0 2px 26px rgba(4, 10, 26, 0.9) !important;
+}
+
+.nano-stage-ready .greeting-subline {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.55 !important;
+  letter-spacing: 0.004em !important;
+  color: rgba(198, 213, 234, 0.74) !important;
+  text-shadow: 0 1px 18px rgba(4, 10, 26, 0.85) !important;
+}
+
+/* Micro-labels become spaced small caps: at this size tracking reads as
+   deliberate, while weight alone just reads as heavy. */
+.nano-stage-ready .auth-input-label,
+.nano-stage-ready .auth-demo-tray-label {
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.17em !important;
+  color: rgba(163, 190, 224, 0.82) !important;
+}
+
+.nano-stage-ready .auth-divider span {
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.20em !important;
+  color: rgba(158, 178, 206, 0.58) !important;
+}
+
+.nano-stage-ready .auth-mode-switch {
+  letter-spacing: 0.005em !important;
+}
+
+.nano-stage-ready .auth-mode-switch-link {
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+}
+
+@media (max-width: 480px) {
+  .nano-stage-ready .greeting-title { font-size: 26px !important; }
+  .nano-stage-ready .auth-input-label,
+  .nano-stage-ready .auth-demo-tray-label { letter-spacing: 0.14em !important; }
+}
+
+/* The footer sits over the belt's lower arc; without this it disappears into
+   the star field on wide screens. */
+.nano-stage-ready .app-footer {
+  color: rgba(176, 194, 220, 0.72) !important;
+  text-shadow: 0 1px 16px rgba(3, 8, 20, 0.95) !important;
+}
+
+
+/* =========================================================================
+   13. COSMIC TYPEFACE, CUSTOM MARKS, NO BRAND BADGE
+   Space Grotesk is the display face: a geometric grotesque with wide, open
+   counters and a slightly mechanical g and a — it reads as instrument
+   lettering rather than as a product sans, which is what suits a star field.
+   It was chosen over Orbitron, Sora and Outfit for one hard reason: those
+   three ship no Vietnamese subset, so every diacritic would have fallen back
+   to a different face mid-word. Inter stays on the email value, where a user
+   has to tell l from 1 and O from 0.
+   ========================================================================= */
+
+:root {
+  --auth-font-display: 'Space Grotesk', 'Plus Jakarta Sans', -apple-system,
+                       BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.nano-stage-ready .auth-glass-card,
+.nano-stage-ready .greeting-title,
+.nano-stage-ready .greeting-subline,
+.nano-stage-ready .auth-input-label,
+.nano-stage-ready .auth-demo-tray-label,
+.nano-stage-ready .auth-divider span,
+.nano-stage-ready .btn-social-item,
+.nano-stage-ready .btn-auth-primary,
+.nano-stage-ready .btn-demo-link,
+.nano-stage-ready .auth-mode-switch,
+.nano-stage-ready .auth-mode-switch-link,
+.nano-stage-ready .auth-label-badge,
+.nano-stage-ready .auth-security-seal,
+.nano-stage-ready .app-footer,
+.nano-stage-ready .nav-btn,
+.nano-stage-ready .brand-name {
+  font-family: var(--auth-font-display) !important;
+}
+
+/* Space Grotesk runs a little wide; the title can afford to tighten. */
+.nano-stage-ready .greeting-title {
+  letter-spacing: -0.026em !important;
+  font-weight: 600 !important;
+}
+
+/* The email itself stays on a face built for disambiguating characters. */
+.nano-stage-ready .auth-input-field,
+.nano-stage-ready .auth-input-field::placeholder,
+.nano-stage-ready .check-email-pill {
+  font-family: var(--auth-font-body) !important;
+}
+
+/* ---- The brand/status badge is gone ----------------------------------- */
+.auth-brand-badge {
+  display: none !important;
+}
+
+/* ---- Custom marks ----------------------------------------------------- */
+/* The pill marks were emoji, so they were sized and coloured by the system
+   font. As SVG they take the pill's own colour and line weight. */
+.nano-stage-ready .demo-pill-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 14px !important;
+  height: 14px !important;
+  font-size: 0 !important;
+  color: rgba(186, 212, 245, 0.92) !important;
+  opacity: 1 !important;
+  transition: color 0.22s ease, transform 0.22s ease !important;
+}
+
+.nano-stage-ready .demo-pill-icon svg {
+  width: 14px !important;
+  height: 14px !important;
+  display: block !important;
+  overflow: visible !important;
+}
+
+.nano-stage-ready .btn-demo-link:hover .demo-pill-icon {
+  color: #FFFFFF !important;
+  transform: translateY(-0.5px) scale(1.06) !important;
+}
+
+.nano-stage-ready .auth-input-prefix-icon {
+  color: rgba(163, 190, 224, 0.78) !important;
+  transition: color 0.22s ease !important;
+}
+
+.nano-stage-ready .field-wrap:focus-within .auth-input-prefix-icon {
+  color: rgba(146, 200, 255, 1) !important;
+}
+
+.nano-stage-ready .auth-security-seal svg {
+  color: rgba(126, 178, 240, 0.85) !important;
+  stroke: currentColor !important;
+}
+
+/* The arrow now sits in its own end zone and travels on hover, rather than
+   being a glyph glued to the label. */
+.nano-stage-ready .btn-arrow-mark {
+  display: inline-flex !important;
+  align-items: center !important;
+  width: 17px !important;
+  height: 17px !important;
+  margin-left: 2px !important;
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.nano-stage-ready .btn-arrow-mark svg {
+  width: 17px !important;
+  height: 17px !important;
+  display: block !important;
+}
+
+.nano-stage-ready .btn-auth-primary:hover .btn-arrow-mark {
+  transform: translateX(3px) !important;
+}

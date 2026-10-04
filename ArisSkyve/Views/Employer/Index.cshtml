@@ -1,0 +1,440 @@
+@model ArisSkyve.Application.DTOs.EmployerDashboardViewModel
+@{
+    ViewData["Title"] = "Bảng tuyển dụng & Ứng viên";
+    ViewData["ActiveNav"] = "Employer";
+    Layout = "_AppLayout";
+
+    var logo = !string.IsNullOrWhiteSpace(Model.AvatarUrl)
+        ? Model.AvatarUrl
+        : ("https://ui-avatars.com/api/?name=" + Uri.EscapeDataString(Model.CompanyName) + "&background=2F6FED&color=fff&size=128");
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/employer.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pages/employer-flow.css" asp-append-version="true" />
+}
+
+@Html.AntiForgeryToken()
+<div class="employer-page">
+    <!-- Cột trái: Danh sách tin tuyển dụng (Canvas 320px) -->
+    <aside class="employer-sidebar">
+        <div class="employer-sidebar__head">
+            <div class="employer-sidebar__title-row">
+                <h1 class="employer-sidebar__title">Tuyển dụng</h1>
+                <a href="/Jobs/Index?compose=1" class="a-btn a-btn--primary a-btn--sm" title="Tạo tin tuyển dụng mới">
+                    <i data-lucide="plus"></i> Đăng tin
+                </a>
+            </div>
+            <div class="employer-sidebar__meta">
+                <span><b>@Model.ActiveJobCount</b> tin đang mở</span>
+                <span>&bull;</span>
+                <span><b>@Model.TotalApplicants</b> ứng viên</span>
+                <span>&bull;</span>
+                <span><b>@Model.NewApplicantsLast7Days</b> mới / 7 ngày</span>
+            </div>
+            @if (Model.StatusBreakdown.Any(s => s.Count > 0))
+            {
+                var total = Math.Max(1, Model.StatusBreakdown.Sum(s => s.Count));
+                <div class="employer-funnel" aria-label="Phân bổ ứng viên theo bước">
+                    @foreach (var s in Model.StatusBreakdown.Where(s => s.Count > 0))
+                    {
+                        <span class="employer-funnel__seg" data-stage="@s.Status" style="flex-grow:@s.Count" title="@s.Label: @s.Count"></span>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="employer-job-list" id="jobSidebarList">
+            @if (Model.Jobs != null && Model.Jobs.Any())
+            {
+                var first = true;
+                foreach (var job in Model.Jobs)
+                {
+                    <div class="employer-job-item @(first ? "is-active" : "")" data-job-id="@job.Id" data-job-active="@(job.IsActive ? "1" : "0")" onclick="selectJob(@job.Id)" role="button" tabindex="0" aria-label="Xem ứng viên vị trí @job.Title">
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <h2 class="employer-job-item__title">@job.Title</h2>
+                            @if (!job.IsActive)
+                            {
+                                <span class="a-badge a-badge--sm" style="opacity: 0.7;">Đã đóng</span>
+                            }
+                            else if (job.ActionNeededCount > 0)
+                            {
+                                <span class="employer-job-item__todo" title="@job.ActionNeededCount việc đang chờ bạn">@job.ActionNeededCount</span>
+                            }
+                        </div>
+                        <div class="employer-job-item__row">
+                            <span>@(string.IsNullOrWhiteSpace(job.Salary) ? "Thỏa thuận" : job.Salary)</span>
+                            <span class="employer-job-item__badge">
+                                <i data-lucide="users" style="width: 12px; height: 12px;"></i> @job.ApplicantCount
+                            </span>
+                        </div>
+                        @if (job.Openings.HasValue)
+                        {
+                            var pct = Math.Min(100, job.HiredCount * 100 / Math.Max(1, job.Openings.Value));
+                            <div class="employer-job-item__hire" title="Đã tuyển @job.HiredCount/@job.Openings">
+                                <span class="employer-job-item__hire-bar"><span style="width:@(pct)%"></span></span>
+                                <span>Đã tuyển @job.HiredCount/@job.Openings</span>
+                            </div>
+                        }
+                    </div>
+                    first = false;
+                }
+            }
+            else
+            {
+                <div class="p-4 text-center text-muted small">
+                    Chưa có tin tuyển dụng nào.<br />Hãy nhấn "Đăng tin" để tạo vị trí mới.
+                </div>
+            }
+        </div>
+    </aside>
+
+    <!-- Cột phải: Sheet Pipeline -->
+    <main class="employer-main">
+        <header class="pipeline-head">
+            <div class="pipeline-head__info">
+                <div class="pipeline-head__title-wrap">
+                    <h2 class="pipeline-head__title" id="pipelineJobTitle">Đang tải tin tuyển dụng...</h2>
+                </div>
+                <div class="pipeline-head__sub" id="pipelineJobMeta">
+                    <span>Đang kết nối hệ thống dữ liệu...</span>
+                </div>
+            </div>
+
+            <div class="pipeline-head__actions">
+                <div class="emp-seg" role="tablist" aria-label="Chế độ xem" id="viewSeg">
+                    <button type="button" role="tab" aria-selected="true" data-view="board"><i data-lucide="columns-3"></i> Bảng</button>
+                    <button type="button" role="tab" aria-selected="false" data-view="calendar"><i data-lucide="calendar"></i> Lịch phỏng vấn</button>
+                </div>
+                <div class="emp-seg emp-seg--sm" role="radiogroup" aria-label="Sắp xếp ứng viên" id="sortSeg">
+                    <button type="button" role="radio" aria-checked="true" data-sort="recent">Mới nhất</button>
+                    <button type="button" role="radio" aria-checked="false" data-sort="match"><i data-lucide="sparkles"></i> Phù hợp nhất</button>
+                </div>
+                <button type="button" class="a-btn a-btn--ghost a-btn--sm" id="scoreAllBtn" hidden title="Chấm mức phù hợp cho các hồ sơ chưa có điểm">
+                    <i data-lucide="sparkles"></i> <span class="a-btn__label">Chấm AI <b id="scoreAllCount"></b></span>
+                </button>
+                <a asp-controller="Jobs" asp-action="Index" class="a-btn a-btn--secondary a-btn--sm">
+                    <i data-lucide="list"></i> Quản lý tin
+                </a>
+            </div>
+        </header>
+
+        <div class="emp-banner" id="jobFullBanner" hidden>
+            <i data-lucide="check-circle"></i>
+            <span id="jobFullText">Đã tuyển đủ người cho tin này.</span>
+            <button type="button" class="a-btn a-btn--secondary a-btn--sm" id="closeJobBtn">Đóng tin</button>
+        </div>
+
+        <!-- Bảng Pipeline -->
+        <div class="pipeline-board" id="pipelineBoard">
+            <div class="pipeline-col" data-stage="Submitted">
+                <div class="pipeline-col__head">
+                    <div class="pipeline-col__title"><i data-lucide="inbox" style="width: 14px; height: 14px;"></i> Đã nộp</div>
+                    <span class="pipeline-col__count">0</span>
+                </div>
+                <div class="pipeline-col__body"></div>
+            </div>
+            <div class="pipeline-col" data-stage="UnderReview">
+                <div class="pipeline-col__head">
+                    <div class="pipeline-col__title"><i data-lucide="search" style="width: 14px; height: 14px;"></i> Đang xem xét</div>
+                    <span class="pipeline-col__count">0</span>
+                </div>
+                <div class="pipeline-col__body"></div>
+            </div>
+            <div class="pipeline-col" data-stage="Shortlisted">
+                <div class="pipeline-col__head">
+                    <div class="pipeline-col__title"><i data-lucide="star" style="width: 14px; height: 14px;"></i> Rút gọn</div>
+                    <span class="pipeline-col__count">0</span>
+                </div>
+                <div class="pipeline-col__body"></div>
+            </div>
+            <div class="pipeline-col" data-stage="InterviewScheduled">
+                <div class="pipeline-col__head">
+                    <div class="pipeline-col__title"><i data-lucide="calendar" style="width: 14px; height: 14px;"></i> Phỏng vấn</div>
+                    <span class="pipeline-col__count">0</span>
+                </div>
+                <div class="pipeline-col__body"></div>
+            </div>
+            <div class="pipeline-col" data-stage="Offered">
+                <div class="pipeline-col__head">
+                    <div class="pipeline-col__title"><i data-lucide="award" style="width: 14px; height: 14px;"></i> Offer</div>
+                    <span class="pipeline-col__count">0</span>
+                </div>
+                <div class="pipeline-col__body"></div>
+            </div>
+            <div class="pipeline-col" data-stage="Hired">
+                <div class="pipeline-col__head">
+                    <div class="pipeline-col__title"><i data-lucide="badge-check" style="width: 14px; height: 14px;"></i> Đã tuyển</div>
+                    <span class="pipeline-col__count">0</span>
+                </div>
+                <div class="pipeline-col__body"></div>
+            </div>
+            <div class="pipeline-col is-collapsed" data-stage="Rejected" title="Bấm để mở rộng cột Từ chối">
+                <div class="pipeline-col__head">
+                    <div class="pipeline-col__title"><i data-lucide="x-circle" style="width: 14px; height: 14px;"></i> Từ chối</div>
+                    <span class="pipeline-col__count">0</span>
+                </div>
+                <div class="pipeline-col__body"></div>
+            </div>
+        </div>
+
+        <!-- Lịch phỏng vấn (tuần) -->
+        <section class="iv-cal" id="interviewCalendar" hidden aria-label="Lịch phỏng vấn">
+            <div class="iv-cal__bar">
+                <div class="d-flex align-items-center gap-1">
+                    <button type="button" class="a-btn a-btn--ghost a-btn--icon a-btn--sm" id="calPrev" aria-label="Tuần trước"><i data-lucide="chevron-left"></i></button>
+                    <button type="button" class="a-btn a-btn--secondary a-btn--sm" id="calToday">Tuần này</button>
+                    <button type="button" class="a-btn a-btn--ghost a-btn--icon a-btn--sm" id="calNext" aria-label="Tuần sau"><i data-lucide="chevron-right"></i></button>
+                </div>
+                <div class="iv-cal__range" id="calRange"></div>
+                <div class="iv-cal__legend">
+                    <span class="iv-dot iv-dot--pending"></span> Chờ xác nhận
+                    <span class="iv-dot iv-dot--ok"></span> Đã xác nhận
+                    <span class="iv-dot iv-dot--declined"></span> Xin đổi lịch
+                    <span class="iv-dot iv-dot--eval"></span> Cần đánh giá
+                </div>
+            </div>
+            <div class="iv-cal__scroll">
+                <div class="iv-cal__grid" id="calGrid"></div>
+            </div>
+            <div class="iv-cal__list" id="calList"></div>
+        </section>
+    </main>
+
+    <!-- Backdrop ngăn chi tiết -->
+    <div class="candidate-drawer-backdrop" id="candidateDrawerBackdrop" aria-hidden="true"></div>
+
+    <!-- Ngăn chi tiết ứng viên -->
+    <div class="candidate-drawer" id="candidateDrawer" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="drawerName">
+        <header class="candidate-drawer__head">
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="candidate-drawer__title">Hồ sơ ứng viên</h3>
+                <span class="a-badge a-badge--sm" id="drawerStatusBadge">Đã nộp</span>
+            </div>
+            <button type="button" class="a-btn a-btn--ghost a-btn--sm p-1" id="closeDrawerBtn" aria-label="Đóng ngăn chi tiết">
+                <i data-lucide="x"></i>
+            </button>
+        </header>
+
+        <div class="candidate-drawer__body">
+            <div class="cd-id">
+                <img src="/images/default-avatar.png" id="drawerAvatar" alt="Avatar" class="cd-id__avatar">
+                <div class="min-w-0 flex-grow-1">
+                    <h4 class="cd-id__name" id="drawerName">Tên ứng viên</h4>
+                    <div class="cd-id__sub" id="drawerJob">Vị trí ứng tuyển</div>
+                    <div class="cd-id__date" id="drawerDate">Ngày nộp</div>
+                </div>
+                <button type="button" class="cd-score" id="drawerScore" data-tier="none" title="Xem phân tích AI">
+                    <span class="cd-score__num">—</span>
+                    <span class="cd-score__label">Chưa chấm</span>
+                </button>
+            </div>
+
+            <section class="cd-next" id="drawerNextStep" aria-live="polite">
+                <div class="cd-next__eyebrow">Bước tiếp theo</div>
+                <div class="cd-next__title" id="drawerNextTitle"></div>
+                <p class="cd-next__text" id="drawerNextText"></p>
+                <div class="cd-next__actions" id="drawerNextActions"></div>
+            </section>
+
+            <nav class="cd-tabs" role="tablist" id="drawerTabs">
+                <button type="button" role="tab" aria-selected="true" data-tab="overview">Tổng quan</button>
+                <button type="button" role="tab" aria-selected="false" data-tab="ai">Phân tích AI</button>
+                <button type="button" role="tab" aria-selected="false" data-tab="interview">Phỏng vấn</button>
+                <button type="button" role="tab" aria-selected="false" data-tab="history">Lịch sử</button>
+            </nav>
+
+            <div class="cd-pane" data-pane="overview" role="tabpanel">
+                <div class="cd-block cd-contact">
+                    <i data-lucide="mail"></i>
+                    <span id="drawerEmail">email@domain.com</span>
+                    <button type="button" class="a-btn a-btn--ghost a-btn--icon a-btn--sm ms-auto" id="drawerCopyEmail" aria-label="Chép email"><i data-lucide="copy"></i></button>
+                </div>
+
+                <div id="drawerInterviewInfo" class="d-none cd-block cd-block--brand">
+                    <div class="cd-block__label"><i data-lucide="calendar"></i> Lịch phỏng vấn</div>
+                    <div class="fw-semibold" id="drawerInterviewTime"></div>
+                    <div class="small text-muted mt-1" id="drawerInterviewLoc"></div>
+                </div>
+
+                <div>
+                    <h5 class="cd-h">Thư giới thiệu</h5>
+                    <div class="cd-block cd-letter" id="drawerCoverLetter"></div>
+                </div>
+
+                <div id="drawerScreeningWrap" hidden>
+                    <h5 class="cd-h">Câu hỏi sàng lọc</h5>
+                    <ol class="cd-qa" id="drawerScreening"></ol>
+                </div>
+
+                <div id="drawerOtherWrap" hidden>
+                    <h5 class="cd-h">Đơn khác ở công ty bạn</h5>
+                    <ul class="cd-other" id="drawerOther"></ul>
+                </div>
+            </div>
+
+            <div class="cd-pane" data-pane="ai" role="tabpanel" hidden>
+                <div id="drawerAi"></div>
+            </div>
+
+            <div class="cd-pane" data-pane="interview" role="tabpanel" hidden>
+                <div id="drawerInterviewPane"></div>
+            </div>
+
+            <div class="cd-pane" data-pane="history" role="tabpanel" hidden>
+                <ol class="cd-timeline" id="drawerTimeline"></ol>
+            </div>
+        </div>
+
+        <footer class="candidate-drawer__foot">
+            <a href="#" target="_blank" rel="noopener" id="drawerCvBtn" class="a-btn a-btn--secondary a-btn--sm flex-grow-1 justify-content-center">
+                <i data-lucide="file-text"></i> Xem CV
+            </a>
+            <a href="#" id="drawerChatBtn" class="a-btn a-btn--secondary a-btn--sm flex-grow-1 justify-content-center">
+                <i data-lucide="message-circle"></i> Nhắn tin
+            </a>
+            <button type="button" class="a-btn a-btn--ghost a-btn--sm flex-grow-1 justify-content-center" id="drawerInterviewBtn">
+                <i data-lucide="calendar"></i> Hẹn phỏng vấn
+            </button>
+        </footer>
+    </div>
+</div>
+
+<!-- Modal: Lý do từ chối -->
+<div class="modal fade" id="rejectionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;">
+        <div class="modal-content rounded-4 border-0 shadow-lg" style="background: var(--surface); color: var(--text);">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="modal-title fw-bold text-danger d-flex align-items-center gap-2">
+                    <i data-lucide="x-circle" style="width: 20px; height: 20px;"></i> Xác nhận từ chối ứng viên
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <div class="a-label">Lý do chính</div>
+                <div id="rejectionCategoryChoices" class="emp-reasons mb-3" role="radiogroup" aria-label="Lý do chính"></div>
+                <p class="small mb-2" style="color: var(--text-2);">Chọn một mẫu phản hồi hoặc tự viết:</p>
+                <div id="rejectionTemplateChoices" class="emp-tpls mb-3"></div>
+                <div>
+                    <label class="a-label" for="rejectionReasonInput">Nội dung phản hồi</label>
+                    <textarea class="a-textarea" id="rejectionReasonInput" rows="3" placeholder="Nhập lý do hoặc lời chúc đến ứng viên..."></textarea>
+                    <div class="a-help">Ứng viên thấy lý do chính và lời nhắn này, kèm phân tích AI về CV với tin và lộ trình kỹ năng nên học.</div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2">
+                <button type="button" class="a-btn a-btn--ghost" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="a-btn a-btn--danger" id="confirmRejectBtn">Gửi từ chối</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Hẹn phỏng vấn -->
+<div class="modal fade" id="scheduleInterviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+        <div class="modal-content rounded-4 border-0 shadow-lg" style="background: var(--surface); color: var(--text);">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" style="color: var(--text);">
+                    <i data-lucide="calendar" class="text-primary" style="width: 20px; height: 20px;"></i> <span id="scheduleModalTitle">Lên lịch phỏng vấn</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <div class="emp-slot-picks" id="scheduleSlotPicks" hidden>
+                    <div class="a-label">Ứng viên rảnh vào</div>
+                    <div class="d-flex flex-wrap gap-2" id="scheduleSlotList"></div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-5">
+                        <label class="a-label" for="interviewDateInput">Ngày</label>
+                        <input type="date" class="a-input" id="interviewDateInput" required>
+                    </div>
+                    <div class="col-4">
+                        <label class="a-label" for="interviewTimeInput">Giờ</label>
+                        <input type="time" class="a-input" id="interviewTimeInput" required>
+                    </div>
+                    <div class="col-3">
+                        <label class="a-label" for="interviewDurationInput">Thời lượng</label>
+                        <select class="a-select" id="interviewDurationInput">
+                            <option value="30">30 phút</option>
+                            <option value="45" selected>45 phút</option>
+                            <option value="60">60 phút</option>
+                            <option value="90">90 phút</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="emp-conflict" id="scheduleConflict" hidden></div>
+
+                <div class="p-3 rounded-3 mb-3" style="background: var(--field); border: 1px solid var(--line-soft);">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="fw-semibold small" style="color: var(--text);">Phỏng vấn trực tuyến Aris Video Room</div>
+                            <div class="small" style="font-size: var(--fs-12); color: var(--text-3);">Tự động tạo phòng phỏng vấn trực tiếp trên Aris.</div>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" id="interviewVideoCallToggle" checked style="cursor: pointer; width: 38px; height: 20px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="interviewLocationField">
+                    <label class="a-label" for="interviewLocationInput">Địa điểm</label>
+                    <input type="text" class="a-input" id="interviewLocationInput" value="Trực tuyến qua Aris Video Room">
+                </div>
+
+                <div class="mb-2">
+                    <label class="a-label" for="interviewNoteInput">Ghi chú gửi ứng viên</label>
+                    <textarea class="a-textarea" id="interviewNoteInput" rows="2" placeholder="Người phỏng vấn, cần chuẩn bị gì, mang theo giấy tờ gì..."></textarea>
+                </div>
+                <div class="a-help">Ứng viên nhận thông báo để xác nhận hoặc đề xuất giờ khác. Cả hai bên được nhắc trước 24 giờ và 1 giờ.</div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2">
+                <button type="button" class="a-btn a-btn--ghost" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="a-btn a-btn--primary" id="confirmScheduleBtn">Gửi lời mời</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Gửi offer -->
+<div class="modal fade" id="offerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content rounded-4 border-0 shadow-lg" style="background: var(--surface); color: var(--text);">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" style="color: var(--text);">
+                    <i data-lucide="award" style="width: 20px; height: 20px; color: var(--success);"></i> Gửi offer cho <span id="offerName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <div class="a-field">
+                    <label class="a-label" for="offerSalary">Mức lương đề nghị</label>
+                    <input type="text" class="a-input" id="offerSalary" maxlength="200" placeholder="VD: 18 triệu gross/tháng">
+                </div>
+                <div class="row g-2">
+                    <div class="col-6 a-field">
+                        <label class="a-label" for="offerStart">Ngày bắt đầu</label>
+                        <input type="date" class="a-input" id="offerStart">
+                    </div>
+                    <div class="col-6 a-field">
+                        <label class="a-label" for="offerExpires">Hạn trả lời</label>
+                        <input type="date" class="a-input" id="offerExpires">
+                    </div>
+                </div>
+                <div class="a-field">
+                    <label class="a-label" for="offerNote">Lời nhắn</label>
+                    <textarea class="a-textarea" id="offerNote" rows="3" maxlength="2000" placeholder="Vị trí, quyền lợi chính, người liên hệ..."></textarea>
+                </div>
+                <div class="a-help">Ứng viên chấp nhận → chuyển sang "Đã tuyển". Từ chối → bạn nhận lý do và có thể gửi offer mới.</div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2">
+                <button type="button" class="a-btn a-btn--ghost" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="a-btn a-btn--primary" id="confirmOfferBtn"><span class="a-btn__label">Gửi offer</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/employer.js" asp-append-version="true"></script>
+}

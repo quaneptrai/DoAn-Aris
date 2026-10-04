@@ -1,0 +1,893 @@
+@model ArisSkyve.Domain.Entities.User
+@using System.Text.Json
+@using ArisSkyve.Domain.Entities
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@{
+    var profile = Model.Profile;
+    var business = profile as BussinessAccount;
+    var hasResume = profile?.Resumes != null && profile.Resumes.Any();
+    var latestResume = hasResume ? profile.Resumes.OrderByDescending(r => r.LastUpdatedAt).First() : null;
+
+    var fullName = !string.IsNullOrEmpty(profile?.FullName) ? profile.FullName : Model.Username;
+    var avatar = !string.IsNullOrEmpty(profile?.AvatarUrl) ? profile.AvatarUrl : "/images/default-avatar.png";
+    var cover = !string.IsNullOrEmpty(profile?.CoverPhotoUrl) ? profile.CoverPhotoUrl : "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80";
+    var bio = profile?.Bio ?? "Chưa có tiểu sử.";
+    var location = profile?.Location ?? "Chưa cập nhật";
+    var jobTitle = profile?.JobTitle ?? (Model.Role == "Business" ? "Doanh nghiệp" : "Chuyên viên");
+
+    // Featured skills from CV builder or AI relational skills
+    var topSkills = new List<string>();
+    if (latestResume != null)
+    {
+        if (!string.IsNullOrWhiteSpace(latestResume.BuilderDataJson))
+        {
+            try
+            {
+                using var builderDoc = JsonDocument.Parse(latestResume.BuilderDataJson);
+                if (builderDoc.RootElement.TryGetProperty("sections", out var sectionsEl) && sectionsEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var section in sectionsEl.EnumerateArray())
+                    {
+                        var catalogId = section.TryGetProperty("catalogId", out var catEl) ? catEl.GetString() : null;
+                        if (catalogId == "skills" && section.TryGetProperty("items", out var itemsEl) && itemsEl.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in itemsEl.EnumerateArray())
+                            {
+                                if (item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+                                {
+                                    topSkills.Add(item.GetString()!);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (JsonException) { }
+        }
+
+        if (topSkills.Count == 0 && latestResume.Skills != null)
+        {
+            topSkills = latestResume.Skills
+                .Select(s => s.SkillName)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .ToList();
+        }
+    }
+
+    var resumeBtnText = hasResume ? "Cập nhật hồ sơ qua AI" : "Tải lên CV (AI Scan)";
+    var resumeBtnIcon = hasResume ? "repeat" : "upload-cloud";
+
+    int readiness = ViewBag.ProfileReadiness != null ? (int)ViewBag.ProfileReadiness : 20;
+    var recentJobs = ViewBag.RecentJobs as List<JobPosting> ?? new List<JobPosting>();
+
+    ViewData["Title"] = fullName + " - Hồ sơ";
+    ViewData["ActiveNav"] = "Profile";
+    Layout = "_AppLayout";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/profile.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pages/cv.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/pages/applications.css" asp-append-version="true" />
+}
+
+<div class="profile-page">
+    <!-- Profile Head -->
+    <header class="profile-head">
+        <div class="position-relative">
+            <img src="@cover" alt="Ảnh bìa hồ sơ" class="profile-cover" id="coverPhotoPreview" />
+            <button type="button" class="a-btn a-btn--secondary a-btn--sm position-absolute top-0 end-0 m-3 shadow-sm" onclick="document.getElementById('coverUploadInput').click()" title="Đổi ảnh bìa">
+                <i data-lucide="camera" style="width: 14px; height: 14px;"></i> Đổi ảnh bìa
+            </button>
+            <input type="file" id="coverUploadInput" accept="image/png,image/jpeg,image/webp" class="d-none" />
+        </div>
+
+        <div class="profile-main">
+            <div class="profile-avatar-wrap">
+                <div class="a-avatar">
+                    <img id="profileAvatarImg" src="@avatar" alt="@fullName" style="width: 96px; height: 96px; border-radius: 50%; object-fit: cover;" />
+                </div>
+                <button type="button" class="profile-avatar-edit" onclick="document.getElementById('profileAvatarInput').click()" title="Đổi ảnh đại diện">
+                    <i data-lucide="camera"></i>
+                </button>
+                <input type="file" id="profileAvatarInput" accept="image/png,image/jpeg,image/webp,image/gif" class="d-none" />
+            </div>
+
+            <div class="profile-meta">
+                <div class="profile-name-row">
+                    <h1 class="profile-name mb-0">@fullName</h1>
+                    @if (Model.Role == "Business" && business?.IsVerified == true)
+                    {
+                        <span class="a-badge a-badge--brand"><i data-lucide="badge-check"></i> Đã xác minh</span>
+                    }
+                    else if (Model.Role == "Business")
+                    {
+                        <span class="a-badge"><i data-lucide="building"></i> Doanh nghiệp</span>
+                    }
+                    else
+                    {
+                        <span class="a-badge"><i data-lucide="sparkles"></i> Ứng viên</span>
+                    }
+                </div>
+                <div class="profile-role">@jobTitle &bull; @location</div>
+                <div class="profile-chips">
+                    <span class="a-badge a-badge--sm"><i data-lucide="at-sign"></i> @Model.Username</span>
+                    <span class="a-badge a-badge--sm"><i data-lucide="newspaper"></i> @(Model.Posts?.Count ?? 0) bài viết</span>
+                    <span class="a-badge a-badge--sm"><i data-lucide="heart"></i> @(Model.Likes?.Count ?? 0) lượt thích</span>
+                    @if (profile?.IsLookingForJob == true)
+                    {
+                        <span class="a-badge a-badge--success a-badge--sm"><i data-lucide="check"></i> Sẵn sàng nhận việc</span>
+                    }
+                </div>
+            </div>
+
+            <div class="profile-actions">
+                <a href="/Settings" class="a-btn a-btn--secondary">
+                    <i data-lucide="settings"></i> Cài đặt
+                </a>
+                @if (Model.Role == "Business" && business != null)
+                {
+                    <a asp-controller="Company" asp-action="Details" asp-route-id="@business.Id" class="a-btn a-btn--primary">
+                        <i data-lucide="building"></i> Trang công ty
+                    </a>
+                }
+            </div>
+        </div>
+
+        <!-- Profile Readiness Meter -->
+        <div class="profile-meter">
+            <div class="profile-meter__info">
+                <div class="profile-meter__title">Độ hoàn thiện hồ sơ: @readiness%</div>
+                <div class="profile-meter__sub">Hoàn thiện hồ sơ để AI đề xuất việc làm và kết nối nhà tuyển dụng chính xác hơn.</div>
+            </div>
+            <div class="profile-meter__bar">
+                <div class="profile-meter__fill" style="width: @readiness%;"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tabs Sticky Navigation -->
+    <div class="profile-tabs-wrap">
+        <nav class="profile-tabs" role="tablist" aria-label="Hồ sơ cá nhân">
+            <button class="profile-tab is-active" data-target="tab-overview" role="tab" aria-selected="true">
+                <i data-lucide="user" style="width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px;"></i>Tổng quan
+            </button>
+            <button class="profile-tab" data-target="tab-posts" role="tab" aria-selected="false">
+                <i data-lucide="newspaper" style="width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px;"></i>Bài viết (@(Model.Posts?.Count ?? 0))
+            </button>
+            @if (Model.Role != "Business")
+            {
+                <button class="profile-tab" data-target="tab-cvs" id="cvsTabBtn" role="tab" aria-selected="false">
+                    <i data-lucide="file-text" style="width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px;"></i>CV của tôi
+                </button>
+                <button class="profile-tab" data-target="tab-applications" id="applicationsTabBtn" role="tab" aria-selected="false">
+                    <i data-lucide="send" style="width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px;"></i>Đơn ứng tuyển
+                </button>
+            }
+        </nav>
+    </div>
+
+    <!-- Tab 1: Tổng quan -->
+    <div class="profile-pane is-active" id="tab-overview" role="tabpanel">
+        <div class="profile-grid">
+            <div class="profile-content">
+                <!-- Bio Section -->
+                <section class="sec-card">
+                    <div class="sec-card__head">
+                        <h2 class="sec-card__title mb-0">Tiểu sử giới thiệu</h2>
+                        <button type="button" class="a-btn a-btn--ghost a-btn--sm" id="btnEditBio" title="Chỉnh sửa tiểu sử">
+                            <i data-lucide="square-pen" style="width: 15px; height: 15px;"></i> Sửa
+                        </button>
+                    </div>
+
+                    <div id="bioDisplayMode">
+                        <p id="bioText" class="mb-0" style="color: var(--text-2); white-space: pre-wrap; line-height: 1.6;">@bio</p>
+                    </div>
+
+                    <div id="bioEditMode" class="d-none">
+                        <textarea id="bioInput" class="a-textarea mb-3" rows="4" placeholder="Viết vài dòng giới thiệu về bản thân...">@bio</textarea>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" id="btnCancelBio" class="a-btn a-btn--ghost a-btn--sm">Hủy</button>
+                            <button type="button" id="btnSaveBio" class="a-btn a-btn--primary a-btn--sm">
+                                <span id="saveBioSpinner" class="spinner-border spinner-border-sm d-none me-1"></span> Lưu tiểu sử
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Work Status Preferences -->
+                <section class="sec-card">
+                    <div class="sec-card__head">
+                        <h2 class="sec-card__title mb-0">Trạng thái tìm việc & Sở thích</h2>
+                    </div>
+
+                    <div class="d-flex flex-column gap-3">
+                        <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: var(--field); border: 1px solid var(--line-soft);">
+                            <div>
+                                <div class="fw-semibold" style="color: var(--text); font-size: var(--fs-14);">Làm việc từ xa (Remote)</div>
+                                <div class="small" style="color: var(--text-3); font-size: var(--fs-12);">Sẵn sàng nhận các dự án và công việc làm việc từ xa.</div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="prefRemoteJob" @(profile?.IsRemoteJob == true ? "checked" : "") onchange="updateWorkPreferences()" style="cursor: pointer; width: 38px; height: 20px;">
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: var(--field); border: 1px solid var(--line-soft);">
+                            <div>
+                                <div class="fw-semibold" style="color: var(--text); font-size: var(--fs-14);">Đang tìm kiếm cơ hội mới</div>
+                                <div class="small" style="color: var(--text-3); font-size: var(--fs-12);">Bật huy hiệu để các nhà tuyển dụng liên hệ trực tiếp.</div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="prefLookingJob" @(profile?.IsLookingForJob == true ? "checked" : "") onchange="updateWorkPreferences()" style="cursor: pointer; width: 38px; height: 20px;">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Contact Methods -->
+                <section class="sec-card">
+                    <div class="sec-card__head">
+                        <h2 class="sec-card__title mb-0">Thông tin liên hệ</h2>
+                        <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                            <i data-lucide="plus" style="width: 14px; height: 14px;"></i> Thêm liên hệ
+                        </button>
+                    </div>
+
+                    <div class="d-flex flex-column gap-2">
+                        @if (profile?.ContactMethods != null && profile.ContactMethods.Any())
+                        {
+                            foreach (var method in profile.ContactMethods)
+                            {
+                                var methodIcon = method.MethodType switch
+                                {
+                                    ContactMethodType.Phone => "phone",
+                                    ContactMethodType.Email => "mail",
+                                    ContactMethodType.LinkedIn => "linkedin",
+                                    ContactMethodType.GitHub => "github",
+                                    ContactMethodType.Facebook => "facebook",
+                                    _ => "link"
+                                };
+
+                                var href = method.MethodType switch
+                                {
+                                    ContactMethodType.Phone => $"tel:{method.Value}",
+                                    ContactMethodType.Email => $"mailto:{method.Value}",
+                                    _ => method.Value.StartsWith("http") ? method.Value : $"https://{method.Value}"
+                                };
+
+                                <a href="@href" target="_blank" rel="noopener" class="d-flex align-items-center gap-3 p-3 rounded-3 text-decoration-none" style="background: var(--field); border: 1px solid var(--line-soft); color: var(--text);">
+                                    <div class="p-2 rounded-2" style="background: var(--brand-soft); color: var(--brand-text);">
+                                        <i data-lucide="@methodIcon" style="width: 16px; height: 16px;"></i>
+                                    </div>
+                                    <div class="min-w-0 flex-grow-1">
+                                        <div class="fw-semibold" style="font-size: var(--fs-13); color: var(--text);">@method.MethodType</div>
+                                        <div class="text-truncate small" style="color: var(--text-2);">@method.Value</div>
+                                    </div>
+                                    <i data-lucide="external-link" style="width: 14px; height: 14px; color: var(--text-3);"></i>
+                                </a>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-4" style="color: var(--text-3); font-size: var(--fs-13);">
+                                Chưa có thông tin liên hệ. Hãy thêm email, số điện thoại hoặc hồ sơ mạng xã hội.
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                @if (Model.Role != "Business")
+                {
+                    <!-- AI CV Scan Dropzone -->
+                    <section class="sec-card">
+                        <div class="sec-card__head">
+                            <h2 class="sec-card__title mb-0">Hồ sơ ứng viên & AI CV Scan</h2>
+                            @if (hasResume)
+                            {
+                                <span class="a-badge a-badge--brand"><i data-lucide="sparkles"></i> Đã có CV</span>
+                            }
+                        </div>
+
+                        <div class="cv-drop-ai" onclick="document.getElementById('cvFileInput').click()">
+                            <div class="cv-drop-ai__icon">
+                                <i data-lucide="@resumeBtnIcon" style="width: 22px; height: 22px;"></i>
+                            </div>
+                            <div>
+                                <div class="fw-semibold" style="color: var(--text); font-size: var(--fs-14);">@resumeBtnText</div>
+                                <div class="small" style="color: var(--text-3); font-size: var(--fs-12);">Kéo thả file CV (PDF, DOCX) hoặc nhấn để tải lên. AI sẽ tự động phân tích kỹ năng và kinh nghiệm.</div>
+                            </div>
+                        </div>
+
+                        <input type="file" id="cvFileInput" accept=".pdf,.doc,.docx" class="d-none" onchange="uploadCV(this)">
+
+                        <div id="cvUploadStatus" class="d-none p-3 rounded-3" style="background: var(--field); border: 1px solid var(--line-soft);">
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <div id="cvSpinner" class="spinner-border spinner-border-sm" style="color: var(--brand);" role="status"></div>
+                                <i data-lucide="check-circle" class="text-success d-none" id="cvSuccessIcon" style="width: 18px; height: 18px;"></i>
+                                <span class="fw-medium small" id="statusText" style="color: var(--text);">AI đang phân tích CV...</span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between pt-2">
+                            <a href="/Resume/Studio?new=1" class="a-btn a-btn--secondary a-btn--sm">
+                                <i data-lucide="file-plus"></i> Tạo CV mới từ đầu
+                            </a>
+                            @if (hasResume)
+                            {
+                                <button type="button" class="a-btn a-btn--ghost a-btn--sm text-danger" data-bs-toggle="modal" data-bs-target="#deleteResumeModal">
+                                    <i data-lucide="trash-2"></i> Xóa CV hiện tại
+                                </button>
+                            }
+                        </div>
+                    </section>
+
+                    <!-- Featured Skills -->
+                    <section class="sec-card">
+                        <div class="sec-card__head">
+                            <h2 class="sec-card__title mb-0">Kỹ năng nổi bật</h2>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            @if (topSkills.Any())
+                            {
+                                foreach (var skill in topSkills)
+                                {
+                                    <span class="a-badge" style="background: var(--field); border: 1px solid var(--line); font-size: var(--fs-13); padding: 5px 12px; border-radius: var(--r-full);">
+                                        @skill
+                                    </span>
+                                }
+                            }
+                            else
+                            {
+                                <div class="py-2" style="color: var(--text-3); font-size: var(--fs-13);">
+                                    Chưa có kỹ năng nào được nhận diện. Tải lên CV để AI tự động trích xuất các kỹ năng chuyên môn của bạn.
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+                else
+                {
+                    <!-- Business Info -->
+                    <section class="sec-card">
+                        <div class="sec-card__head">
+                            <h2 class="sec-card__title mb-0">Thông tin doanh nghiệp</h2>
+                        </div>
+                        <div class="d-flex flex-column gap-3">
+                            <div class="d-flex justify-content-between py-2 border-bottom" style="border-color: var(--line-soft) !important;">
+                                <span style="color: var(--text-3); font-size: var(--fs-13);">Lĩnh vực</span>
+                                <span class="fw-semibold" style="color: var(--text); font-size: var(--fs-13);">@(business?.Industry ?? "Chưa cập nhật")</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom" style="border-color: var(--line-soft) !important;">
+                                <span style="color: var(--text-3); font-size: var(--fs-13);">Quy mô</span>
+                                <span class="fw-semibold" style="color: var(--text); font-size: var(--fs-13);">@(business?.CompanySize ?? "Chưa cập nhật")</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(business?.WebsiteUrl))
+                            {
+                                <div class="d-flex justify-content-between py-2 border-bottom" style="border-color: var(--line-soft) !important;">
+                                    <span style="color: var(--text-3); font-size: var(--fs-13);">Website</span>
+                                    <a href="@business.WebsiteUrl" target="_blank" rel="noopener" class="fw-medium text-decoration-none text-truncate" style="color: var(--brand-text); max-width: 250px;">
+                                        @business.WebsiteUrl
+                                    </a>
+                                </div>
+                            }
+                            <div class="d-flex gap-2 pt-2">
+                                <a asp-controller="Jobs" asp-action="Index" class="a-btn a-btn--primary a-btn--sm flex-grow-1 justify-content-center">
+                                    <i data-lucide="briefcase"></i> Quản lý tin tuyển dụng
+                                </a>
+                                @if (business != null)
+                                {
+                                    <a asp-controller="Company" asp-action="Edit" asp-route-id="@business.Id" class="a-btn a-btn--secondary a-btn--sm">
+                                        <i data-lucide="edit"></i> Chỉnh sửa công ty
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </section>
+                }
+            </div>
+
+            <!-- Right Rail: TOC & Quick Links -->
+            <aside class="profile-toc">
+                <div class="profile-toc__title">Mục lục hồ sơ</div>
+                <div class="d-flex flex-column gap-2 mb-3">
+                    <div class="d-flex align-items-center gap-2 small @(!string.IsNullOrWhiteSpace(profile?.AvatarUrl) ? "text-success" : "text-muted")">
+                        <i data-lucide="@(!string.IsNullOrWhiteSpace(profile?.AvatarUrl) ? "check-circle-2" : "circle")" style="width: 14px; height: 14px;"></i>
+                        <span>Ảnh đại diện</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 small @(!string.IsNullOrWhiteSpace(profile?.Bio) && profile.Bio != "Chưa có tiểu sử." ? "text-success" : "text-muted")">
+                        <i data-lucide="@(!string.IsNullOrWhiteSpace(profile?.Bio) && profile.Bio != "Chưa có tiểu sử." ? "check-circle-2" : "circle")" style="width: 14px; height: 14px;"></i>
+                        <span>Tiểu sử giới thiệu</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 small @(!string.IsNullOrWhiteSpace(profile?.Location) && profile.Location != "Chưa cập nhật" ? "text-success" : "text-muted")">
+                        <i data-lucide="@(!string.IsNullOrWhiteSpace(profile?.Location) && profile.Location != "Chưa cập nhật" ? "check-circle-2" : "circle")" style="width: 14px; height: 14px;"></i>
+                        <span>Vị trí làm việc</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 small @(profile?.ContactMethods != null && profile.ContactMethods.Any() ? "text-success" : "text-muted")">
+                        <i data-lucide="@(profile?.ContactMethods != null && profile.ContactMethods.Any() ? "check-circle-2" : "circle")" style="width: 14px; height: 14px;"></i>
+                        <span>Phương thức liên hệ</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 small @(hasResume ? "text-success" : "text-muted")">
+                        <i data-lucide="@(hasResume ? "check-circle-2" : "circle")" style="width: 14px; height: 14px;"></i>
+                        <span>CV ứng tuyển</span>
+                    </div>
+                </div>
+
+                @if (recentJobs.Any())
+                {
+                    <div class="profile-toc__title mt-3">Việc làm phù hợp</div>
+                    <div class="d-flex flex-column gap-2">
+                        @foreach (var job in recentJobs.Take(4))
+                        {
+                            <a asp-controller="Jobs" asp-action="Details" asp-route-id="@job.Id" class="text-decoration-none p-2 rounded-2" style="background: var(--field); border: 1px solid var(--line-soft);">
+                                <div class="fw-semibold text-truncate small" style="color: var(--text);">@job.Title</div>
+                                <div class="text-truncate" style="font-size: var(--fs-12); color: var(--text-3);">
+                                    @(job.Company ?? "Doanh nghiệp") &bull; @(string.IsNullOrWhiteSpace(job.Salary) ? "Thỏa thuận" : job.Salary)
+                                </div>
+                            </a>
+                        }
+                    </div>
+                }
+            </aside>
+        </div>
+    </div>
+
+    <!-- Tab 2: Bài viết -->
+    <div class="profile-pane" id="tab-posts" role="tabpanel">
+        <div style="max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px;">
+            <!-- Composer Link -->
+            <div class="sec-card p-3">
+                <div class="d-flex gap-3 align-items-center">
+                    <img src="@avatar" alt="@fullName" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;" />
+                    <div class="flex-grow-1 p-2 px-3 rounded-pill" style="background: var(--field); border: 1px solid var(--line-control); color: var(--text-3); font-size: var(--fs-14); cursor: pointer;" onclick="window.location.href='/Dashboard/Index#composer'">
+                        Bạn đang nghĩ gì, @((profile?.FullName ?? Model.Username).Split(' ')[0])?
+                    </div>
+                </div>
+            </div>
+
+            <!-- Posts List -->
+            @if (Model.Posts != null && Model.Posts.Any())
+            {
+                foreach (var post in Model.Posts.OrderByDescending(p => p.Id))
+                {
+                    <article class="sec-card" data-post-id="@post.Id">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="d-flex align-items-center gap-3">
+                                <img src="@avatar" alt="@fullName" class="rounded-circle" style="width: 38px; height: 38px; object-fit: cover;" />
+                                <div>
+                                    <div class="fw-bold" style="color: var(--text); font-size: var(--fs-14);">@fullName</div>
+                                    <div class="small" style="color: var(--text-3); font-size: var(--fs-12);">@post.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                                </div>
+                            </div>
+                            <div class="dropdown">
+                                <button type="button" class="a-btn a-btn--ghost a-btn--sm p-1" data-bs-toggle="dropdown" aria-label="Tùy chọn bài viết">
+                                    <i data-lucide="more-horizontal" style="width: 16px; height: 16px;"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
+                                    <li>
+                                        <button type="button" class="dropdown-item edit-post-btn py-2" data-id="@post.Id">
+                                            <i data-lucide="pencil" class="me-2" style="width: 14px; height: 14px;"></i> Sửa bài viết
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button type="button" class="dropdown-item delete-post-btn text-danger py-2" data-id="@post.Id">
+                                            <i data-lucide="trash-2" class="me-2" style="width: 14px; height: 14px;"></i> Xóa bài viết
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <p class="post-content-text mb-3" style="color: var(--text); white-space: pre-wrap; line-height: 1.6; font-size: var(--fs-14);">@post.Content</p>
+
+                        <div class="d-flex align-items-center gap-4 pt-2 border-top" style="border-color: var(--line-soft) !important;">
+                            <span class="small d-flex align-items-center gap-1" style="color: var(--text-3); cursor: pointer;">
+                                <i data-lucide="heart" style="width: 15px; height: 15px;"></i> Thích
+                            </span>
+                            <span class="small d-flex align-items-center gap-1" style="color: var(--text-3); cursor: pointer;">
+                                <i data-lucide="message-circle" style="width: 15px; height: 15px;"></i> Bình luận
+                            </span>
+                            <span class="small d-flex align-items-center gap-1 ms-auto" style="color: var(--text-3); cursor: pointer;">
+                                <i data-lucide="share-2" style="width: 15px; height: 15px;"></i> Chia sẻ
+                            </span>
+                        </div>
+                    </article>
+                }
+            }
+            else
+            {
+                <div class="sec-card p-5 text-center">
+                    <div class="d-inline-flex p-3 rounded-circle mb-3" style="background: var(--field); color: var(--text-3);">
+                        <i data-lucide="newspaper" style="width: 28px; height: 28px;"></i>
+                    </div>
+                    <h3 class="fw-bold mb-1" style="font-size: var(--fs-16); color: var(--text);">Chưa có bài viết nào</h3>
+                    <p class="mb-0 small" style="color: var(--text-3);">Khi bạn chia sẻ các bài viết, nội dung sẽ xuất hiện tại đây.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (Model.Role != "Business")
+    {
+        <!-- Tab 3: CV của tôi -->
+        <div class="profile-pane" id="tab-cvs" role="tabpanel">
+            <div id="cvsTabContent">
+                <div class="text-center py-5" style="color: var(--text-3);">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                    <span>Đang tải danh sách CV...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Đơn ứng tuyển -->
+        <div class="profile-pane" id="tab-applications" role="tabpanel">
+            <div id="applicationsTabContent">
+                <div class="text-center py-5" style="color: var(--text-3);">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                    <span>Đang tải đơn ứng tuyển...</span>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<form id="profileAntiforgeryForm" style="display:none">@Html.AntiForgeryToken()</form>
+
+<!-- Modal: Thêm phương thức liên hệ -->
+<div class="modal fade" id="addContactModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content rounded-4 border-0 shadow-lg" style="background: var(--surface); color: var(--text);">
+            <form asp-controller="Profile" asp-action="AddContact" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header border-0 pb-0 px-4 pt-4">
+                    <h5 class="modal-title fw-bold" style="color: var(--text);">Thêm phương thức liên hệ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4 py-3">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" style="color: var(--text-2);">Nền tảng liên hệ</label>
+                        <select name="MethodType" class="a-select" required>
+                            <option value="" disabled selected>Chọn nền tảng...</option>
+                            <option value="@ContactMethodType.Phone">Số điện thoại</option>
+                            <option value="@ContactMethodType.Email">Email</option>
+                            <option value="@ContactMethodType.LinkedIn">LinkedIn</option>
+                            <option value="@ContactMethodType.GitHub">GitHub</option>
+                            <option value="@ContactMethodType.Facebook">Facebook</option>
+                            <option value="@ContactMethodType.Other">Khác</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold" style="color: var(--text-2);">Giá trị / Đường dẫn</label>
+                        <input type="text" name="Value" class="a-input" placeholder="VD: linkedin.com/in/username" required />
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-2">
+                    <button type="button" class="a-btn a-btn--ghost" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="a-btn a-btn--primary">Thêm liên hệ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Xóa CV -->
+<div class="modal fade" id="deleteResumeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content rounded-4 border-0 shadow-lg" style="background: var(--surface); color: var(--text);">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="modal-title fw-bold text-danger d-flex align-items-center gap-2">
+                    <i data-lucide="alert-triangle" style="width: 20px; height: 20px;"></i> Xóa CV?
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <p class="small mb-0" style="color: var(--text-2);">Bạn có chắc chắn muốn xóa CV này? Toàn bộ dữ liệu kỹ năng, kinh nghiệm và bản CV đã lưu sẽ bị xóa vĩnh viễn.</p>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2">
+                <button type="button" class="a-btn a-btn--ghost" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="a-btn a-btn--danger" id="btnConfirmDeleteResume">
+                    <span id="deleteResumeSpinner" class="spinner-border spinner-border-sm d-none me-1"></span> Xóa CV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/resume-actions.js" asp-append-version="true"></script>
+    <script src="~/js/application-actions.js" asp-append-version="true"></script>
+    <script src="~/js/post-actions.js" asp-append-version="true"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            function antiForgeryHeaders(headers = {}) {
+                const token = document.querySelector('#profileAntiforgeryForm input[name="__RequestVerificationToken"]')?.value;
+                return token ? { ...headers, RequestVerificationToken: token } : headers;
+            }
+
+            // Tab switching
+            const tabs = document.querySelectorAll(".profile-tab");
+            const panes = document.querySelectorAll(".profile-pane");
+            let cvsLoaded = false;
+            let applicationsLoaded = false;
+
+            tabs.forEach(tab => {
+                tab.addEventListener("click", function () {
+                    const targetId = this.getAttribute("data-target");
+                    tabs.forEach(t => {
+                        t.classList.remove("is-active");
+                        t.setAttribute("aria-selected", "false");
+                    });
+                    panes.forEach(p => p.classList.remove("is-active"));
+
+                    this.classList.add("is-active");
+                    this.setAttribute("aria-selected", "true");
+                    const targetPane = document.getElementById(targetId);
+                    if (targetPane) targetPane.classList.add("is-active");
+
+                    if (targetId === "tab-cvs" && !cvsLoaded) {
+                        cvsLoaded = true;
+                        $.get('/Resume/Index')
+                            .done(function (html) {
+                                $('#cvsTabContent').html(html);
+                                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                                    window.lucide.createIcons();
+                                }
+                            })
+                            .fail(function () {
+                                $('#cvsTabContent').html('<div class="text-center text-danger py-5">Không thể tải danh sách CV. Vui lòng thử lại sau.</div>');
+                            });
+                    }
+
+                    if (targetId === "tab-applications" && !applicationsLoaded) {
+                        applicationsLoaded = true;
+                        $.get('/JobApplications/MyApplications')
+                            .done(function (html) {
+                                $('#applicationsTabContent').html(html);
+                                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                                    window.lucide.createIcons();
+                                }
+                            })
+                            .fail(function () {
+                                $('#applicationsTabContent').html('<div class="text-center text-danger py-5">Không thể tải danh sách đơn ứng tuyển. Vui lòng thử lại sau.</div>');
+                            });
+                    }
+
+                    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                        window.lucide.createIcons();
+                    }
+                });
+            });
+
+            // Avatar Upload
+            const profileAvatarInput = document.getElementById("profileAvatarInput");
+            const profileAvatarImg = document.getElementById("profileAvatarImg");
+            if (profileAvatarInput) {
+                profileAvatarInput.addEventListener("change", async function () {
+                    const file = this.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append("avatar", file);
+
+                    try {
+                        const res = await fetch("/Settings/UpdateAvatar", { method: "POST", headers: antiForgeryHeaders(), body: formData });
+                        const result = await res.json();
+                        if (result.success) {
+                            if (profileAvatarImg) profileAvatarImg.src = result.avatarUrl;
+                            if (window.showToast) window.showToast("Đã cập nhật ảnh đại diện!", "success");
+                        } else {
+                            if (window.showToast) window.showToast(result.message || "Tải ảnh thất bại.", "danger");
+                        }
+                    } catch {
+                        if (window.showToast) window.showToast("Lỗi kết nối máy chủ khi cập nhật ảnh đại diện.", "danger");
+                    }
+                });
+            }
+
+            // Cover Upload
+            const coverUploadInput = document.getElementById("coverUploadInput");
+            const coverPhotoPreview = document.getElementById("coverPhotoPreview");
+            if (coverUploadInput) {
+                coverUploadInput.addEventListener("change", async function () {
+                    const file = this.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append("cover", file);
+
+                    try {
+                        const res = await fetch("/Settings/UpdateCoverPhoto", { method: "POST", headers: antiForgeryHeaders(), body: formData });
+                        const result = await res.json();
+                        if (result.success) {
+                            if (coverPhotoPreview) coverPhotoPreview.src = result.coverUrl;
+                            if (window.showToast) window.showToast("Đã cập nhật ảnh bìa thành công!", "success");
+                        } else {
+                            if (window.showToast) window.showToast(result.message || "Tải ảnh bìa thất bại.", "danger");
+                        }
+                    } catch {
+                        if (window.showToast) window.showToast("Lỗi kết nối máy chủ khi cập nhật ảnh bìa.", "danger");
+                    }
+                });
+            }
+
+            // Bio Inline Editing
+            const bioText = document.getElementById("bioText");
+            const btnEditBio = document.getElementById("btnEditBio");
+            const bioDisplayMode = document.getElementById("bioDisplayMode");
+            const bioEditMode = document.getElementById("bioEditMode");
+            const bioInput = document.getElementById("bioInput");
+            const btnCancelBio = document.getElementById("btnCancelBio");
+            const btnSaveBio = document.getElementById("btnSaveBio");
+            const spinner = document.getElementById("saveBioSpinner");
+
+            if (btnEditBio && bioInput && btnSaveBio) {
+                let currentBio = bioText ? bioText.innerText : "";
+
+                btnEditBio.addEventListener("click", () => {
+                    bioDisplayMode.classList.add("d-none");
+                    bioEditMode.classList.remove("d-none");
+                    bioInput.focus();
+                });
+
+                btnCancelBio.addEventListener("click", () => {
+                    bioInput.value = currentBio;
+                    bioEditMode.classList.add("d-none");
+                    bioDisplayMode.classList.remove("d-none");
+                });
+
+                function typeWriterEffect(element, text, speed = 20) {
+                    element.innerHTML = "";
+                    element.classList.add("typing-cursor");
+
+                    let i = 0;
+                    function type() {
+                        if (i < text.length) {
+                            element.innerHTML += text.charAt(i);
+                            i++;
+                            setTimeout(type, speed);
+                        } else {
+                            setTimeout(() => element.classList.remove("typing-cursor"), 800);
+                        }
+                    }
+                    type();
+                }
+
+                btnSaveBio.addEventListener("click", async () => {
+                    const newBio = bioInput.value.trim();
+                    if (newBio === currentBio) {
+                        btnCancelBio.click();
+                        return;
+                    }
+
+                    btnSaveBio.disabled = true;
+                    if (spinner) spinner.classList.remove("d-none");
+
+                    try {
+                        const response = await fetch('/Profile/UpdateBio', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ Bio: newBio })
+                        });
+
+                        if (response.ok) {
+                            const result = await response.json();
+                            if (result.success) {
+                                currentBio = newBio;
+                                bioEditMode.classList.add("d-none");
+                                bioDisplayMode.classList.remove("d-none");
+                                if (bioText) typeWriterEffect(bioText, currentBio);
+                                if (window.showToast) window.showToast("Đã cập nhật tiểu sử thành công!", "success");
+                            }
+                        } else {
+                            if (window.showToast) window.showToast("Không thể lưu tiểu sử. Vui lòng thử lại!", "danger");
+                        }
+                    } catch (error) {
+                        console.error("Lỗi:", error);
+                        if (window.showToast) window.showToast("Lỗi kết nối máy chủ!", "danger");
+                    } finally {
+                        btnSaveBio.disabled = false;
+                        if (spinner) spinner.classList.add("d-none");
+                    }
+                });
+            }
+
+            // Resume deletion
+            const btnConfirmDeleteResume = document.getElementById("btnConfirmDeleteResume");
+            const deleteResumeSpinner = document.getElementById("deleteResumeSpinner");
+            const deleteResumeModalEl = document.getElementById("deleteResumeModal");
+
+            if (btnConfirmDeleteResume) {
+                btnConfirmDeleteResume.addEventListener("click", async () => {
+                    btnConfirmDeleteResume.disabled = true;
+                    if (deleteResumeSpinner) deleteResumeSpinner.classList.remove("d-none");
+
+                    try {
+                        const response = await fetch('/Resume/DeleteResume', { method: 'POST' });
+                        if (!response.ok) throw new Error("Không thể xóa CV. Vui lòng thử lại!");
+
+                        bootstrap.Modal.getInstance(deleteResumeModalEl)?.hide();
+                        if (window.showToast) window.showToast("Đã xóa CV thành công!", "success");
+                        setTimeout(() => location.reload(), 600);
+                    } catch (error) {
+                        console.error("Lỗi:", error);
+                        if (window.showToast) window.showToast(error.message || "Lỗi kết nối máy chủ!", "danger");
+                    } finally {
+                        btnConfirmDeleteResume.disabled = false;
+                        if (deleteResumeSpinner) deleteResumeSpinner.classList.add("d-none");
+                    }
+                });
+            }
+        });
+
+        // Work Preferences AJAX toggle
+        window.updateWorkPreferences = async function () {
+            const isRemote = document.getElementById('prefRemoteJob')?.checked || false;
+            const isLooking = document.getElementById('prefLookingJob')?.checked || false;
+
+            try {
+                const response = await fetch('/Profile/UpdatePreferences', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ IsRemoteJob: isRemote, IsLookingForJob: isLooking })
+                });
+                if (response.ok) {
+                    if (window.showToast) window.showToast("Đã cập nhật trạng thái làm việc!", "success");
+                } else {
+                    if (window.showToast) window.showToast("Không thể lưu trạng thái làm việc.", "danger");
+                }
+            } catch (err) {
+                console.error(err);
+                if (window.showToast) window.showToast("Lỗi kết nối khi cập nhật trạng thái.", "danger");
+            }
+        };
+
+        // CV upload AI pipeline
+        window.uploadCV = async function (input) {
+            if (!input.files || input.files.length === 0) return;
+
+            const file = input.files[0];
+            const statusDiv = document.getElementById('cvUploadStatus');
+            const statusText = document.getElementById('statusText');
+            const spinner = document.getElementById('cvSpinner');
+            const successIcon = document.getElementById('cvSuccessIcon');
+
+            if (statusDiv) statusDiv.classList.remove('d-none');
+            if (spinner) spinner.classList.remove('d-none');
+            if (successIcon) successIcon.classList.add('d-none');
+            if (statusText) statusText.innerText = "AI đang phân tích CV...";
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // Qua máy chủ Aris: hồ sơ lấy theo phiên đăng nhập, không theo số ID trên trang,
+                // và khoá dịch vụ AiCore không lộ ra trình duyệt.
+                const response = await fetch('/Resume/AnalyzeCv', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.detail || "Không thể phân tích CV");
+                }
+
+                const result = await response.json();
+                if (spinner) spinner.classList.add('d-none');
+                if (successIcon) successIcon.classList.remove('d-none');
+                if (statusText) statusText.innerText = "Phân tích hoàn tất!";
+
+                if (window.showToast) window.showToast(`AI đã nhận diện hồ sơ: ${result.category || 'Hoàn tất'}`, "success");
+                setTimeout(() => location.reload(), 800);
+            } catch (err) {
+                console.error(err);
+                if (statusText) statusText.innerText = "Phân tích thất bại!";
+                if (spinner) spinner.classList.add('d-none');
+                if (successIcon) successIcon.classList.add('d-none');
+                if (window.showToast) window.showToast("Lỗi: " + err.message, "danger");
+                if (statusDiv) setTimeout(() => statusDiv.classList.add('d-none'), 3000);
+            }
+        };
+    </script>
+}

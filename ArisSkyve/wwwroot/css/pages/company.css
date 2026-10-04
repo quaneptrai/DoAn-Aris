@@ -1,0 +1,315 @@
+/* =============================================================================
+   ARIS LINE — Công ty & Doanh nghiệp (V7)
+   File: wwwroot/css/pages/company.css
+   ============================================================================= */
+
+.company-page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Danh sách công ty (Index) */
+.company-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.company-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.company-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--text);
+  transition: transform var(--d-1) var(--e-out), border-color var(--d-1), box-shadow var(--d-1);
+}
+
+.company-row:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-1);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.company-row__logo {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--line-soft);
+  background: var(--field);
+}
+
+.company-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.company-row__name {
+  font: 600 var(--fs-15)/1.3 var(--font);
+  color: var(--text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.company-row__meta {
+  font-size: var(--fs-13);
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.company-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Chi tiết công ty (Details) */
+.company-head {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: clip;
+}
+
+.company-cover {
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  max-height: 200px;
+  object-fit: cover;
+  background: var(--field);
+  border-bottom: 1px solid var(--line);
+}
+
+.company-head__main {
+  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.company-head__logo {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--r-lg);
+  object-fit: cover;
+  border: 2px solid var(--surface);
+  box-shadow: var(--shadow-2);
+  flex-shrink: 0;
+}
+
+.company-head__info {
+  flex: 1;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.company-head__title {
+  font: 700 var(--fs-22)/1.2 var(--font);
+  color: var(--text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.company-head__sub {
+  font-size: var(--fs-14);
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.company-head__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Tabs & Nội dung công ty */
+.company-tabs-wrap {
+  border-bottom: 1px solid var(--line);
+  background: var(--canvas);
+}
+
+.company-tabs {
+  display: flex;
+  gap: 24px;
+}
+
+.company-tab {
+  padding: 12px 2px;
+  font: 500 var(--fs-14)/1.4 var(--font);
+  color: var(--text-3);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  background: none;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  transition: color var(--d-1);
+}
+
+.company-tab:hover {
+  color: var(--text);
+}
+
+.company-tab.is-active {
+  color: var(--brand-text);
+  font-weight: 600;
+  border-bottom-color: var(--brand);
+}
+
+.company-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 24px;
+  align-items: start;
+}
+
+.company-tab-pane {
+  display: none;
+}
+
+.company-tab-pane.is-active {
+  display: block;
+}
+
+/* Cột phải: Thông tin nhanh */
+.company-side-card {
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.company-side-card__title {
+  font: 600 var(--fs-13)/1.3 var(--font);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin: 0;
+}
+
+.company-side-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.company-side-item__label {
+  font-size: var(--fs-12);
+  color: var(--text-3);
+}
+
+.company-side-item__value {
+  font: 500 var(--fs-14)/1.4 var(--font);
+  color: var(--text);
+}
+
+/* Sửa công ty (Edit) */
+.company-edit-grid {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.company-edit-nav {
+  position: sticky;
+  top: calc(var(--topbar-h) + 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.company-edit-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  font: 500 var(--fs-13)/1.3 var(--font);
+  color: var(--text-2);
+  text-decoration: none;
+  transition: background-color var(--d-1);
+}
+
+.company-edit-nav__item:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.company-edit-nav__item.is-active {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-weight: 600;
+}
+
+/* Thanh thông báo thay đổi nổi */
+.unsaved-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-full);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow-3);
+  z-index: var(--z-sticky);
+  transition: transform var(--d-2) var(--e-out);
+}
+
+.unsaved-bar.is-visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 860px) {
+  .company-grid {
+    grid-template-columns: 1fr;
+  }
+  .company-edit-grid {
+    grid-template-columns: 1fr;
+  }
+  .company-edit-nav {
+    display: none;
+  }
+}

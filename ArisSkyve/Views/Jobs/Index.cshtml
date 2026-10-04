@@ -1,0 +1,366 @@
+@model JobsIndexViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = Model.User.Role == "Business" ? "Quản lý tin tuyển dụng" : "Việc làm";
+    ViewData["ActiveNav"] = "Jobs";
+    ViewData["UserRole"] = Model.User.Role;
+    var isBusiness = Model.User.Role == "Business";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/jobs.css" asp-append-version="true" />
+}
+
+<form id="applyAntiforgeryForm" style="display:none">@Html.AntiForgeryToken()</form>
+
+@if (!isBusiness)
+{
+
+    <!-- Ứng viên: danh sách (trái) + chi tiết (phải) -->
+    <div class="jobs" id="jobs">
+        <!-- Cột danh sách (canvas) -->
+        <section class="jobs-list" aria-label="Danh sách việc làm">
+            <header class="jobs-list__head">
+                <h1 class="jobs-list__title">Việc làm</h1>
+                <span class="jobs-list__count a-num" id="totalCount">@ViewBag.TotalJobsCount việc đang tuyển</span>
+            </header>
+
+            <div class="jobs-mode-tabs d-flex gap-1 p-1 rounded-3 my-2" role="tablist" style="background:var(--field); border:1px solid var(--line);">
+                <button class="a-btn a-btn--sm active flex-fill justify-content-center" id="tabAllJobs" role="tab" aria-selected="true" aria-controls="paneAllJobs" type="button">
+                    <i data-lucide="briefcase" style="width:14px;height:14px;margin-right:6px"></i>Tất cả việc làm
+                </button>
+                <button class="a-btn a-btn--ghost a-btn--sm flex-fill justify-content-center" id="tabAiJobs" role="tab" aria-selected="false" aria-controls="paneAiJobs" type="button">
+                    <i data-lucide="sparkles" style="width:14px;height:14px;margin-right:6px;color:var(--brand)"></i>Dành cho bạn (AI)
+                </button>
+            </div>
+
+            <div id="paneAllJobs" role="tabpanel" aria-labelledby="tabAllJobs" class="d-flex flex-column flex-grow-1 min-vh-0" style="min-height:0;">
+                <label class="a-search jobs-search">
+                    <i data-lucide="search"></i>
+                    <input class="a-input" type="search" id="jobSearch" placeholder="Tìm theo chức danh, kỹ năng hoặc công ty" autocomplete="off" aria-label="Tìm việc làm" value="@ViewBag.SearchQuery">
+                </label>
+
+                <div class="jobs-filters" id="filters">
+                    <button class="a-chip" type="button" data-filter="location" aria-pressed="@(!string.IsNullOrWhiteSpace(ViewBag.SearchLocation) ? "true" : "false")" aria-haspopup="dialog">
+                        <i data-lucide="map-pin"></i><span>@(string.IsNullOrWhiteSpace(ViewBag.SearchLocation) ? "Địa điểm" : ViewBag.SearchLocation)</span><i data-lucide="chevron-down"></i>
+                    </button>
+                    <button class="a-chip" type="button" data-filter="category" aria-pressed="@(!string.IsNullOrWhiteSpace(ViewBag.SelectedCategory) ? "true" : "false")" aria-haspopup="dialog">
+                        <span>@(string.IsNullOrWhiteSpace(ViewBag.SelectedCategory) ? "Ngành nghề" : ViewBag.SelectedCategory)</span><i data-lucide="chevron-down"></i>
+                    </button>
+                    <button class="a-chip" type="button" data-filter="mode" aria-pressed="@(!string.IsNullOrWhiteSpace(ViewBag.SelectedWorkMode) ? "true" : "false")" aria-haspopup="dialog">
+                        <span>@(string.IsNullOrWhiteSpace(ViewBag.SelectedWorkMode) ? "Hình thức" : ViewBag.SelectedWorkMode)</span><i data-lucide="chevron-down"></i>
+                    </button>
+                </div>
+
+                <div class="jobs-meta">
+                    <span aria-live="polite"><b class="a-num" id="resultCount">@Model.JobPostings.Count</b> kết quả</span>
+                    <button class="a-btn a-btn--ghost a-btn--sm" type="button" id="clearFilters" @(string.IsNullOrWhiteSpace(ViewBag.SearchQuery) && string.IsNullOrWhiteSpace(ViewBag.SearchLocation) && string.IsNullOrWhiteSpace(ViewBag.SelectedCategory) && string.IsNullOrWhiteSpace(ViewBag.SelectedWorkMode) ? "hidden" : "")>Xoá bộ lọc</button>
+                    <button class="a-btn a-btn--ghost a-btn--sm jobs-sort" type="button" id="sortBtn" data-filter="sort" aria-haspopup="dialog" aria-label="Sắp xếp: Mới nhất">
+                        <i data-lucide="arrow-up-down"></i><span>@(ViewBag.SelectedSort == "oldest" ? "Cũ nhất" : "Mới nhất")</span>
+                    </button>
+                </div>
+
+                <div class="jobs-list__scroll" id="listScroll">
+                    <div class="a-list" id="jobList" role="listbox" aria-label="Kết quả việc làm">
+                        <span class="a-indicator" data-axis="y" data-inset="18"></span>
+                        @await Html.PartialAsync("_JobCardPartial", Model.JobPostings)
+                    </div>
+                    <div id="listSentinel" aria-hidden="true"></div>
+                </div>
+            </div>
+
+            <div id="paneAiJobs" role="tabpanel" aria-labelledby="tabAiJobs" class="d-none flex-column flex-grow-1 min-vh-0" style="min-height:0;">
+                <div class="d-flex justify-content-between align-items-center my-2 px-1">
+                    <div>
+                        <div class="ai-pane-head__title">
+                            <i data-lucide="sparkles" style="width:14px;height:14px;color:var(--brand)"></i> Việc làm phù hợp hồ sơ
+                        </div>
+                        <div class="ai-pane-head__sub">Phân tích đối chiếu theo nội dung CV mới nhất</div>
+                    </div>
+                    <button type="button" class="a-btn a-btn--ghost a-btn--sm" id="refreshAiBtn" title="Làm mới phân tích">
+                        <i data-lucide="rotate-cw" style="width:13px;height:13px"></i> <span class="small">Làm mới</span>
+                    </button>
+                </div>
+                <div class="jobs-list__scroll" id="aiScroll">
+                    <div id="aiRecommendationsContent">
+                        <!-- Loaded dynamically via GET /Jobs/GetAiRecommendations -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Chi tiết (sheet) -->
+        <section class="job-detail a-sheet" id="jobDetail" aria-label="Chi tiết việc làm">
+            <div class="jd-compact" id="jdCompact" aria-hidden="true">
+                <span class="a-logo a-logo--28" id="jdCompactLogo"></span>
+                <div class="jd-compact__title" id="jdCompactTitle"></div>
+                <button class="a-btn a-btn--primary a-btn--sm" type="button" data-apply tabindex="-1">Ứng tuyển</button>
+            </div>
+            <div class="job-detail__scroll" id="jdScroll">
+                <div class="job-detail__inner" id="jdInner">
+                    @if (!Model.JobPostings.Any())
+                    {
+                        <div class="a-empty" style="margin-top:18vh">
+                            <i data-lucide="briefcase"></i>
+                            <div class="a-empty__title">Chưa có việc nào khớp</div>
+                            <div class="a-empty__text">Thử từ khoá ngắn hơn, hoặc bỏ bớt bộ lọc địa điểm / hình thức.</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="a-empty" style="margin-top:18vh">
+                            <i data-lucide="briefcase"></i>
+                            <div class="a-empty__title">Chọn một việc để xem chi tiết</div>
+                            <div class="a-empty__text">Mẹo: phím J / K để chuyển nhanh, A để ứng tuyển.</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Popover bộ lọc -->
+    <div class="a-pop filter-pop" id="filterPop" role="dialog" aria-label="Bộ lọc" hidden></div>
+
+    <!-- Hộp thoại ứng tuyển -->
+    <div class="a-scrim" id="applyScrim" hidden></div>
+    <div class="a-dialog apply-dialog" id="applyDialog" role="dialog" aria-modal="true" aria-labelledby="applyTitle" hidden></div>
+}
+else
+{
+    <!-- Business View: Quản lý tin tuyển dụng đã đăng (Preserves all business actions) -->
+    <div class="biz-page">
+        <div class="biz-head">
+            <div>
+                <h1 class="biz-head__title">Quản lý tin tuyển dụng</h1>
+                <div class="text-muted small">Quản lý danh sách vị trí, ứng viên và phân phối tin của doanh nghiệp.</div>
+            </div>
+            <button class="a-btn a-btn--primary" type="button" id="openCreateJobBtn">
+                <i data-lucide="plus"></i> Đăng tin tuyển dụng
+            </button>
+        </div>
+
+        <div class="biz-kpis">
+            <div class="biz-kpi">
+                <div class="biz-kpi__label">Tin đang tuyển</div>
+                <div class="biz-kpi__value" style="color:var(--success)">@Model.MyJobPostings.Count(j => j.IsActive)</div>
+            </div>
+            <div class="biz-kpi">
+                <div class="biz-kpi__label">Tin đã đóng</div>
+                <div class="biz-kpi__value" style="color:var(--text-3)">@Model.MyJobPostings.Count(j => !j.IsActive)</div>
+            </div>
+            <div class="biz-kpi">
+                <div class="biz-kpi__label">Tổng lượt ứng tuyển</div>
+                <div class="biz-kpi__value" style="color:var(--brand)">@Model.MyJobPostings.Sum(j => j.ApplicantCount)</div>
+            </div>
+        </div>
+
+        <div class="biz-grid">
+            <div class="biz-list">
+                @if (!Model.MyJobPostings.Any())
+                {
+                    <div class="a-card p-5 text-center">
+                        <i data-lucide="briefcase" style="width:36px;height:36px;color:var(--text-4);margin-bottom:12px"></i>
+                        <div class="fw-bold mb-1">Chưa có tin tuyển dụng nào</div>
+                        <div class="small text-muted mb-3">Tạo tin tuyển dụng đầu tiên để nhận hồ sơ từ ứng viên phù hợp.</div>
+                        <button class="a-btn a-btn--primary a-btn--sm" type="button" onclick="document.getElementById('openCreateJobBtn').click()">Đăng tin ngay</button>
+                    </div>
+                }
+
+                @foreach (var job in Model.MyJobPostings)
+                {
+                    <div class="biz-job-card" id="biz-job-@job.Id" data-id="@job.Id">
+                        <div class="biz-job-card__head">
+                            <div>
+                                <a href="/Jobs/Details/@job.Id" class="biz-job-card__title">@job.Title</a>
+                                <div class="biz-job-card__meta">
+                                    <span>@(string.IsNullOrWhiteSpace(job.Salary) ? "Thỏa thuận" : job.Salary)</span>
+                                    <span>· Đăng ngày @job.CreatedAt.ToString("dd/MM/yyyy")</span>
+                                </div>
+                            </div>
+                            <span class="a-status @(job.IsActive ? "a-status--success" : "")" id="status-badge-@job.Id">
+                                @(job.IsActive ? "Đang tuyển" : "Đã đóng")
+                            </span>
+                        </div>
+
+                        <div class="biz-job-card__actions">
+                            <span class="small fw-semibold me-auto d-inline-flex align-items-center gap-1">
+                                <i data-lucide="users" style="width:14px;height:14px"></i>
+                                @job.ApplicantCount ứng viên
+                                @if (job.Openings.HasValue)
+                                {
+                                    <span class="text-muted fw-normal">· tuyển @job.HiredCount/@job.Openings</span>
+                                }
+                            </span>
+
+                            <button class="a-btn a-btn--ghost a-btn--sm edit-job-btn" type="button" data-job-id="@job.Id">
+                                <i data-lucide="square-pen"></i> Sửa
+                            </button>
+                            <a class="a-btn a-btn--secondary a-btn--sm" href="/Employer/Index?jobId=@job.Id">
+                                <i data-lucide="users"></i> Ứng viên (@job.ApplicantCount)
+                            </a>
+                            <button class="a-btn a-btn--ghost a-btn--sm share-job-btn" type="button" data-job-id="@job.Id" data-job-title="@job.Title">
+                                <i data-lucide="share-2"></i> Chia sẻ
+                            </button>
+                            <label class="biz-switch">
+                                <input type="checkbox" class="toggle-job-active" data-job-id="@job.Id" @(job.IsActive ? "checked" : "")>
+                                <span>Tuyển</span>
+                            </label>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Right Column: Kênh phân phối tin & Kết nối -->
+            <aside class="biz-side">
+                <div class="a-card p-4 mb-3">
+                    <h3 class="fw-bold mb-2 fs-6 d-flex align-items-center gap-2">
+                        <i data-lucide="share-2" style="width:16px;height:16px;color:var(--brand)"></i>
+                        Kênh phân phối tin
+                    </h3>
+                    <p class="small text-muted mb-3">Tự động hoặc chia sẻ một chạm lên Facebook Page và nhóm Zalo.</p>
+
+                    <div id="socialChannelList" class="mb-3"></div>
+
+                    <div class="d-flex flex-column gap-2">
+                        <a href="/SocialConnect/ConnectFacebook" class="a-btn a-btn--secondary a-btn--sm justify-content-center">
+                            Kết nối Facebook Page
+                        </a>
+                        <button type="button" id="connectFacebookManualBtn" class="a-btn a-btn--ghost a-btn--sm justify-content-center">
+                            Dán Page Token thủ công
+                        </button>
+                    </div>
+
+                    <div id="connectFacebookManualBox" class="mt-3 p-3 rounded bg-light small" style="display:none;">
+                        <input type="text" id="fbManualPageId" class="a-input mb-2" placeholder="Page ID">
+                        <input type="text" id="fbManualToken" class="a-input mb-2" placeholder="Page Access Token">
+                        <button type="button" id="fbManualSubmitBtn" class="a-btn a-btn--primary a-btn--sm w-100 justify-content-center">Kết nối</button>
+                        <div id="fbManualResult" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <div class="a-card p-4">
+                    <h3 class="fw-bold mb-2 fs-6">Hồ sơ doanh nghiệp</h3>
+                    <p class="small text-muted mb-3">Cập nhật thông tin và thương hiệu để thu hút ứng viên tốt hơn.</p>
+                    <a href="/Company/Edit" class="a-btn a-btn--secondary a-btn--sm w-100 justify-content-center">Chỉnh sửa hồ sơ</a>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Modals for Business -->
+    <!-- Modal: Post/Edit Job -->
+    <div class="a-scrim" id="postJobScrim" hidden></div>
+    <div class="a-dialog" id="postJobDialog" role="dialog" aria-modal="true" aria-labelledby="postJobModalTitle" style="width:min(720px, calc(100vw - 32px))" hidden>
+        <div class="a-dialog__head">
+            <h2 class="a-dialog__title" id="postJobModalTitle">Đăng tin tuyển dụng</h2>
+            <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" data-close><i data-lucide="x"></i></button>
+        </div>
+        <div class="a-dialog__body">
+            <div class="d-flex gap-2 mb-3">
+                <label for="jsonUpload" class="a-btn a-btn--secondary a-btn--sm" style="cursor:pointer">
+                    <i data-lucide="upload"></i> Nạp từ file JSON
+                </label>
+                <input type="file" id="jsonUpload" accept=".json" class="d-none" style="display:none">
+
+                <label for="pdfUpload" class="a-btn a-btn--secondary a-btn--sm" id="pdfUploadBtn" style="cursor:pointer">
+                    <i data-lucide="file-text"></i> AI Trích xuất từ PDF
+                </label>
+                <input type="file" id="pdfUpload" accept=".pdf" class="d-none" style="display:none">
+            </div>
+
+            <form id="createJobForm">
+                <input type="hidden" id="jobEditId">
+                <div class="d-grid gap-3">
+                    <div class="a-field">
+                        <label class="a-label">Tiêu đề công việc *</label>
+                        <input type="text" class="a-input" id="jobTitle" required>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 a-field">
+                            <label class="a-label">Lĩnh vực (Category) *</label>
+                            <input type="text" class="a-input" id="jobCate" placeholder="Công nghệ thông tin..." required>
+                        </div>
+                        <div class="col-6 a-field">
+                            <label class="a-label">Mức lương</label>
+                            <input type="text" class="a-input" id="jobSalary" placeholder="VD: 15 - 25 triệu">
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 a-field">
+                            <label class="a-label">Công ty *</label>
+                            <input type="text" class="a-input" id="jobCompany" required>
+                        </div>
+                        <div class="col-6 a-field">
+                            <label class="a-label">Hạn nộp hồ sơ</label>
+                            <input type="date" class="a-input" id="jobDeadline">
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 a-field">
+                            <label class="a-label" for="jobOpenings">Số lượng cần tuyển</label>
+                            <input type="number" class="a-input" id="jobOpenings" min="1" max="999" placeholder="VD: 2">
+                            <div class="a-help">Khi đủ người, Aris gợi ý đóng tin.</div>
+                        </div>
+                    </div>
+                    <div class="a-field">
+                        <label class="a-label">Địa điểm làm việc (Mỗi dòng một địa chỉ)</label>
+                        <textarea class="a-textarea" id="jobLocations" rows="2" placeholder="TP.HCM: Tầng 5, 123 Lê Lợi..."></textarea>
+                    </div>
+                    <div class="a-field">
+                        <label class="a-label">Mô tả & Trách nhiệm (Mỗi dòng một ý)</label>
+                        <textarea class="a-textarea" id="jobResponsibilities" rows="3"></textarea>
+                    </div>
+                    <div class="a-field">
+                        <label class="a-label">Yêu cầu ứng viên (Mỗi dòng một ý)</label>
+                        <textarea class="a-textarea" id="jobRequirements" rows="3"></textarea>
+                    </div>
+                    <div class="a-field">
+                        <label class="a-label">Quyền lợi (Mỗi dòng một ý)</label>
+                        <textarea class="a-textarea" id="jobBenefits" rows="2"></textarea>
+                    </div>
+                    <div class="a-field">
+                        <label class="a-label">Câu hỏi sàng lọc (Tùy chọn, mỗi dòng một câu)</label>
+                        <textarea class="a-textarea" id="jobScreeningQuestions" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="mt-4 d-flex justify-content-end gap-2">
+                    <button type="button" class="a-btn a-btn--ghost" data-close>Huỷ</button>
+                    <button type="submit" class="a-btn a-btn--primary" id="postJobSubmitBtn">Lưu tin tuyển dụng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Share Job -->
+    <div class="a-scrim" id="shareScrim" hidden></div>
+    <div class="a-dialog" id="shareDialog" role="dialog" aria-modal="true" aria-labelledby="shareTitle" style="width:min(500px, calc(100vw - 32px))" hidden>
+        <div class="a-dialog__head">
+            <h2 class="a-dialog__title" id="shareTitle">Chia sẻ tin tuyển dụng</h2>
+            <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" data-close><i data-lucide="x"></i></button>
+        </div>
+        <div class="a-dialog__body">
+            <div id="shareLoading" class="text-center py-3">Đang tải thông tin...</div>
+            <div id="shareBody" style="display:none">
+                <div id="shareChannelList" class="mb-3"></div>
+                <div class="a-field">
+                    <label class="a-label">Nội dung chia sẻ</label>
+                    <textarea class="a-textarea" id="shareMessage" rows="4"></textarea>
+                </div>
+            </div>
+            <div id="shareResult" class="mt-2"></div>
+        </div>
+        <div class="a-dialog__foot">
+            <button class="a-btn a-btn--ghost" type="button" data-close>Đóng</button>
+            <button class="a-btn a-btn--primary" type="button" id="shareSubmitBtn">Đăng ngay</button>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        window.__IS_BUSINESS__ = @(isBusiness ? "true" : "false");
+        window.__SELECTED_JOB_ID__ = @(Model.JobPostings.FirstOrDefault()?.Id.ToString() ?? "null");
+    </script>
+    <script src="~/js/pages/jobs.js" asp-append-version="true"></script>
+}

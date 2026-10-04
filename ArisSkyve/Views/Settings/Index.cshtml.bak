@@ -1,0 +1,310 @@
+@model ArisSkyve.Domain.Entities.User
+@{
+    var profile = Model.Profile;
+    var avatar = !string.IsNullOrWhiteSpace(profile?.AvatarUrl) ? profile.AvatarUrl : "/images/default-avatar.png";
+
+    ViewData["Title"] = "Cài đặt tài khoản";
+    ViewData["ActiveNav"] = "Settings";
+    Layout = "_AppLayout";
+}
+
+<div class="aris-container py-4">
+    <!-- Constellation Page Header -->
+    <div class="cosmos-page-head mb-4">
+        <div class="cosmos-page-head-inner">
+            <span class="cosmos-page-eyebrow">
+                <i data-lucide="shield" style="width: 13px; height: 13px;"></i> An toàn & Định danh
+            </span>
+            <h1 class="cosmos-page-title"><span class="cosmos-gradient-text">Cài đặt tài khoản & Quyền riêng tư</span></h1>
+            <p class="cosmos-page-sub">Quản lý thông tin đăng nhập, bảo mật phiên làm việc và tùy chọn hiển thị trên vũ trụ Aris.</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Sidebar: Security & Navigation Hub -->
+        <div class="col-lg-4" id="settingsSecurityHub">
+            <div class="card border rounded-4 p-4 shadow-sm mb-4" style="background: linear-gradient(145deg, rgba(16, 25, 45, 0.75) 0%, rgba(9, 15, 30, 0.90) 100%); border: 1px solid rgba(178, 212, 255, 0.16) !important;">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="cosmic-icon-housing">
+                        <i data-lucide="shield-check"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold text-white mb-0">Bảo mật tài khoản</h6>
+                        <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1 mt-1 small">Độ bảo vệ 95%</span>
+                    </div>
+                </div>
+                <p class="text-muted small mb-3">Tài khoản được bảo vệ với phiên đăng nhập mã hóa thời gian thực.</p>
+                <div class="p-3 rounded-3 mb-3" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);">
+                    <div class="small text-white fw-semibold mb-1 d-flex align-items-center gap-2">
+                        <span class="pulse-beacon-inline"></span> Thiết bị đang hoạt động
+                    </div>
+                    <div class="text-muted small" style="font-size: 11px;">Trình duyệt web hiện tại &bull; IP Việt Nam</div>
+                </div>
+                <hr class="my-3 opacity-25" style="border-color: rgba(178, 212, 255, 0.2);">
+                <div class="d-flex flex-column gap-2">
+                    <a asp-controller="Profile" asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill text-start d-flex align-items-center justify-content-between px-3 text-light" style="border-color: rgba(178, 212, 255, 0.2); background: rgba(255, 255, 255, 0.03);">
+                        <span><i data-lucide="user" class="me-2 text-info" style="width: 14px; height: 14px;"></i> Xem hồ sơ cá nhân</span>
+                        <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+                    </a>
+                    <a asp-controller="Resume" asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill text-start d-flex align-items-center justify-content-between px-3 text-light" style="border-color: rgba(178, 212, 255, 0.2); background: rgba(255, 255, 255, 0.03);">
+                        <span><i data-lucide="file-text" class="me-2 text-info" style="width: 14px; height: 14px;"></i> Quản lý CV</span>
+                        <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+                    </a>
+                    <a asp-controller="JobApplications" asp-action="MyApplications" class="btn btn-outline-secondary btn-sm rounded-pill text-start d-flex align-items-center justify-content-between px-3 text-light" style="border-color: rgba(178, 212, 255, 0.2); background: rgba(255, 255, 255, 0.03);">
+                        <span><i data-lucide="send" class="me-2 text-info" style="width: 14px; height: 14px;"></i> Đơn ứng tuyển</span>
+                        <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Content Column: Settings Forms -->
+        <div class="col-lg-8">
+            <!-- Account Details Card -->
+            <div class="card border rounded-4 p-4 shadow-sm mb-4" style="background: linear-gradient(155deg, rgba(17, 26, 44, 0.85) 0%, rgba(10, 16, 28, 0.95) 100%); border: 1px solid rgba(178, 212, 255, 0.16) !important;">
+                <h6 class="fw-bold mb-1 text-white">Hồ sơ & Tài khoản</h6>
+                <p class="text-muted small mb-4">Ảnh đại diện và tên người dùng hiển thị với các thành viên khác trên Aris.</p>
+
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <div class="position-relative" style="width: 80px; height: 80px;">
+                        <img id="avatarPreview" src="@avatar" alt="@Model.Username" class="rounded-circle" style="width: 80px; height: 80px; object-fit: cover; border: 2px solid rgba(126, 200, 245, 0.45); box-shadow: 0 0 20px rgba(47, 111, 237, 0.4);">
+                        <label for="avatarInput" class="btn btn-primary btn-sm rounded-circle position-absolute bottom-0 end-0 p-1 shadow" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer;" title="Đổi ảnh đại diện">
+                            <i data-lucide="camera" style="width: 14px; height: 14px;"></i>
+                        </label>
+                        <input type="file" id="avatarInput" accept="image/png,image/jpeg,image/webp,image/gif" class="d-none">
+                    </div>
+                    <div>
+                        <div class="fw-bold text-white fs-6" id="avatarUsernameDisplay">@Model.Username</div>
+                        <div class="text-muted small">@Model.Email</div>
+                        <div class="small fw-medium mt-1" id="avatarStatus"></div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-light">Tên hiển thị (Username)</label>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="usernameInput" class="form-control rounded-3 py-2 text-white" value="@Model.Username" maxlength="50" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(178, 212, 255, 0.2);">
+                        <button type="button" id="saveUsernameBtn" class="btn btn-primary rounded-pill px-4 fw-medium">
+                            Lưu
+                        </button>
+                    </div>
+                    <div class="small fw-medium mt-1" id="usernameStatus"></div>
+                </div>
+
+                <div>
+                    <label class="form-label small fw-semibold text-light">Địa chỉ Email</label>
+                    <input type="text" class="form-control rounded-3 py-2 text-muted" value="@Model.Email" disabled style="background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(178, 212, 255, 0.1);">
+                    <small class="text-muted d-block mt-1" style="font-size: 11px;">Email liên kết với tài khoản đăng nhập và không thể thay đổi tại đây.</small>
+                </div>
+            </div>
+
+            <!-- Privacy Card -->
+            <div class="card border rounded-4 p-4 shadow-sm mb-4" style="background: linear-gradient(155deg, rgba(17, 26, 44, 0.85) 0%, rgba(10, 16, 28, 0.95) 100%); border: 1px solid rgba(178, 212, 255, 0.16) !important;">
+                <h6 class="fw-bold mb-1 text-white">Quyền riêng tư & Trạng thái</h6>
+                <p class="text-muted small mb-4">Kiểm soát thông tin người khác có thể nhìn thấy về hoạt động của bạn.</p>
+
+                <div class="d-flex justify-content-between align-items-center gap-3 p-3 rounded-3" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(178, 212, 255, 0.12);">
+                    <div>
+                        <div class="fw-semibold small text-white mb-1">Hiển thị khi bạn đang trực tuyến</div>
+                        <div class="text-muted small" style="font-size: 12px;">Cho phép bạn bè và nhà tuyển dụng nhìn thấy chấm xanh khi bạn hoạt động trên Aris.</div>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="activeStatusToggle" @(Model.ShowActiveStatus ? "checked" : "") style="cursor: pointer; width: 40px; height: 22px;">
+                    </div>
+                </div>
+            </div>
+
+            @if (Model.Role == "Business")
+            {
+                <!-- Business Settings: Rejection Templates -->
+                <div class="card border rounded-4 p-4 shadow-sm mb-4" style="background: linear-gradient(155deg, rgba(17, 26, 44, 0.85) 0%, rgba(10, 16, 28, 0.95) 100%); border: 1px solid rgba(178, 212, 255, 0.16) !important;">
+                    <h6 class="fw-bold mb-1 text-white">Mẫu phản hồi từ chối ứng viên</h6>
+                    <p class="text-muted small mb-3">Các mẫu phản hồi nhanh được lưu sẵn để chọn nhanh khi gửi thư từ chối đến ứng viên.</p>
+
+                    <div id="rejectionTemplateList" class="d-flex flex-column gap-2 mb-3"></div>
+
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top" style="border-color: rgba(178, 212, 255, 0.12) !important;">
+                        <button type="button" id="addTemplateBtn" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-medium text-light" style="border-color: rgba(178, 212, 255, 0.2);">
+                            <i data-lucide="plus" class="me-1" style="width: 14px; height: 14px;"></i> Thêm mẫu mới
+                        </button>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" id="saveTemplatesBtn" class="btn btn-primary btn-sm rounded-pill px-4 fw-medium">
+                                Lưu mẫu
+                            </button>
+                            <span id="templatesStatus" class="small fw-medium"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Business Settings: Social Channels -->
+                <div class="card border rounded-4 p-4 shadow-sm mb-4" style="background: linear-gradient(155deg, rgba(17, 26, 44, 0.85) 0%, rgba(10, 16, 28, 0.95) 100%); border: 1px solid rgba(178, 212, 255, 0.16) !important;">
+                    <h6 class="fw-bold mb-1 text-white">Kênh tuyển dụng liên kết</h6>
+                    <p class="text-muted small mb-3">Kết nối Fanpage Facebook và Zalo OA để tự động phân phối tin tuyển dụng.</p>
+                    <a asp-controller="Jobs" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-medium">
+                        <i data-lucide="share-2" class="me-1" style="width: 14px; height: 14px;"></i> Quản lý kênh trên Tin tuyển dụng
+                    </a>
+                </div>
+            }
+
+            <!-- Session & Logout Card -->
+            <div class="card border rounded-4 p-4 shadow-sm mb-4" style="background: linear-gradient(155deg, rgba(17, 26, 44, 0.85) 0%, rgba(10, 16, 28, 0.95) 100%); border: 1px solid rgba(239, 68, 68, 0.25) !important;">
+                <h6 class="fw-bold mb-1 text-danger">Phiên đăng nhập</h6>
+                <p class="text-muted small mb-3">Đăng xuất tài khoản khỏi thiết bị hiện tại.</p>
+                <form asp-controller="Account" asp-action="Logout" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn đăng xuất?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-danger rounded-pill px-4 btn-sm fw-medium">
+                        <i data-lucide="log-out" class="me-1" style="width: 14px; height: 14px;"></i> Đăng xuất
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const avatarInput = document.getElementById("avatarInput");
+            const avatarPreview = document.getElementById("avatarPreview");
+            const avatarStatus = document.getElementById("avatarStatus");
+            const usernameInput = document.getElementById("usernameInput");
+            const saveUsernameBtn = document.getElementById("saveUsernameBtn");
+            const usernameStatus = document.getElementById("usernameStatus");
+            const avatarUsernameDisplay = document.getElementById("avatarUsernameDisplay");
+            const activeStatusToggle = document.getElementById("activeStatusToggle");
+
+            function flashStatus(el, text, isError) {
+                el.textContent = text;
+                el.className = isError ? "small fw-medium text-danger mt-1" : "small fw-medium text-success mt-1";
+                if (window.showToast) {
+                    window.showToast(text, isError ? "danger" : "success");
+                }
+                setTimeout(() => { el.textContent = ""; }, 2500);
+            }
+
+            avatarInput.addEventListener("change", async () => {
+                const file = avatarInput.files[0];
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append("avatar", file);
+
+                avatarStatus.textContent = "Đang tải ảnh...";
+                avatarStatus.className = "small fw-medium text-primary mt-1";
+                try {
+                    const res = await fetch("/Settings/UpdateAvatar", { method: "POST", body: formData });
+                    const result = await res.json();
+                    if (result.success) {
+                        avatarPreview.src = result.avatarUrl;
+                        flashStatus(avatarStatus, "Đã cập nhật ảnh đại diện!", false);
+                    } else {
+                        flashStatus(avatarStatus, result.message || "Tải ảnh thất bại.", true);
+                    }
+                } catch {
+                    flashStatus(avatarStatus, "Không thể kết nối máy chủ.", true);
+                }
+            });
+
+            saveUsernameBtn.addEventListener("click", async () => {
+                const username = usernameInput.value.trim();
+                if (!username) return;
+
+                const formData = new FormData();
+                formData.append("username", username);
+
+                try {
+                    const res = await fetch("/Settings/UpdateUsername", { method: "POST", body: formData });
+                    const result = await res.json();
+                    if (result.success) {
+                        avatarUsernameDisplay.textContent = result.username;
+                        flashStatus(usernameStatus, "Đã lưu tên hiển thị!", false);
+                    } else {
+                        flashStatus(usernameStatus, result.message || "Không thể lưu tên hiển thị.", true);
+                    }
+                } catch {
+                    flashStatus(usernameStatus, "Không thể kết nối máy chủ.", true);
+                }
+            });
+
+            activeStatusToggle.addEventListener("change", async () => {
+                const enabled = activeStatusToggle.checked;
+                const formData = new FormData();
+                formData.append("enabled", enabled);
+
+                try {
+                    const res = await fetch("/Settings/UpdateActiveStatus", { method: "POST", body: formData });
+                    const result = await res.json();
+                    if (!result.success) {
+                        activeStatusToggle.checked = !enabled;
+                    } else {
+                        if (window.showToast) {
+                            window.showToast(enabled ? "Đã bật hiển thị trạng thái trực tuyến." : "Đã tắt hiển thị trạng thái trực tuyến.", "info");
+                        }
+                    }
+                } catch {
+                    activeStatusToggle.checked = !enabled;
+                }
+            });
+
+            // Rejection templates for Business accounts
+            const templateList = document.getElementById("rejectionTemplateList");
+            if (templateList) {
+                const addTemplateBtn = document.getElementById("addTemplateBtn");
+                const saveTemplatesBtn = document.getElementById("saveTemplatesBtn");
+                const templatesStatus = document.getElementById("templatesStatus");
+
+                function addTemplateRow(text) {
+                    const row = document.createElement("div");
+                    row.className = "d-flex gap-2 rejection-template-row";
+                    row.innerHTML = `
+                        <textarea class="form-control rounded-3" rows="2" placeholder="Nhập nội dung mẫu phản hồi..."></textarea>
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-3 remove-template-btn flex-shrink-0" style="height: 38px;" title="Xóa mẫu">
+                            <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+                        </button>`;
+                    row.querySelector("textarea").value = text || "";
+                    templateList.appendChild(row);
+                    if (window.lucide) lucide.createIcons();
+                }
+
+                templateList.addEventListener("click", (e) => {
+                    const btn = e.target.closest(".remove-template-btn");
+                    if (btn) btn.closest(".rejection-template-row").remove();
+                });
+
+                addTemplateBtn.addEventListener("click", () => addTemplateRow(""));
+
+                saveTemplatesBtn.addEventListener("click", async () => {
+                    const templates = Array.from(templateList.querySelectorAll("textarea"))
+                        .map(t => t.value.trim())
+                        .filter(t => t);
+
+                    try {
+                        const res = await fetch("/Settings/UpdateRejectionTemplates", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ templates })
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                            flashStatus(templatesStatus, "Đã lưu mẫu thành công!", false);
+                        } else {
+                            flashStatus(templatesStatus, result.message || "Không thể lưu.", true);
+                        }
+                    } catch {
+                        flashStatus(templatesStatus, "Không thể kết nối máy chủ.", true);
+                    }
+                });
+
+                (async function loadTemplates() {
+                    try {
+                        const res = await fetch("/Settings/GetRejectionTemplates");
+                        const result = await res.json();
+                        if (result.success) {
+                            (result.templates || []).forEach(addTemplateRow);
+                        }
+                    } catch { /* graceful fallback */ }
+                })();
+            }
+        })();
+    </script>
+}

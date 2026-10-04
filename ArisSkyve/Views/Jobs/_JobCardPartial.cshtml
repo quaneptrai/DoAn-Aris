@@ -1,0 +1,59 @@
+@model IEnumerable<ArisSkyve.Domain.Entities.JobPosting>
+@{
+    // Cùng công thức với window.toneOf() / orgInitials() trong aris-shell.js (GetHashCode() đổi mỗi lần chạy app)
+    int Tone(string? name)
+    {
+        uint h = 0;
+        foreach (var ch in name ?? "") h = unchecked(h * 31 + ch);
+        return (int)(h % 6) + 1;
+    }
+    string OrgInitials(string? name)
+    {
+        var words = (name ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return "AR";
+        if (words.Length > 1) return (words[0][0].ToString() + words[1][0]).ToUpperInvariant();
+        return words[0].Substring(0, Math.Min(2, words[0].Length)).ToUpperInvariant();
+    }
+    bool HasImg(string? url) => !string.IsNullOrWhiteSpace(url) && !url.Contains("default-avatar.png") && !url.Contains("ui-avatars.com");
+}
+
+@if (Model != null)
+{
+    foreach (var job in Model)
+    {
+        var isNew = job.CreatedAt >= DateTime.UtcNow.AddDays(-3);
+        var companyName = job.BusinessAccount?.CompanyName ?? (string.IsNullOrWhiteSpace(job.Company) ? "Doanh nghiệp" : job.Company);
+        var avatarUrl = HasImg(job.BusinessAccount?.AvatarUrl) ? job.BusinessAccount!.AvatarUrl : null;
+        var location = job.Locations?.FirstOrDefault()?.City ?? job.Locations?.FirstOrDefault()?.Address ?? "Toàn quốc";
+        var workMode = string.IsNullOrWhiteSpace(job.WorkTime) ? "Toàn thời gian" : job.WorkTime;
+        var salary = string.IsNullOrWhiteSpace(job.Salary) ? "Thoả thuận" : job.Salary;
+        var daysAgo = (int)Math.Max(0, (DateTime.UtcNow - job.CreatedAt).TotalDays);
+        var postedText = daysAgo == 0 ? "Hôm nay" : (daysAgo == 1 ? "Hôm qua" : $"{daysAgo} ngày");
+
+        <div class="a-row job-row" role="option" tabindex="-1" aria-selected="false" id="job-@job.Id" data-id="@job.Id">
+            <span class="a-logo a-logo--44" data-tone="@Tone(companyName)" aria-hidden="true">@OrgInitials(companyName)@if (avatarUrl != null)
+                {
+                    <img src="@avatarUrl" alt="" loading="lazy" onerror="this.remove()" />
+                }</span>
+            <div class="a-row__main">
+                <div class="job-row__top">
+                    <span class="job-row__title">@job.Title</span>
+                    @if (isNew)
+                    {
+                        <span class="job-row__new">Mới</span>
+                    }
+                </div>
+                <div class="job-row__company"><span>@companyName</span>@if (job.BusinessAccount?.IsVerified == true)
+                    {
+                        <i data-lucide="badge-check" class="fx-verified" aria-label="Đã xác minh"></i>
+                    }</div>
+                <div class="job-row__tags">
+                    <span class="job-row__salary">@salary</span>
+                    <span>@location</span>
+                    <span>@workMode</span>
+                </div>
+            </div>
+            <span class="job-row__time">@postedText</span>
+        </div>
+    }
+}

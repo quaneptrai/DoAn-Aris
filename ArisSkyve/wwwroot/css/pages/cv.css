@@ -1,0 +1,192 @@
+/* =============================================================================
+   ARIS LINE — CV của tôi (V7)
+   File: wwwroot/css/pages/cv.css
+   ============================================================================= */
+.cv-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.cv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.cv-card {
+  --ring: var(--surface);
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform var(--d-1) var(--e-out), border-color var(--d-1) var(--e-out), box-shadow var(--d-1) var(--e-out);
+}
+.cv-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-2);
+}
+
+.cv-card__thumb {
+  position: relative;
+  aspect-ratio: 1 / 1.35;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.cv-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Paper simulation for thumbnail placeholder */
+.cv-thumb-paper {
+  width: 75%;
+  height: 85%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: var(--shadow-1);
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cv-thumb-line {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-control);
+}
+.cv-thumb-line--head {
+  width: 45%;
+  height: 6px;
+  background: var(--brand);
+}
+
+.cv-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cv-card__name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cv-card__name {
+  font: 600 var(--fs-15)/1.3 var(--font);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.cv-card__sub {
+  font-size: var(--fs-12);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+.cv-card__actions .a-btn--primary {
+  flex: 1;
+}
+
+/* Thẻ tạo CV mới (khung nét đứt) */
+.cv-card--add {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  min-height: 280px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+  background: none;
+  color: var(--text-3);
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--d-1) var(--e-out), color var(--d-1) var(--e-out), background-color var(--d-1) var(--e-out);
+}
+.cv-card--add:hover {
+  border-color: var(--brand);
+  color: var(--brand-text);
+  background: var(--brand-soft);
+  text-decoration: none;
+}
+.cv-card--add__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--field);
+  display: grid;
+  place-items: center;
+  color: inherit;
+}
+.cv-card--add__icon svg {
+  width: 24px;
+  height: 24px;
+}
+.cv-card--add__title {
+  font: 600 var(--fs-15)/1.3 var(--font);
+  color: inherit;
+}
+
+/* Tải CV có sẵn (PDF/Word) */
+button.cv-card--add { width: 100%; font: inherit; }
+button.cv-card--add:disabled { opacity: .55; cursor: progress; }
+.cv-card--add .a-help { margin: -6px 0 0; }
+.cv-upload-status {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px 16px;
+  border-radius: var(--r-md); background: var(--brand-soft); color: var(--text); font-size: var(--fs-13);
+}
+.cv-upload-status[hidden] { display: none; }
+.cv-upload-status[data-state="ok"] { background: var(--success-soft); }
+.cv-upload-status[data-state="error"] { background: var(--danger-soft); }
+.cv-upload-status__icon { flex: none; display: grid; place-items: center; width: 22px; color: var(--brand-text); }
+.cv-upload-status[data-state="ok"] .cv-upload-status__icon { color: var(--success); }
+.cv-upload-status[data-state="error"] .cv-upload-status__icon { color: var(--danger); }
+.cv-upload-status__icon svg { width: 20px; height: 20px; }
+.cv-upload-status__text { display: grid; gap: 2px; }
+.cv-upload-status__text span { color: var(--text-2); }
+.cv-page.is-dropping { outline: 2px dashed var(--brand); outline-offset: 8px; border-radius: var(--r-lg); }
+
+/* Thẻ CV: nhãn trạng thái, Trợ lý CV, chia sẻ trang web */
+.cv-card__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.cv-tag-live { color: var(--success); background: var(--success-soft); border-color: transparent; text-decoration: none; }
+.cv-tag-live:hover { text-decoration: underline; }
+.cv-card__extra { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 14px 10px; }
+.cv-card__coach, .cv-card__share {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 30px; padding: 5px 8px;
+  border-radius: var(--r-md); font: 600 var(--fs-12)/1.2 var(--font); text-decoration: none; cursor: pointer;
+  border: 1px solid var(--line); background: var(--field); color: var(--text-2); transition: border-color .15s, color .15s, background .15s;
+}
+.cv-card__coach svg, .cv-card__share svg { width: 13px; height: 13px; }
+.cv-card__coach { color: var(--brand-text); background: var(--brand-soft); border-color: transparent; }
+.cv-card__coach:hover { color: var(--brand-text); border-color: var(--brand); text-decoration: none; }
+.cv-card__share:hover { border-color: var(--brand); color: var(--text); }
+.cv-card__share:disabled { opacity: .6; cursor: progress; }

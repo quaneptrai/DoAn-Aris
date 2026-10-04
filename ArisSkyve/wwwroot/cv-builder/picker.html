@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aris — Choose a template</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="cosmos.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <h1>ARIS</h1>
+  </div>
+</header>
+
+<main class="picker-main">
+
+  <section class="picker-hero">
+    <h1 class="picker-hero-title">Build a CV that gets you hired</h1>
+    <p class="picker-hero-sub">Pick a template, fill it in, and export a polished PDF — all in your browser. Nothing you type is uploaded anywhere.</p>
+    <div class="picker-feature-badges">
+      <span class="picker-badge">🎨 16 templates</span>
+      <span class="picker-badge">✨ AI-assisted writing</span>
+      <span class="picker-badge">📄 Free PDF export</span>
+      <span class="picker-badge">🔒 Stays on your device</span>
+    </div>
+  </section>
+
+  <div id="resumeBanner" class="resume-banner hidden">
+    <div class="resume-banner-text">
+      <span class="resume-banner-title">Welcome back — continue your CV?</span>
+      <span class="resume-banner-sub" id="resumeBannerSub"></span>
+    </div>
+    <a href="builder.html" class="btn btn-primary" id="resumeBannerBtn">Continue editing</a>
+  </div>
+
+  <h2 class="picker-heading">Choose a template to start</h2>
+  <p class="picker-sub">Pick a look to begin — you can change the accent color or switch templates later without losing your information.</p>
+  <div id="templateGallery" class="template-gallery"></div>
+</main>
+
+<div id="startModalBackdrop" class="modal-backdrop hidden">
+  <div class="modal-card" role="dialog" aria-modal="true">
+    <button type="button" class="modal-close" id="modalCloseBtn" aria-label="Close">&times;</button>
+    <h3 class="modal-heading">Do you have an existing CV?</h3>
+    <p class="modal-sub" id="modalSub">Choose how you'd like to build your <strong><span id="modalTemplateName"></span></strong> CV.</p>
+
+    <div class="modal-options">
+      <button type="button" class="modal-option" id="scratchOption">
+        <span class="modal-option-icon">✨</span>
+        <span class="modal-option-text">
+          <span class="modal-option-title">Start from scratch</span>
+          <span class="modal-option-desc">Begin with a blank CV and fill it in step by step.</span>
+        </span>
+      </button>
+      <button type="button" class="modal-option modal-option-disabled" id="importOption">
+        <span class="modal-option-icon">📤</span>
+        <span class="modal-option-text">
+          <span class="modal-option-title">Import an existing CV</span>
+          <span class="modal-option-desc">Upload a previous CV and reuse its information. Coming soon.</span>
+        </span>
+      </button>
+    </div>
+
+    <p class="modal-note hidden" id="importNote">Importing an existing CV isn't available yet — please start from scratch for now.</p>
+  </div>
+</div>
+
+<script src="sections.js"></script>
+<script src="templates.js"></script>
+<script src="csrf.js"></script>
+<script src="picker-bridge.js"></script>
+<script src="picker.js"></script>
+</body>
+</html>

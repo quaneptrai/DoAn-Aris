@@ -1,0 +1,1 @@
+/boost Đọc file docs/design-v7/ANTIGRAVITY-START.txt và thực hiện đúng toàn bộ yêu cầu trong đó (chữ /boost ở đầu file chỉ là ghi chú, bỏ qua). Phiên trước đã làm dở Phase 0, xem docs/design-v7/reports/PROGRESS.md và dùng lại kết quả nếu hợp lệ.

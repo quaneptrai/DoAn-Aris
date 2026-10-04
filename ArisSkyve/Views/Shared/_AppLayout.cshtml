@@ -1,0 +1,157 @@
+@inject ArisSkyve.Infrastructure.Services.IV7FeatureGate FeatureGate
+@{
+    // Trang có thể đặt ViewData["TopChips"] = new List<(string Label, string Href)> { ... } để hiện chip lọc nhanh trên thanh trên
+    var topChips = ViewData["TopChips"] as IEnumerable<(string Label, string Href)>;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <title>@(ViewData["Title"] != null ? $"{ViewData["Title"]} — Aris" : "Aris — Việc làm & Văn hoá công ty")</title>
+
+    <!-- Giao diện (mặc định tối) + trạng thái sidebar: đặt TRƯỚC CSS để không chớp, không nhảy bố cục -->
+    <script>
+        (function () {
+            var d = document.documentElement;
+            try { d.dataset.theme = localStorage.getItem('aris-theme') || 'dark'; } catch (e) { d.dataset.theme = 'dark'; }
+            try {
+                var w = window.innerWidth;
+                if ((w >= 768 && w < 1100) || localStorage.getItem('aris-side') === 'mini') d.dataset.side = 'mini';
+            } catch (e) { }
+        })();
+    </script>
+
+    <!-- Font: Plus Jakarta Sans (tiêu đề) + Inter (nội dung) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- CSS: Bootstrap rồi aris-line.css -->
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/aris-line.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/match-insight.css" asp-append-version="true" />
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" asp-append-version="true">
+    <link rel="alternate icon" href="~/favicon.ico">
+
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    @* One token source for same-origin JSON requests. Forms keep their normal
+       tag-helper tokens; the small wrapper below covers the existing fetch callers. *@
+    <div id="arisAntiforgeryToken" hidden aria-hidden="true">@Html.AntiForgeryToken()</div>
+
+    <script>
+        (function () {
+            var unsafeMethods = { POST: true, PUT: true, PATCH: true, DELETE: true };
+            var nativeFetch = window.fetch.bind(window);
+
+            function token() {
+                var input = document.querySelector("#arisAntiforgeryToken input[name='__RequestVerificationToken']");
+                return input ? input.value : "";
+            }
+
+            window.ArisCsrf = window.ArisCsrf || {};
+            window.ArisCsrf.token = token;
+
+            window.fetch = function (resource, init) {
+                var request = resource instanceof Request ? resource : null;
+                var method = String((init && init.method) || (request && request.method) || "GET").toUpperCase();
+                if (!unsafeMethods[method]) return nativeFetch(resource, init);
+
+                var rawUrl = typeof resource === "string" || resource instanceof URL ? resource : resource.url;
+                var sameOrigin;
+                try {
+                    sameOrigin = new URL(rawUrl, window.location.href).origin === window.location.origin;
+                } catch (_) {
+                    sameOrigin = false;
+                }
+                if (!sameOrigin) return nativeFetch(resource, init);
+
+                var headers = new Headers((init && init.headers) || (request && request.headers) || undefined);
+                if (!headers.has("RequestVerificationToken")) {
+                    var requestToken = token();
+                    if (requestToken) headers.set("RequestVerificationToken", requestToken);
+                }
+                return nativeFetch(resource, Object.assign({}, init || {}, { headers: headers }));
+            };
+        })();
+    </script>
+    <a class="skip-link" href="#mainContent">Đến nội dung chính</a>
+
+    <div class="a-app">
+        <!-- Sidebar · thanh trên · thanh tab (mobile) -->
+        @await Component.InvokeAsync("AppNavbar", new { active = ViewData["ActiveNav"] as string, chips = topChips })
+
+        <!-- Nội dung -->
+        <main id="mainContent" class="a-main" tabindex="-1">
+            @RenderBody()
+        </main>
+    </div>
+
+    <!-- Core Scripts -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script>
+        (function () {
+            var unsafeMethods = { POST: true, PUT: true, PATCH: true, DELETE: true };
+
+            function isSameOrigin(url) {
+                try {
+                    return new URL(url || window.location.href, window.location.href).origin === window.location.origin;
+                } catch (_) {
+                    return false;
+                }
+            }
+
+            function hasRequestToken(headers) {
+                return Object.keys(headers || {}).some(function (name) {
+                    return name.toLowerCase() === "requestverificationtoken";
+                });
+            }
+
+            // The profile's legacy post-actions.js still uses $.ajax/$.post.
+            // Cover every same-origin unsafe jQuery request just as the fetch
+            // wrapper above does, without leaking an Aris token cross-origin.
+            window.jQuery.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+                var method = String(options.type || options.method || "GET").toUpperCase();
+                var callerHeaders = options.headers || (originalOptions && originalOptions.headers);
+                if (!unsafeMethods[method] || !isSameOrigin(options.url) || hasRequestToken(callerHeaders)) return;
+
+                var requestToken = window.ArisCsrf && typeof window.ArisCsrf.token === "function"
+                    ? window.ArisCsrf.token()
+                    : "";
+                if (requestToken) jqXHR.setRequestHeader("RequestVerificationToken", requestToken);
+            });
+        })();
+    </script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/lucide/lucide.min.js" asp-append-version="true"></script>
+    <script src="~/js/aris-icons.js" asp-append-version="true"></script>
+    <script src="~/js/aris-motion.js" asp-append-version="true"></script>
+    <script src="~/js/match-insight.js" asp-append-version="true"></script>
+    <script src="~/js/aris-shell.js" asp-append-version="true"></script>
+    <script src="~/js/aris-palette.js" asp-append-version="true"></script>
+    <script src="~/js/notification-client.js" asp-append-version="true"></script>
+    <script>
+        // Cờ tính năng (Feature gate - tự động bật khi migration V7Social được áp)
+        window.ArisFeatures = {
+            social: @(FeatureGate.Enabled ? "true" : "false"),
+            stories: @(FeatureGate.Stories ? "true" : "false"),
+            polls: @(FeatureGate.Polls ? "true" : "false"),
+            savedJobs: @(FeatureGate.SavedJobs ? "true" : "false")
+        };
+
+        // Compatibility helper for legacy showToast calls across app
+        window.showToast = function (message, type = 'info') {
+            if (window.ArisMotion && window.ArisMotion.toast) {
+                const tone = (type === 'danger' || type === 'error') ? 'danger' : (type === 'success') ? 'success' : 'default';
+                window.ArisMotion.toast(message, { tone: tone });
+            } else {
+                console.log(`[Toast ${type}]:`, message);
+            }
+        };
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

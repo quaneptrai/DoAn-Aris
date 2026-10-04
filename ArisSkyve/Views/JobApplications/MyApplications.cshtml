@@ -1,0 +1,34 @@
+@model ArisSkyve.Application.DTOs.MyApplicationsViewModel
+
+@{
+    ViewData["Title"] = "Đơn ứng tuyển của tôi";
+    ViewData["ActiveNav"] = "Applications";
+    Layout = "_AppLayout";
+    var count = Model?.Applications?.Count ?? 0;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/applications.css" asp-append-version="true" />
+}
+
+<main class="a-main">
+    <div class="app-page">
+        <header class="a-pagehead">
+            <div>
+                <h1 class="a-pagehead__title">Đơn ứng tuyển của tôi</h1>
+                <div class="a-pagehead__sub"><span class="a-num">@count</span> đơn đã nộp · Theo dõi tiến độ và lịch phỏng vấn</div>
+            </div>
+            <div class="a-pagehead__actions">
+                <a href="/Jobs" class="a-btn a-btn--secondary a-btn--sm">
+                    <i data-lucide="compass"></i> Tìm việc khác
+                </a>
+            </div>
+        </header>
+
+        @await Html.PartialAsync("_MyApplicationsPartial", Model)
+    </div>
+</main>
+
+@section Scripts {
+    <script src="~/js/application-actions.js" asp-append-version="true"></script>
+}

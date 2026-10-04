@@ -1,0 +1,478 @@
+/* ============================================================
+   Chat × Gargantua — "Observatory" concept
+   BH stays the stage (center). Chat = floating amber glass cards.
+   ============================================================ */
+
+.aris-gargantua-root {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  background: #020202 !important;
+}
+.aris-gargantua-root black-hole-scene,
+.aris-gargantua-root canvas,
+.aris-gargantua-root img.aris-gargantua-plate {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  opacity: 1 !important;
+}
+.aris-gargantua-readability {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(2,2,2,0.35) 0%, transparent 20%, transparent 80%, rgba(2,2,2,0.35) 100%),
+    linear-gradient(180deg, rgba(2,2,2,0.3) 0%, transparent 12%, transparent 90%, rgba(2,2,2,0.4) 100%);
+}
+
+/* The artwork also reports the real SignalR state and chat activity. */
+.aris-bh-signal {
+  position: fixed;
+  left: 50%;
+  bottom: 27px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 6px 11px;
+  border: 1px solid rgba(232, 186, 120, 0.2);
+  border-radius: 999px;
+  background: rgba(8, 5, 3, 0.68);
+  color: rgba(246, 232, 212, 0.82);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+}
+.aris-bh-signal-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #e8a04a;
+  box-shadow: 0 0 0 3px rgba(232, 160, 74, 0.12), 0 0 12px rgba(232, 160, 74, 0.6);
+}
+.aris-bh-signal.is-connected .aris-bh-signal-dot {
+  background: #5ee7a0;
+  box-shadow: 0 0 0 3px rgba(94,231,160,.12), 0 0 12px rgba(94,231,160,.6);
+}
+.aris-bh-signal.is-disconnected .aris-bh-signal-dot {
+  background: #ff7a68;
+  box-shadow: 0 0 0 3px rgba(255,122,104,.12), 0 0 12px rgba(255,122,104,.55);
+}
+.aris-bh-signal.is-reconnecting .aris-bh-signal-dot,
+.aris-bh-signal.is-connecting .aris-bh-signal-dot {
+  animation: aris-bh-signal-pulse 1.25s ease-in-out infinite;
+}
+.aris-bh-signal.is-call {
+  border-color: rgba(90, 216, 255, 0.32);
+  color: #d9f7ff;
+}
+.aris-bh-signal.is-call .aris-bh-signal-dot {
+  background: #5ad8ff;
+  box-shadow: 0 0 0 3px rgba(90,216,255,.14), 0 0 14px rgba(90,216,255,.7);
+}
+@keyframes aris-bh-signal-pulse {
+  50% { opacity: .42; transform: scale(.72); }
+}
+
+html.aris-gargantua-cinematic,
+html.aris-gargantua-cinematic body,
+body.aris-chat-bh-stage {
+  background: #020202 !important;
+}
+
+/* Nav: thin observatory bar */
+body.aris-chat-bh-stage .aris-navbar,
+body.aris-chat-bh-stage .navbar-cockpit,
+body.aris-chat-bh-stage nav.navbar {
+  position: relative;
+  z-index: 6;
+  background: rgba(6, 4, 3, 0.55) !important;
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  border-bottom: 1px solid rgba(212, 173, 115, 0.18) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+}
+
+/* Shell: float cards with gap so BH breathes in the middle */
+body.aris-chat-bh-stage .messenger-shell {
+  position: relative !important;
+  z-index: 3 !important;
+  display: flex !important;
+  gap: 14px !important;
+  padding: 14px 16px 18px !important;
+  box-sizing: border-box !important;
+  height: calc(100dvh - var(--nav-height, 68px)) !important;
+  background: transparent !important;
+  align-items: stretch !important;
+}
+
+/* Left: compact glass dossier */
+body.aris-chat-bh-stage .conversation-pane {
+  width: 300px !important;
+  min-width: 280px !important;
+  max-width: 320px !important;
+  border-radius: 22px !important;
+  background: linear-gradient(165deg, rgba(18, 12, 8, 0.62), rgba(8, 5, 4, 0.48)) !important;
+  backdrop-filter: blur(22px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.2) !important;
+  border: 1px solid rgba(232, 186, 120, 0.22) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 220, 170, 0.04) inset,
+    0 20px 50px rgba(0, 0, 0, 0.45),
+    0 0 40px rgba(232, 160, 74, 0.06) !important;
+  overflow: hidden !important;
+}
+
+/* Right: lighter glass so disk/halo stay readable behind messages */
+body.aris-chat-bh-stage .thread-pane,
+body.aris-chat-bh-stage #threadPane {
+  flex: 1 !important;
+  border-radius: 22px !important;
+  background: linear-gradient(165deg, rgba(14, 10, 7, 0.38), rgba(6, 4, 3, 0.22)) !important;
+  backdrop-filter: blur(14px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
+  border: 1px solid rgba(232, 186, 120, 0.16) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 220, 170, 0.03) inset,
+    0 20px 50px rgba(0, 0, 0, 0.35) !important;
+  overflow: hidden !important;
+  min-width: 0 !important;
+}
+
+body.aris-chat-bh-stage .thread-header {
+  background: rgba(10, 7, 5, 0.55) !important;
+  backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(232, 186, 120, 0.14) !important;
+}
+body.aris-chat-bh-stage .conversation-search,
+body.aris-chat-bh-stage .network-tabs {
+  border-bottom-color: rgba(232, 186, 120, 0.12) !important;
+}
+body.aris-chat-bh-stage .conversation-search input {
+  background: rgba(255, 245, 230, 0.07) !important;
+  color: #f4eadc !important;
+  border: 1px solid rgba(232, 186, 120, 0.18) !important;
+  border-radius: 16px !important;
+}
+body.aris-chat-bh-stage .conversation-search input::placeholder {
+  color: rgba(232, 210, 180, 0.45) !important;
+}
+
+body.aris-chat-bh-stage .network-tabs .nav-link {
+  color: rgba(240, 220, 190, 0.7) !important;
+  border: 1px solid transparent !important;
+}
+body.aris-chat-bh-stage .network-tabs .nav-link.active {
+  background: linear-gradient(180deg, rgba(232, 160, 74, 0.85), rgba(184, 120, 45, 0.9)) !important;
+  color: #1a1006 !important;
+  border-color: rgba(255, 210, 150, 0.35) !important;
+}
+
+body.aris-chat-bh-stage .conversation-item,
+body.aris-chat-bh-stage .search-result-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+  color: #f0e6d6 !important;
+}
+body.aris-chat-bh-stage .conversation-item:hover,
+body.aris-chat-bh-stage .search-result-item:hover {
+  background: rgba(232, 160, 74, 0.1) !important;
+}
+body.aris-chat-bh-stage .conversation-item.active {
+  background: rgba(232, 160, 74, 0.18) !important;
+  box-shadow: inset 3px 0 0 #e8a04a;
+}
+body.aris-chat-bh-stage .conv-name { color: #f5ebe0 !important; }
+body.aris-chat-bh-stage .conv-preview { color: rgba(230, 210, 180, 0.65) !important; }
+body.aris-chat-bh-stage .conv-preview.unread { color: #f0c27a !important; }
+
+body.aris-chat-bh-stage .thread-messages,
+body.aris-chat-bh-stage .conversation-list {
+  background: transparent !important;
+}
+
+/* Empty thread = pure observatory: BH fully on stage */
+body.aris-chat-bh-stage .thread-empty,
+body.aris-chat-bh-stage .conversation-empty {
+  background: transparent !important;
+  color: rgba(240, 220, 190, 0.75) !important;
+  text-shadow: 0 2px 18px rgba(0,0,0,0.65);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+body.aris-chat-bh-stage .msg-bubble {
+  background: rgba(16, 12, 9, 0.72) !important;
+  backdrop-filter: blur(10px);
+  color: #f6efe6 !important;
+  border: 1px solid rgba(255, 220, 180, 0.1) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+body.aris-chat-bh-stage .msg-row.mine .msg-bubble {
+  background: linear-gradient(165deg, rgba(232, 176, 100, 0.82), rgba(196, 130, 55, 0.78)) !important;
+  color: #1a1006 !important;
+  border-color: rgba(255, 220, 160, 0.28) !important;
+}
+
+body.aris-chat-bh-stage .thread-composer,
+body.aris-chat-bh-stage form.thread-composer {
+  background: rgba(10, 7, 5, 0.58) !important;
+  backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(232, 186, 120, 0.16) !important;
+}
+body.aris-chat-bh-stage .thread-composer input,
+body.aris-chat-bh-stage .thread-composer textarea {
+  background: rgba(255, 245, 230, 0.07) !important;
+  color: #f4eadc !important;
+  border: 1px solid rgba(232, 186, 120, 0.2) !important;
+  border-radius: 18px !important;
+}
+body.aris-chat-bh-stage .thread-composer button,
+body.aris-chat-bh-stage .thread-composer .btn-primary {
+  background: linear-gradient(180deg, #e8a04a, #c9842e) !important;
+  border: none !important;
+  color: #1a1006 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 6px 20px rgba(232, 160, 74, 0.3);
+}
+
+body.aris-chat-bh-stage .thread-status,
+body.aris-chat-bh-stage .text-muted {
+  color: rgba(230, 210, 180, 0.65) !important;
+}
+body.aris-chat-bh-stage .online-dot {
+  border-color: rgba(10, 7, 5, 0.9) !important;
+}
+
+/* Wide screens: keep a clearer BH corridor between panes */
+@media (min-width: 1200px) {
+  body.aris-chat-bh-stage .messenger-shell {
+    gap: 20px !important;
+    padding: 18px 28px 24px !important;
+  }
+  body.aris-chat-bh-stage .conversation-pane {
+    width: 310px !important;
+  }
+}
+/* ---- Peek mode: hide chat, watch rotating accretion disk ---- */
+.aris-bh-peek-btn {
+  position: fixed;
+  z-index: 40;
+  right: 18px;
+  bottom: 18px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(232, 186, 120, 0.4);
+  background: linear-gradient(180deg, rgba(28, 18, 10, 0.78), rgba(12, 8, 5, 0.88));
+  color: #f0d7a8;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 16px rgba(232, 160, 74, 0.1);
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, color .18s ease;
+}
+.aris-bh-peek-btn:hover {
+  transform: translateY(-1px) scale(1.04);
+  border-color: rgba(240, 200, 140, 0.6);
+  color: #ffe6bc;
+}
+.aris-bh-peek-btn[aria-pressed="true"] {
+  background: linear-gradient(180deg, #e8a04a, #c9842e);
+  color: #1a1006;
+  border-color: rgba(255, 220, 160, 0.55);
+}
+.aris-bh-peek-icon {
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.aris-bh-peek-label { display: none !important; }
+
+body.aris-bh-peek .messenger-shell {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity .35s ease, visibility .35s ease;
+}
+body.aris-bh-peek .aris-navbar,
+body.aris-bh-peek .navbar-cockpit,
+body.aris-bh-peek nav.navbar {
+  opacity: 0.18 !important;
+  transition: opacity .35s ease;
+}
+body.aris-bh-peek .aris-navbar:hover,
+body.aris-bh-peek .navbar-cockpit:hover,
+body.aris-bh-peek nav.navbar:hover {
+  opacity: 1 !important;
+}
+body.aris-bh-peek .aris-gargantua-readability {
+  opacity: 0.25;
+}
+body:not(.aris-bh-peek) .messenger-shell {
+  transition: opacity .35s ease, visibility .35s ease;
+}
+
+/* === P1: thinner observatory glass + live activity halo === */
+body.aris-chat-bh-stage .conversation-pane {
+  background: linear-gradient(165deg, rgba(18, 12, 8, 0.42), rgba(8, 5, 4, 0.28)) !important;
+  backdrop-filter: blur(14px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+}
+body.aris-chat-bh-stage .thread-pane,
+body.aris-chat-bh-stage #threadPane {
+  background: linear-gradient(165deg, rgba(14, 10, 7, 0.28), rgba(6, 4, 3, 0.14)) !important;
+  backdrop-filter: blur(10px) saturate(1.05) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.05) !important;
+}
+body.aris-chat-bh-stage .thread-header {
+  background: rgba(10, 7, 5, 0.38) !important;
+}
+body.aris-chat-bh-stage .aris-gargantua-readability {
+  opacity: 0.72;
+}
+body.aris-bh-live .aris-gargantua-root::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(ellipse 55% 45% at 50% 48%, rgba(255, 180, 90, 0.14), transparent 70%);
+  animation: aris-bh-live-pulse 1.2s ease-out;
+}
+@keyframes aris-bh-live-pulse {
+  0% { opacity: 0; transform: scale(0.96); }
+  35% { opacity: 1; }
+  100% { opacity: 0.55; transform: scale(1.02); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.aris-bh-live .aris-gargantua-root::after { animation: none; opacity: 0.35; }
+  .aris-bh-signal-dot { animation: none !important; }
+}
+
+/* === B: strong live halo, push-in, call cyan, idle dim, peek caption === */
+.aris-bh-activity-halo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse 50% 42% at 50% 48%, rgba(255,170,80,0.0), transparent 70%);
+}
+.aris-bh-activity-halo.is-pulse,
+body.aris-bh-live .aris-bh-activity-halo {
+  opacity: 1;
+  background:
+    radial-gradient(ellipse 52% 44% at 50% 48%, rgba(255,190,100,0.32), rgba(255,140,50,0.12) 45%, transparent 72%);
+  animation: aris-bh-halo-flash 1.4s ease-out;
+}
+@keyframes aris-bh-halo-flash {
+  0% { opacity: 0; filter: brightness(1); transform: scale(0.94); }
+  25% { opacity: 1; filter: brightness(1.35); transform: scale(1.02); }
+  100% { opacity: 0.55; filter: brightness(1.1); transform: scale(1.04); }
+}
+body.aris-bh-live .aris-gargantua-root #aris-black-hole-scene {
+  filter: brightness(1.12) saturate(1.2);
+}
+body.aris-bh-pushin .aris-gargantua-root {
+  transform: scale(1.06);
+  transition: transform .55s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: 50% 48%;
+}
+body.aris-chat-bh-stage .aris-gargantua-root {
+  transition: transform .55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+body.aris-bh-call .aris-bh-activity-halo,
+body.aris-bh-call .aris-gargantua-root::after {
+  opacity: 1 !important;
+  background: radial-gradient(ellipse 55% 48% at 50% 48%, rgba(80,220,255,0.28), rgba(40,160,255,0.12) 50%, transparent 75%) !important;
+  animation: none;
+  box-shadow: inset 0 0 120px rgba(60,200,255,0.18);
+}
+body.aris-bh-call .aris-gargantua-root {
+  box-shadow: inset 0 0 0 2px rgba(100,220,255,0.35);
+}
+body.aris-bh-idle .aris-gargantua-root #aris-black-hole-scene,
+body.aris-bh-idle .aris-gargantua-root .aris-gargantua-plate {
+  filter: brightness(0.72) saturate(0.75);
+  transition: filter .8s ease;
+}
+body.aris-bh-idle .aris-gargantua-readability { opacity: 0.85; }
+.aris-bh-peek-wrap {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.aris-bh-peek-wrap .aris-bh-peek-btn { position: static !important; }
+.aris-bh-peek-caption {
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: rgba(255,220,180,0.82);
+  text-shadow: 0 1px 8px rgba(0,0,0,0.7);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(20,10,4,0.55);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+body.aris-bh-peek .aris-bh-peek-caption { color: rgba(255,235,210,0.95); }
+/* thinner glass already; ensure BH more visible */
+body.aris-chat-bh-stage .conversation-pane {
+  background: linear-gradient(165deg, rgba(18,12,8,0.38), rgba(8,5,4,0.22)) !important;
+}
+body.aris-chat-bh-stage .thread-pane,
+body.aris-chat-bh-stage #threadPane {
+  background: linear-gradient(165deg, rgba(14,10,7,0.22), rgba(6,4,3,0.1)) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aris-bh-activity-halo.is-pulse, body.aris-bh-live .aris-bh-activity-halo { animation: none; opacity: 0.45; }
+  body.aris-bh-pushin .aris-gargantua-root { transition: none; transform: none; }
+}
+
+/* Peek: no eye button — double-click empty sky / Esc (same as Earth) */
+.aris-bh-peek-btn { display: none !important; }
+body:not(.aris-bh-peek) .aris-bh-peek-wrap { pointer-events: none; }
+body:not(.aris-bh-peek) .aris-bh-peek-caption { display: none !important; }
+body.aris-bh-peek .aris-bh-peek-wrap {
+  pointer-events: none;
+  align-items: center;
+  right: 50%;
+  bottom: 28px;
+  transform: translateX(50%);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Peek is the clearest view of the artwork, so it must override idle dimming. */
+body.aris-bh-peek .aris-gargantua-root #aris-black-hole-scene,
+body.aris-bh-peek .aris-gargantua-root .aris-gargantua-plate {
+  filter: brightness(1.18) saturate(1.12) contrast(1.03) !important;
+  transition: filter .38s ease !important;
+}
+body.aris-bh-peek .aris-gargantua-readability {
+  opacity: 0.08 !important;
+}
+body.aris-bh-peek .aris-bh-activity-halo {
+  opacity: 0.18;
+}

@@ -1,0 +1,58 @@
+@model List<(string Id, string Name)>
+@{
+    ViewData["Title"] = "Chọn Trang Facebook";
+    ViewData["ActiveNav"] = "Settings";
+    Layout = "_AppLayout";
+}
+
+<div class="a-container py-5" style="max-width: 540px;">
+    <div class="a-card p-4 p-md-5">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="p-2 rounded-3" style="background: var(--brand-soft); color: var(--brand-text);">
+                <i data-lucide="facebook" style="width: 24px; height: 24px;"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-0" style="font-size: var(--fs-18); color: var(--text);">Chọn Trang Facebook</h2>
+                <span class="small" style="color: var(--text-3);">Liên kết fanpage để tự động chia sẻ tin tuyển dụng</span>
+            </div>
+        </div>
+
+        <p class="small mb-4" style="color: var(--text-2); line-height: 1.6;">
+            Các tin tuyển dụng bạn đăng tải trên Aris có thể được tự động chia sẻ lên Trang Facebook mà bạn đang quản lý. Hãy chọn trang bên dưới:
+        </p>
+
+        @if (Model == null || !Model.Any())
+        {
+            <div class="p-4 rounded-3 text-center mb-4" style="background: var(--field); border: 1px solid var(--line-soft);">
+                <i data-lucide="alert-circle" class="text-warning mb-2" style="width: 28px; height: 28px;"></i>
+                <div class="fw-semibold small mb-1" style="color: var(--text);">Không tìm thấy Trang Facebook nào</div>
+                <p class="small mb-0" style="color: var(--text-3);">Tài khoản Facebook của bạn hiện không quản trị Trang nào, hoặc bạn chưa cấp quyền quản lý Trang cho ứng dụng.</p>
+            </div>
+            <a href="/Settings" class="a-btn a-btn--secondary w-100 justify-content-center">Quay lại Cài đặt</a>
+        }
+        else
+        {
+            <form asp-controller="SocialConnect" asp-action="ConfirmFacebookPage" method="post">
+                @Html.AntiForgeryToken()
+                <div class="d-flex flex-column gap-2 mb-4">
+                    @foreach (var fbPage in Model)
+                    {
+                        <label class="d-flex align-items-center gap-3 p-3 rounded-3 cursor-pointer" style="background: var(--field); border: 1px solid var(--line-soft); cursor: pointer;" for="page-@fbPage.Id">
+                            <input class="form-check-input m-0" type="radio" name="pageId" id="page-@fbPage.Id" value="@fbPage.Id" required style="cursor: pointer;">
+                            <span class="fw-semibold small flex-grow-1" style="color: var(--text);">
+                                @fbPage.Name
+                            </span>
+                        </label>
+                    }
+                </div>
+
+                <div class="d-flex flex-column gap-2">
+                    <button type="submit" class="a-btn a-btn--primary w-100 justify-content-center">
+                        <i data-lucide="check"></i> Kết nối trang này
+                    </button>
+                    <a href="/Settings" class="a-btn a-btn--ghost w-100 justify-content-center">Hủy bỏ</a>
+                </div>
+            </form>
+        }
+    </div>
+</div>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aris Orbit — Bộ icon riêng của Aris</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/aris-line.css">
+  <style>
+    body { margin: 0; background: var(--canvas); color: var(--text); font-family: Inter, system-ui, sans-serif; }
+    .specimen { max-width: 1200px; margin: auto; padding: 32px 40px 64px; }
+    .masthead, .tools, .signature, .hero-tags, .sample-actions { display: flex; align-items: center; gap: 12px; }
+    .masthead { justify-content: space-between; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+    .signature { font-size: 18px; font-weight: 750; letter-spacing: -.5px; }
+    .signature img { width: 32px; height: 32px; }
+    .edition { color: var(--text-3); font-size: 12px; letter-spacing: .1em; }
+    .hero { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 56px; padding: 60px 0 48px; }
+    .eyebrow { color: var(--brand-text); font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 18px; }
+    h1 { font-size: clamp(44px, 6vw, 72px); line-height: 1; letter-spacing: -.06em; }
+    .intro { max-width: 430px; font-size: 15px; line-height: 1.8; color: var(--text-3); margin: 24px 0; }
+    .hero-tags { flex-wrap: wrap; gap: 8px; }
+    .hero-tags span { padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; color: var(--text-3); font-size: 11px; }
+    .demo { padding: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 16px 48px rgb(0 0 0 / .05); }
+    .demo-caption { font-size: 10px; letter-spacing: .12em; color: var(--text-3); text-transform: uppercase; margin-bottom: 18px; }
+    .demo-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .demo-link { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 17px 4px; border-radius: 12px; color: var(--text-3); font-size: 10px; }
+    .demo-link svg { width: 27px; height: 27px; }
+    .demo-link[aria-current] { background: var(--brand-soft); color: var(--brand-text); }
+    .demo-card { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 22px; display: flex; gap: 14px; align-items: center; }
+    .demo-job { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--field); }
+    .demo-card strong { font-size: 14px; }
+    .demo-card p { color: var(--text-3); font-size: 11px; margin-top: 5px; }
+    .sample-actions { margin-top: 24px; }
+    .sample-actions .a-btn:last-child { margin-left: auto; }
+    .tools { flex-wrap: wrap; padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .search { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 180px; }
+    .search svg { width: 18px; color: var(--text-3); }
+    .search input { width: 100%; border: 0; background: transparent; outline-offset: 5px; font-size: 13px; }
+    select, .control { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 9px 12px; font-size: 12px; }
+    button { cursor: pointer; }
+    .control[aria-pressed="true"] { color: var(--brand-text); border-color: var(--brand-text); }
+    .catalog-meta { display: flex; justify-content: space-between; gap: 12px; color: var(--text-3); font-size: 11px; padding: 22px 0 14px; }
+    .grid { --preview-size: 24px; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; }
+    .tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 17px; min-height: 110px; padding: 15px 5px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text-2); transition: border-color .15s, background .15s; }
+    .tile:hover, .tile:focus-visible { border-color: var(--brand-text); background: var(--brand-soft); }
+    .tile svg { width: var(--preview-size); height: var(--preview-size); }
+    .tile span { font-size: 10px; color: var(--text-3); overflow-wrap: anywhere; }
+    .empty { color: var(--text-3); padding: 40px 0; }
+    .foot { margin-top: 32px; color: var(--text-3); font-size: 12px; line-height: 1.7; }
+    #feedback { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--canvas); border-radius: 12px; padding: 12px 20px; box-shadow: 0 8px 30px rgb(0 0 0 / .15); font-size: 12px; }
+    #feedback:empty { display: none; }
+    @media (max-width: 900px) { .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } .hero { gap: 24px; } }
+    @media (max-width: 640px) { .specimen { padding: 20px; } .hero { grid-template-columns: 1fr; padding: 36px 0; } .edition { display: none; } .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .tools .search { flex-basis: 100%; padding: 8px 0; } .catalog-meta { flex-direction: column; } }
+    @media (prefers-reduced-motion: reduce) { .tile { transition: none; } }
+  </style>
+</head>
+<body>
+  <main class="specimen">
+    <header class="masthead">
+      <div class="signature"><img src="favicon.svg" alt="">Aris <span style="font-weight:400;color:var(--text-3)">/ Orbit</span></div>
+      <span class="edition">ICON COLLECTION · VOL. 02</span>
+      <button class="control" id="theme" type="button" aria-pressed="true">Nền tối</button>
+    </header>
+    <section class="hero" aria-labelledby="title">
+      <div>
+        <p class="eyebrow">Một nét riêng cho mỗi kết nối</p>
+        <h1 id="title">Small icons.<br>Aris character.</h1>
+        <p class="intro">Đường nét mềm, những khoảng mở và điểm nhấn hoàng hôn. Bộ biểu tượng riêng cho hành trình tìm việc, sáng tạo và kết nối trên Aris.</p>
+        <div class="hero-tags"><span>SVG tự vẽ</span><span>Lưới 24 × 24</span><span>Duotone</span><span>Sáng & tối</span></div>
+      </div>
+      <div class="demo orbit-accent">
+        <p class="demo-caption">Trong giao diện Aris</p>
+        <div class="demo-nav">
+          <div class="demo-link" aria-current="page"><i data-lucide="home" aria-hidden="true"></i><span>Trang chủ</span></div>
+          <div class="demo-link"><i data-lucide="briefcase" aria-hidden="true"></i><span>Việc làm</span></div>
+          <div class="demo-link"><i data-lucide="message-circle" aria-hidden="true"></i><span>Tin nhắn</span></div>
+          <div class="demo-link"><i data-lucide="compass" aria-hidden="true"></i><span>Khám phá</span></div>
+        </div>
+        <div class="demo-card"><div class="demo-job"><i data-lucide="building-2" aria-hidden="true"></i></div><div><strong>Bước tiếp theo của bạn.</strong><p>Cơ hội mới · Kết nối mới</p></div></div>
+        <div class="sample-actions">
+          <button class="a-btn a-btn--ghost a-btn--icon" type="button" aria-label="Thích" aria-pressed="false" data-toggle><i data-lucide="heart" aria-hidden="true"></i></button>
+          <button class="a-btn a-btn--ghost a-btn--icon" type="button" aria-label="Lưu" aria-pressed="false" data-toggle><i data-lucide="bookmark" aria-hidden="true"></i></button>
+          <button class="a-btn a-btn--secondary a-btn--sm" type="button" aria-pressed="false" data-toggle><i data-lucide="user-plus" aria-hidden="true"></i>Kết nối</button>
+        </div>
+      </div>
+    </section>
+    <section aria-label="Danh mục icon">
+      <div class="tools">
+        <label class="search"><i data-lucide="search" aria-hidden="true"></i><input id="search" type="search" placeholder="Tìm icon theo tên…" aria-label="Tìm icon theo tên"></label>
+        <select id="size" aria-label="Kích thước icon"><option value="16">16 px</option><option value="20">20 px</option><option value="24" selected>24 px</option><option value="32">32 px</option></select>
+        <button class="control" id="accent" type="button" aria-pressed="true">Điểm nhấn cam</button>
+        <button class="control" id="active" type="button" aria-pressed="false">Đang chọn</button>
+      </div>
+      <div class="catalog-meta"><span id="count" role="status"></span><span>Chọn một icon để tải SVG</span></div>
+      <div class="grid orbit-accent" id="grid"></div>
+      <p class="empty" id="empty" hidden>Không tìm thấy icon phù hợp.</p>
+    </section>
+    <p class="foot">Aris Orbit · Thiết kế cho Aris Careers. Các tên tương thích được giữ lại để toàn bộ giao diện dùng chung một bộ icon. Logo thương hiệu bên thứ ba giữ nguyên nhận diện.</p>
+  </main>
+  <div id="feedback" role="status" aria-live="polite"></div>
+  <script src="lib/lucide/lucide.min.js"></script>
+  <script src="js/aris-icons.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var grid = document.getElementById('grid');
+      var names = window.ArisIcons.primaryNames;
+      names.forEach(function (name) {
+        var button = document.createElement('button');
+        button.className = 'tile'; button.type = 'button'; button.dataset.name = name;
+        button.setAttribute('aria-label', 'Tải SVG ' + name);
+        var icon = document.createElement('i'); icon.dataset.lucide = name; icon.setAttribute('aria-hidden', 'true');
+        var label = document.createElement('span'); label.textContent = name;
+        button.append(icon, label); grid.appendChild(button);
+      });
+      window.lucide.createIcons();
+      var tiles = Array.from(grid.children);
+      function filter() {
+        var query = document.getElementById('search').value.trim().toLowerCase();
+        var visible = 0;
+        tiles.forEach(function (tile) { var show = tile.dataset.name.includes(query); tile.hidden = !show; tile.style.display = show ? '' : 'none'; if (show) visible++; });
+        document.getElementById('count').textContent = visible + ' biểu tượng · ' + window.ArisIcons.names.length + ' tên tương thích';
+        document.getElementById('empty').hidden = visible !== 0;
+      }
+      filter();
+      document.getElementById('search').addEventListener('input', filter);
+      document.getElementById('size').addEventListener('change', function () { grid.style.setProperty('--preview-size', this.value + 'px'); });
+      function toggle(button) { var on = button.getAttribute('aria-pressed') !== 'true'; button.setAttribute('aria-pressed', String(on)); return on; }
+      document.getElementById('theme').addEventListener('click', function () { var dark = toggle(this); document.documentElement.dataset.theme = dark ? 'dark' : 'light'; this.textContent = dark ? 'Nền tối' : 'Nền sáng'; });
+      document.getElementById('accent').addEventListener('click', function () { grid.classList.toggle('orbit-accent', toggle(this)); });
+      document.getElementById('active').addEventListener('click', function () { grid.classList.toggle('is-lit', toggle(this)); });
+      document.querySelectorAll('[data-toggle]').forEach(function (button) { button.addEventListener('click', function () { toggle(this); }); });
+      var feedbackTimer;
+      grid.addEventListener('click', function (event) {
+        var tile = event.target.closest('.tile'); if (!tile) return;
+        var original = tile.querySelector('svg'); var svg = original.cloneNode(true);
+        // Bake the visible colors into a standalone asset, without depending on app CSS.
+        [original].concat(Array.from(original.querySelectorAll('*'))).forEach(function (node, i) {
+          var clone = i === 0 ? svg : svg.querySelectorAll('*')[i - 1];
+          var style = getComputedStyle(node);
+          ['fill', 'stroke', 'stroke-width', 'opacity'].forEach(function (key) { clone.setAttribute(key, style.getPropertyValue(key)); });
+          clone.removeAttribute('class');
+        });
+        svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); svg.setAttribute('width', '24'); svg.setAttribute('height', '24');
+        svg.removeAttribute('aria-hidden'); svg.removeAttribute('data-lucide'); svg.removeAttribute('data-aris');
+        var url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' }));
+        var link = document.createElement('a'); link.href = url; link.download = 'aris-orbit-' + tile.dataset.name + '.svg';
+        document.body.appendChild(link); link.click(); link.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        document.getElementById('feedback').textContent = 'Đã tải ' + tile.dataset.name + '.svg';
+        clearTimeout(feedbackTimer); feedbackTimer = setTimeout(function () { document.getElementById('feedback').textContent = ''; }, 2500);
+      });
+    })();
+  </script>
+</body>
+</html>

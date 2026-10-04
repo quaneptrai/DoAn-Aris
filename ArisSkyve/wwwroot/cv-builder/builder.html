@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aris</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="cosmos.css">
+</head>
+<body>
+
+<!-- ============ APP SHELL ============ -->
+<div id="appShell" class="app-shell">
+
+  <div class="app-header">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1><a class="topbar-title-link" href="picker.html">CV Builder</a></h1>
+      </div>
+      <div class="topbar-controls">
+        <div class="topbar-history">
+          <button type="button" id="undoBtn" class="topbar-history-btn" aria-label="Undo" title="Undo (Ctrl+Z)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13.5L3 9.5L7 5.5"></path><path d="M3 9.5H16C18.76 9.5 21 11.74 21 14.5C21 17.26 18.76 19.5 16 19.5H11"></path></svg>
+          </button>
+          <button type="button" id="redoBtn" class="topbar-history-btn" aria-label="Redo" title="Redo (Ctrl+Y)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 13.5L21 9.5L17 5.5"></path><path d="M21 9.5H8C5.24 9.5 3 11.74 3 14.5C3 17.26 5.24 19.5 8 19.5H13"></path></svg>
+          </button>
+        </div>
+        <button id="aiSettingsBtn" class="btn btn-ghost" title="AI settings (local Ollama endpoint &amp; model)">🤖 AI settings</button>
+        <button id="resetBtn" class="btn btn-ghost">Reset</button>
+        <button id="exportBtn" class="btn btn-primary">Export PDF</button>
+      </div>
+    </header>
+
+    <!-- Mobile only: lets you jump straight to the CV without scrolling past the form. -->
+    <div class="mobile-view-switcher">
+      <button type="button" class="mobile-view-btn is-active" data-view="edit">✏️ Edit</button>
+      <button type="button" class="mobile-view-btn" data-view="preview">👁️ Preview</button>
+    </div>
+  </div>
+  <main class="layout">
+
+    <!-- ============ FORM PANEL ============ -->
+    <section class="form-panel">
+
+      <!-- ============ DESIGN OPTIONS (template / colors / fonts / layout / page) ============
+           Desktop (see builder.js placeDesignPanel): JS moves this whole card up into
+           .app-header, where CSS strips the card chrome so it reads as the original
+           full-width top ribbon, always visible, no collapse control.
+           Mobile: stays here as the first card in the sidebar, collapsible, matching
+           the Basic Info / section card look, so it never covers the CV preview. -->
+      <div class="form-section section-card design-panel-card" id="designPanelCard">
+        <div class="section-card-header">
+          <span class="section-card-title"><span class="section-card-icon">🎨</span>Design options</span>
+          <button type="button" id="designPanelToggleBtn" class="section-card-collapse-btn" aria-expanded="false" aria-controls="ribbonToolbar">
+            <span class="ribbon-toggle-chevron">▾</span>
+          </button>
+        </div>
+
+        <div id="ribbonToolbar" class="ribbon-toolbar">
+
+        <!-- Desktop only: this whole area (tabs included) is what
+             #ribbonResizeHandle (below) resizes and #ribbonCollapseBtn hides.
+             Text/buttons stay full size; shrinking below content height
+             scrolls it internally instead of clipping anything. -->
+        <div id="ribbonScrollArea" class="ribbon-scroll-area">
+
+        <!-- ============ RIBBON TABS ============ -->
+        <div class="ribbon-tabs" role="tablist">
+          <button type="button" class="ribbon-tab is-active" data-tab="design" role="tab">Design</button>
+          <button type="button" class="ribbon-tab" data-tab="text" role="tab">Text</button>
+          <button type="button" class="ribbon-tab" data-tab="layout" role="tab">Layout</button>
+          <button type="button" class="ribbon-tab" data-tab="page" role="tab">Page</button>
+        </div>
+        <hr class="ribbon-tabs-hr">
+
+        <!-- ============ RIBBON: DESIGN ============ -->
+        <div class="ribbon ribbon-panel is-active" data-panel="design">
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <select id="templateSelect" class="ribbon-select"></select>
+            </div>
+            <div class="ribbon-group-label">Template</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <div class="ribbon-toggle-group">
+                <button type="button" id="colorModeSingleBtn" class="ribbon-toggle-btn">Single</button>
+                <button type="button" id="colorModeMultiBtn" class="ribbon-toggle-btn">Multi</button>
+              </div>
+              <div class="ribbon-swatch">
+                <button type="button" class="color-swatch-btn" id="accentColorBtn" aria-label="Accent color"></button>
+                <span>Accent</span>
+              </div>
+              <div class="ribbon-swatch">
+                <button type="button" class="color-swatch-btn" id="bgColorBtn" aria-label="Background color"></button>
+                <span>Background</span>
+              </div>
+              <div class="ribbon-swatch">
+                <button type="button" class="color-swatch-btn" id="textColorBtn" aria-label="Text color"></button>
+                <span>Text</span>
+              </div>
+            </div>
+            <div class="ribbon-group-label">Colors</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <div id="accentTargetsList" class="ribbon-check-list"></div>
+            </div>
+            <div class="ribbon-group-label">Apply accent to</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <div id="headingStyleGroup" class="ribbon-toggle-group is-wrap"></div>
+            </div>
+            <div class="ribbon-group-label">Heading style</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <div id="headingCaseGroup" class="ribbon-toggle-group"></div>
+            </div>
+            <div class="ribbon-group-label">Heading case</div>
+          </div>
+
+        </div>
+
+        <!-- ============ RIBBON: TEXT ============ -->
+        <div class="ribbon ribbon-panel" data-panel="text">
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <select id="fontFamilySelect" class="ribbon-select"></select>
+            </div>
+            <div class="ribbon-group-label">Body font</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <select id="headingFontSelect" class="ribbon-select"></select>
+            </div>
+            <div class="ribbon-group-label">Heading font</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body ribbon-slider-group">
+              <div class="ribbon-slider-row">
+                <div class="ribbon-slider-head"><span>Base size</span><span id="baseSizeVal"></span></div>
+                <input type="range" id="baseSizeSlider" min="0" max="8" step="1">
+              </div>
+              <div class="ribbon-slider-row">
+                <div class="ribbon-slider-head"><span>Name</span><span id="nameSizeVal"></span></div>
+                <input type="range" id="nameSizeSlider" min="0" max="8" step="1">
+              </div>
+            </div>
+            <div class="ribbon-group-label">Font size</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body ribbon-slider-group">
+              <div class="ribbon-slider-row">
+                <div class="ribbon-slider-head"><span>Section headings</span><span id="headingSizeVal"></span></div>
+                <input type="range" id="headingSizeSlider" min="0" max="8" step="1">
+              </div>
+              <div class="ribbon-slider-row">
+                <div class="ribbon-slider-head"><span>Entry title / date</span><span id="entrySizeVal"></span></div>
+                <input type="range" id="entrySizeSlider" min="0" max="8" step="1">
+              </div>
+            </div>
+            <div class="ribbon-group-label">More sizes</div>
+          </div>
+
+        </div>
+
+        <!-- ============ RIBBON: LAYOUT ============ -->
+        <div class="ribbon ribbon-panel" data-panel="layout">
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body ribbon-slider-group">
+              <div class="ribbon-slider-row">
+                <div class="ribbon-slider-head"><span>Line height</span><span id="lineHeightVal"></span></div>
+                <input type="range" id="lineHeightSlider" min="0" max="8" step="1">
+              </div>
+              <div class="ribbon-slider-row">
+                <div class="ribbon-slider-head"><span>Space between elements</span><span id="spacingVal"></span></div>
+                <input type="range" id="spacingSlider" min="0" max="8" step="1">
+              </div>
+            </div>
+            <div class="ribbon-group-label">Spacing</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body ribbon-slider-group">
+              <div class="ribbon-slider-row">
+                <div class="ribbon-slider-head"><span>Left &amp; right</span><span id="marginHVal"></span></div>
+                <input type="range" id="marginHSlider" min="0" max="8" step="1">
+              </div>
+              <div class="ribbon-slider-row">
+                <div class="ribbon-slider-head"><span>Top &amp; bottom</span><span id="marginVVal"></span></div>
+                <input type="range" id="marginVSlider" min="0" max="8" step="1">
+              </div>
+            </div>
+            <div class="ribbon-group-label">Margins</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <div class="ribbon-toggle-group">
+                <button type="button" id="alignLeftBtn" class="ribbon-toggle-btn">Left</button>
+                <button type="button" id="alignCenterBtn" class="ribbon-toggle-btn">Center</button>
+              </div>
+            </div>
+            <div class="ribbon-group-label">Header align</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <div class="ribbon-toggle-group">
+                <button type="button" id="arrangementWrapBtn" class="ribbon-toggle-btn">Wrap</button>
+                <button type="button" id="arrangementGridBtn" class="ribbon-toggle-btn">Grid</button>
+              </div>
+            </div>
+            <div class="ribbon-group-label">Contact layout</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <div id="delimiterGroup" class="ribbon-toggle-group"></div>
+            </div>
+            <div class="ribbon-group-label">Separator</div>
+          </div>
+
+        </div>
+
+        <!-- ============ RIBBON: PAGE ============ -->
+        <div class="ribbon ribbon-panel" data-panel="page">
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <div class="ribbon-toggle-group">
+                <button type="button" id="pageA4Btn" class="ribbon-toggle-btn">A4</button>
+                <button type="button" id="pageLetterBtn" class="ribbon-toggle-btn">Letter</button>
+              </div>
+            </div>
+            <div class="ribbon-group-label">Page format</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <div class="ribbon-toggle-group">
+                <button type="button" id="dateRightBtn" class="ribbon-toggle-btn">Right</button>
+                <button type="button" id="dateLeftBtn" class="ribbon-toggle-btn">Left</button>
+              </div>
+            </div>
+            <div class="ribbon-group-label">Date position</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <div class="ribbon-toggle-group">
+                <button type="button" id="subtitleNextBtn" class="ribbon-toggle-btn">Below title</button>
+                <button type="button" id="subtitleSameBtn" class="ribbon-toggle-btn">Same line</button>
+              </div>
+            </div>
+            <div class="ribbon-group-label">Subtitle</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <label class="ribbon-check-pill" id="linkUnderlinePill"><input type="checkbox" id="linkUnderlineChk">Underline</label>
+              <label class="ribbon-check-pill" id="linkAccentPill"><input type="checkbox" id="linkAccentChk">Accent color</label>
+            </div>
+            <div class="ribbon-group-label">Website link</div>
+          </div>
+
+          <div class="ribbon-sep"></div>
+
+          <div class="ribbon-group">
+            <div class="ribbon-group-body">
+              <label class="ribbon-check-pill" id="footerNamePill"><input type="checkbox" id="footerNameChk">Name</label>
+              <label class="ribbon-check-pill" id="footerEmailPill"><input type="checkbox" id="footerEmailChk">Email</label>
+            </div>
+            <div class="ribbon-group-label">Print footer</div>
+          </div>
+
+        </div>
+
+        </div><!-- /#ribbonScrollArea -->
+
+        <!-- Desktop only. Collapse button stays outside the parts that hide
+             when collapsed, so it's always there to expand again. -->
+        <div class="ribbon-bottom-bar">
+          <button type="button" id="ribbonCollapseBtn" class="ribbon-collapse-triangle" title="Collapse ribbon" aria-expanded="true" aria-controls="ribbonToolbar">
+            <span class="ribbon-collapse-arrow"></span>
+          </button>
+          <div id="ribbonResizeHandle" class="ribbon-resize-handle" title="Drag to resize · double-click to reset"></div>
+        </div>
+
+        </div><!-- /#ribbonToolbar -->
+      </div><!-- /.design-panel-card -->
+
+      <div class="form-section section-card section-card-basic">
+        <div class="section-card-header">
+          <span class="section-card-title"><span class="section-card-icon">🧑</span>Basic Info</span>
+          <span class="section-card-required">Required</span>
+        </div>
+
+        <div class="photo-row">
+          <img id="photoPreview" class="photo-preview" alt="">
+          <div>
+            <input type="file" id="photoInput" accept="image/*">
+            <button type="button" id="photoRemove" class="btn btn-ghost btn-small">Remove photo</button>
+          </div>
+        </div>
+
+        <label>Full name<input type="text" id="fullName" placeholder="Jane Doe"></label>
+        <label>Professional title<input type="text" id="jobTitle" placeholder="Product Designer"></label>
+        <label>Email<input type="email" id="email" placeholder="jane@example.com"></label>
+        <label>Phone<input type="text" id="phone" placeholder="+1 555 123 4567"></label>
+        <label>Location<input type="text" id="location" placeholder="City, Country"></label>
+        <label>Website / LinkedIn<input type="text" id="website" placeholder="linkedin.com/in/janedoe"></label>
+      </div>
+
+      <div id="sectionsContainer" class="sections-container"></div>
+
+      <div class="add-section-wrap">
+        <button type="button" id="addSectionBtn" class="btn btn-primary btn-add-section">+ Add a section</button>
+      </div>
+
+    </section>
+
+    <!-- ============ PREVIEW PANEL ============ -->
+    <section class="preview-panel">
+      <div class="cv-scale-wrap" id="cvScaleWrap">
+        <div id="cvPreview" class="cv template-modern">
+          <!-- rendered by builder.js -->
+        </div>
+      </div>
+      <div id="cvPrintFooter" class="cv-print-footer"></div>
+    </section>
+
+  </main>
+
+</div>
+
+<!-- ============ AI SETTINGS POPOVER (local Ollama endpoint & model) ============ -->
+<div id="aiSettingsPopover" class="ai-popover ai-settings-popover hidden">
+  <label class="ai-popover-label">Ollama endpoint
+    <input type="text" id="aiEndpointInput" placeholder="http://127.0.0.1:11434">
+  </label>
+  <label class="ai-popover-label">Model
+    <div class="ai-model-select-row">
+      <select id="aiModelSelect"></select>
+      <button type="button" class="btn btn-ghost btn-small" id="aiModelRefreshBtn" title="Refresh model list from Ollama">↻</button>
+    </div>
+  </label>
+  <label class="ai-popover-label hidden" id="aiModelCustomWrap">Custom model tag
+    <input type="text" id="aiModelCustomInput" placeholder="e.g. nemotron-3-super:cloud">
+  </label>
+  <p class="ai-popover-hint" id="aiModelStatusHint"></p>
+  <p class="ai-popover-hint">Run Ollama locally with this page's origin allowed, e.g.:<br><code>OLLAMA_ORIGINS=* ollama serve</code></p>
+</div>
+
+<!-- ============ AI SUGGESTION POPOVER (Summary / descriptions / skills) ============ -->
+<div id="aiPopover" class="ai-popover hidden">
+  <div class="ai-popover-header">
+    <span class="ai-popover-title" id="aiPopoverTitle">Suggest with AI</span>
+    <button type="button" class="modal-close" id="aiPopoverCloseBtn" aria-label="Close">&times;</button>
+  </div>
+  <label class="ai-popover-label">Target role / job description (optional)
+    <textarea id="aiJobContext" rows="3" placeholder="Paste the job title or description to tailor suggestions..."></textarea>
+  </label>
+  <div id="aiPopoverBody" class="ai-popover-body"></div>
+  <div class="ai-popover-actions">
+    <button type="button" class="btn btn-primary btn-small" id="aiGenerateBtn">Generate</button>
+  </div>
+</div>
+
+<!-- ============ COLOR POPOVER (shared by Accent / Background / Text) ============ -->
+<div id="colorPopover" class="color-popover hidden">
+  <div id="colorGrid" class="color-grid"></div>
+  <label class="color-custom-row">
+    Custom
+    <input type="color" id="colorCustomInput">
+  </label>
+</div>
+
+<!-- ============ DATE PICKER POPOVER (shared by all date fields) ============ -->
+<div id="datePickerPopover" class="date-picker-popover hidden">
+  <div class="date-picker-header">
+    <button type="button" class="date-picker-nav-btn" id="datePickerPrevBtn" aria-label="Previous month">‹</button>
+    <div class="date-picker-header-selects">
+      <select class="date-picker-select" id="datePickerMonthSelect" aria-label="Month"></select>
+      <select class="date-picker-select" id="datePickerYearSelect" aria-label="Year"></select>
+    </div>
+    <button type="button" class="date-picker-nav-btn" id="datePickerNextBtn" aria-label="Next month">›</button>
+  </div>
+  <div class="date-picker-weekdays">
+    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+  </div>
+  <div class="date-picker-grid" id="datePickerGrid"></div>
+  <div class="date-picker-footer">
+    <button type="button" class="date-picker-footer-btn" id="datePickerTodayBtn">Today</button>
+    <button type="button" class="date-picker-footer-btn" id="datePickerClearBtn">Clear</button>
+  </div>
+</div>
+
+<!-- ============ ADD-A-SECTION MODAL ============ -->
+<div id="sectionModalBackdrop" class="modal-backdrop hidden">
+  <div class="modal-card modal-card-wide" role="dialog" aria-modal="true">
+    <button type="button" class="modal-close" id="sectionModalCloseBtn" aria-label="Close">&times;</button>
+    <h3 class="modal-heading">Add a section</h3>
+    <p class="modal-sub">Pick a block to add to your CV.</p>
+
+    <div id="sectionModalList" class="section-modal-list"></div>
+
+    <div id="customSectionForm" class="section-menu-custom-form hidden">
+      <input type="text" id="customSectionName" placeholder="Section title (e.g. Volunteer Work)">
+      <div class="section-menu-custom-actions">
+        <button type="button" class="btn btn-ghost btn-small" id="cancelCustomBtn">Back</button>
+        <button type="button" class="btn btn-primary btn-small" id="confirmCustomBtn">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="csrf.js"></script>
+<script src="pre-bridge.js"></script>
+<script src="sections.js"></script>
+<script src="templates.js"></script>
+<script src="builder.js"></script>
+<script src="ai.js"></script>
+<script src="post-bridge.js"></script>
+</body>
+</html>

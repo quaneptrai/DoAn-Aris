@@ -1,0 +1,2456 @@
+/**
+ * ARIS CAREER STUDIO — DYNAMIC CONSTELLATION & LIVING COSMOS ENGINE
+ * 1. Self-drawing animated zodiac constellations on page change
+ * 2. Dynamic twinkling starfield canvas with shooting meteors and parallax
+ * 3. Icon cosmic glow & dual-tone hover micro-physics
+ * 4. High-density telemetry & bento grid filler for zero dead space
+ */
+
+(function () {
+  'use strict';
+
+  if (typeof window === 'undefined' || window.__arisConstellationInitialized) return;
+  window.__arisConstellationInitialized = true;
+
+  // The top zodiac plate competed with page content and is intentionally
+  // disabled. Keep the implementation behind one switch so it can be reused
+  // later without leaving stale stages after a bfcache restore.
+  const PAGE_CONSTELLATIONS_ENABLED = false;
+
+  function removePageConstellations() {
+    document.querySelectorAll('#arisCosmicConstellationStage, #arisConstellationStage')
+      .forEach((stage) => stage.remove());
+  }
+
+  /* =========================================================================
+     1. ZODIAC CONSTELLATION GEOMETRY DATABASE
+     ========================================================================= */
+  const CONSTELLATIONS = {
+    leo: {
+      key: 'leo',
+      name: "SƯ TỬ · LEO",
+      stars: [
+        { x: 34, y: 126, r: 2.8 },
+        { x: 68, y: 82, r: 3.2 },
+        { x: 118, y: 52, r: 4.5, alpha: true }, // Regulus (Alpha Leonis)
+        { x: 164, y: 72, r: 3.0 },
+        { x: 210, y: 116, r: 3.6 },
+        { x: 252, y: 68, r: 2.8 }
+      ],
+      paths: [
+        "M 34 126 L 68 82 L 118 52 L 164 72 L 210 116",
+        "M 210 116 L 252 68"
+      ]
+    },
+    sagittarius: {
+      key: 'sagittarius',
+      name: "NHÂN MÃ · SAGITTARIUS",
+      stars: [
+        { x: 30, y: 134, r: 2.6 },
+        { x: 88, y: 104, r: 3.2 },
+        { x: 146, y: 122, r: 2.8 },
+        { x: 198, y: 80, r: 4.2, alpha: true }, // Kaus Australis
+        { x: 252, y: 44, r: 3.0 },
+        { x: 224, y: 58, r: 2.2 },
+        { x: 242, y: 74, r: 2.2 }
+      ],
+      paths: [
+        "M 30 134 L 88 104 L 146 122 L 198 80 L 252 44",
+        "M 252 44 L 224 58",
+        "M 252 44 L 242 74"
+      ]
+    },
+    virgo: {
+      key: 'virgo',
+      name: "XỬ NỮ · VIRGO",
+      stars: [
+        { x: 26, y: 62, r: 2.6 },
+        { x: 84, y: 98, r: 3.2 },
+        { x: 146, y: 84, r: 4.4, alpha: true }, // Spica
+        { x: 206, y: 120, r: 3.0 },
+        { x: 256, y: 74, r: 2.6 },
+        { x: 172, y: 152, r: 2.8 }
+      ],
+      paths: [
+        "M 26 62 L 84 98 L 146 84 L 206 120 L 256 74",
+        "M 146 84 L 172 152"
+      ]
+    },
+    libra: {
+      key: 'libra',
+      name: "THIÊN BÌNH · LIBRA",
+      stars: [
+        { x: 70, y: 66, r: 3.6 },
+        { x: 176, y: 48, r: 4.2, alpha: true }, // Zubeneschamali
+        { x: 238, y: 108, r: 3.0 },
+        { x: 130, y: 136, r: 2.8 }
+      ],
+      paths: [
+        "M 70 66 L 176 48 L 238 108 L 130 136 Z"
+      ]
+    },
+    cancer: {
+      key: 'cancer',
+      name: "CỰ GIẢI · CANCER",
+      stars: [
+        { x: 122, y: 38, r: 3.0 },
+        { x: 136, y: 96, r: 4.0, alpha: true }, // Asellus Australis
+        { x: 70, y: 140, r: 2.8 },
+        { x: 206, y: 136, r: 2.8 }
+      ],
+      paths: [
+        "M 122 38 L 136 96",
+        "M 136 96 L 70 140",
+        "M 136 96 L 206 136"
+      ]
+    },
+    gemini: {
+      key: 'gemini',
+      name: "SONG TỬ · GEMINI",
+      stars: [
+        { x: 54, y: 32, r: 4.0, alpha: true }, // Castor
+        { x: 68, y: 88, r: 2.6 },
+        { x: 80, y: 144, r: 2.8 },
+        { x: 184, y: 28, r: 4.2, alpha: true }, // Pollux
+        { x: 198, y: 84, r: 2.6 },
+        { x: 212, y: 140, r: 2.8 }
+      ],
+      paths: [
+        "M 54 32 L 68 88 L 80 144",
+        "M 184 28 L 198 84 L 212 140",
+        "M 54 32 L 184 28"
+      ]
+    },
+    taurus: {
+      key: 'taurus',
+      name: "KIM NGƯU · TAURUS",
+      stars: [
+        { x: 32, y: 138, r: 2.6 },
+        { x: 92, y: 108, r: 3.2 },
+        { x: 148, y: 76, r: 4.5, alpha: true }, // Aldebaran
+        { x: 212, y: 40, r: 3.0 },
+        { x: 194, y: 116, r: 2.8 },
+        { x: 250, y: 142, r: 2.4 }
+      ],
+      paths: [
+        "M 32 138 L 92 108 L 148 76 L 212 40",
+        "M 148 76 L 194 116 L 250 142"
+      ]
+    },
+    aries: {
+      key: 'aries',
+      name: "BẠCH DƯƠNG · ARIES",
+      stars: [
+        { x: 28, y: 116, r: 2.6 },
+        { x: 100, y: 94, r: 4.2, alpha: true }, // Hamal
+        { x: 174, y: 70, r: 3.2 },
+        { x: 238, y: 82, r: 2.5 }
+      ],
+      paths: [
+        "M 28 116 L 100 94 L 174 70 L 238 82"
+      ]
+    },
+    scorpio: {
+      key: 'scorpio',
+      name: "THIÊN YẾT · SCORPIO",
+      stars: [
+        { x: 28, y: 52, r: 2.8 },
+        { x: 74, y: 74, r: 3.2 },
+        { x: 120, y: 96, r: 4.5, alpha: true }, // Antares
+        { x: 166, y: 122, r: 3.0 },
+        { x: 206, y: 144, r: 2.8 },
+        { x: 240, y: 118, r: 2.6 },
+        { x: 254, y: 84, r: 2.4 }
+      ],
+      paths: [
+        "M 28 52 L 74 74 L 120 96 L 166 122 L 206 144 L 240 118 L 254 84"
+      ]
+    },
+    aquarius: {
+      key: 'aquarius',
+      name: "BẢO BÌNH · AQUARIUS",
+      stars: [
+        { x: 30, y: 66, r: 2.6 },
+        { x: 82, y: 104, r: 3.6 },
+        { x: 136, y: 66, r: 3.0 },
+        { x: 190, y: 104, r: 4.0, alpha: true }, // Sadalsuud
+        { x: 244, y: 66, r: 2.6 }
+      ],
+      paths: [
+        "M 30 66 L 82 104 L 136 66 L 190 104 L 244 66"
+      ]
+    },
+    pisces: {
+      key: 'pisces',
+      name: "SONG NGƯ · PISCES",
+      stars: [
+        { x: 26, y: 44, r: 2.6 },
+        { x: 84, y: 68, r: 3.0 },
+        { x: 144, y: 94, r: 4.2, alpha: true }, // Alrescha
+        { x: 200, y: 116, r: 3.0 },
+        { x: 248, y: 80, r: 2.6 },
+        { x: 164, y: 150, r: 2.8 },
+        { x: 108, y: 158, r: 2.5 }
+      ],
+      paths: [
+        "M 26 44 L 84 68 L 144 94 L 200 116 L 248 80",
+        "M 144 94 L 164 150 L 108 158"
+      ]
+    },
+    capricorn: {
+      key: 'capricorn',
+      name: "MA KẾT · CAPRICORN",
+      stars: [
+        { x: 32, y: 80, r: 3.0 },
+        { x: 106, y: 50, r: 4.0, alpha: true }, // Deneb Algedi
+        { x: 184, y: 74, r: 3.2 },
+        { x: 244, y: 136, r: 2.8 },
+        { x: 138, y: 154, r: 2.6 }
+      ],
+      paths: [
+        "M 32 80 L 106 50 L 184 74 L 244 136 L 138 154 Z"
+      ]
+    },
+    scorpius: {
+      key: 'scorpius',
+      name: "BỌ CẠP · SCORPIUS",
+      stars: [
+        { x: 28, y: 52, r: 2.8 },
+        { x: 74, y: 74, r: 3.2 },
+        { x: 120, y: 96, r: 4.5, alpha: true }, // Shaula
+        { x: 166, y: 122, r: 3.0 },
+        { x: 206, y: 144, r: 2.8 },
+        { x: 240, y: 118, r: 2.6 },
+        { x: 254, y: 84, r: 2.4 }
+      ],
+      paths: [
+        "M 28 52 L 74 74 L 120 96 L 166 122 L 206 144 L 240 118 L 254 84"
+      ]
+    }
+  };
+
+
+  /* Photographic constellation plates (NASA/public-domain sky photos) — not neon SVG */
+  const CONSTELLATION_PLATES = {
+    leo: 'ursa_photo.jpg',
+    sagittarius: 'sagittarius_photo.jpg',
+    virgo: 'helix.jpg',
+    libra: 'pleiades.jpg',
+    cancer: 'andromeda.jpg',
+    gemini: 'cygnus_photo.jpg',
+    taurus: 'pleiades.jpg',
+    aries: 'ursa_photo.jpg',
+    scorpio: 'carina.png',
+    scorpius: 'carina.png',
+    aquarius: 'helix.jpg',
+    pisces: 'andromeda.jpg',
+    capricorn: 'milkyway_plate.jpg',
+    default: 'milkyway_plate.jpg'
+  };
+  const CONSTELLATION_PLATE_BASE = '/img/cosmos/constellations/';
+
+
+  /* Detect constellation by route and page hook */
+  function detectCurrentConstellation() {
+    const path = window.location.pathname.toLowerCase();
+    if (path === '/' || path.startsWith('/dashboard') || document.querySelector('#postForm')) return CONSTELLATIONS.leo;
+    if (path.includes('/jobs/details') || document.querySelector('.job-detail-shell') || document.querySelector('#applyForm')) return CONSTELLATIONS.cancer;
+    if (path.startsWith('/jobs') || document.querySelector('#jobsSearchForm')) return CONSTELLATIONS.sagittarius;
+    if (path.startsWith('/profile') || document.querySelector('#btnEditBio')) return CONSTELLATIONS.virgo;
+    if (path.startsWith('/chat') || document.querySelector('#conversationList') || document.querySelector('.messenger-shell')) return CONSTELLATIONS.gemini;
+    if (path.startsWith('/company') || document.querySelector('#companyListGrid')) return CONSTELLATIONS.taurus;
+    if (path.startsWith('/settings') || document.querySelector('#activeStatusToggle')) return CONSTELLATIONS.libra;
+    if (path.startsWith('/account/newuserinfor') || document.querySelector('#onboardingForm')) return CONSTELLATIONS.aries;
+    if (path.startsWith('/employer') || document.querySelector('#employerStatsGrid') || document.querySelector('.employer-dashboard')) return CONSTELLATIONS.aquarius;
+    if (path.startsWith('/interview') || document.querySelector('.interview-room') || document.querySelector('#interviewStage')) return CONSTELLATIONS.pisces;
+    if (path.startsWith('/resume') || document.querySelector('script[src*="resume-actions.js"]')) return CONSTELLATIONS.capricorn;
+    if (path.startsWith('/jobapplications') || document.querySelector('script[src*="application-actions.js"]')) return CONSTELLATIONS.scorpius;
+    if (document.querySelector('.error-card')) return CONSTELLATIONS.scorpio;
+    return CONSTELLATIONS.leo;
+  }
+
+  /* =========================================================================
+     2. DYNAMIC SELF-DRAWING CONSTELLATION STAGE
+     ========================================================================= */
+  function mountSelfDrawingConstellation() {
+    if (!PAGE_CONSTELLATIONS_ENABLED) {
+      removePageConstellations();
+      return;
+    }
+    // If login/register page, DO NOT touch (preserve auth Three.js)
+    if (document.querySelector('#glassAuthCard') || document.querySelector('#loginForm')) return;
+
+    // Chat may hide constellation by design (black-hole messenger)
+    const path0 = (window.location.pathname || '').toLowerCase();
+    if (path0.startsWith('/chat') || document.querySelector('#conversationList') || document.querySelector('.messenger-shell')) {
+      const dead = document.getElementById('arisCosmicConstellationStage') || document.getElementById('arisConstellationStage');
+      if (dead) dead.remove();
+      return;
+    }
+
+    // Remove texture-pass photo-only stage if present
+    const photoOnly = document.getElementById('arisConstellationStage');
+    if (photoOnly) photoOnly.remove();
+
+    let stage = document.getElementById('arisCosmicConstellationStage');
+    if (!stage) {
+      stage = document.createElement('div');
+      stage.id = 'arisCosmicConstellationStage';
+      stage.className = 'aris-cosmic-stage';
+      stage.setAttribute('aria-hidden', 'true');
+      // Prefer fixed corner on body so it sits above Earth layers
+      document.body.appendChild(stage);
+    }
+
+    const zodiac = detectCurrentConstellation();
+    if (!zodiac) return;
+
+    // Optional subtle nebula plate behind SVG (does not replace spikes/beams)
+    const key = (zodiac.key || zodiac.id || '').toLowerCase();
+    let plateFile = (typeof CONSTELLATION_PLATES !== 'undefined' && (CONSTELLATION_PLATES[key] || CONSTELLATION_PLATES.default)) || null;
+    if (plateFile && typeof CONSTELLATION_PLATES !== 'undefined' && !CONSTELLATION_PLATES[key]) {
+      const nameLower = (zodiac.name || '').toLowerCase();
+      for (const k of Object.keys(CONSTELLATION_PLATES)) {
+        if (k !== 'default' && nameLower.indexOf(k) !== -1) {
+          plateFile = CONSTELLATION_PLATES[k];
+          break;
+        }
+      }
+    }
+    const plateUrl = plateFile ? (CONSTELLATION_PLATE_BASE + plateFile) : '';
+
+    // Build SVG with paths and stars
+    let pathsHtml = '';
+    zodiac.paths.forEach((d, idx) => {
+      pathsHtml += '' +
+        '<path class="constellation-beam-glow" d="' + d + '" stroke="url(#constellationBeamGrad)" ' +
+        'stroke-width="4.5" stroke-linecap="round" fill="none" />' +
+        '<path class="constellation-beam" d="' + d + '" stroke="url(#constellationBeamGrad)" ' +
+        'stroke-width="1.15" stroke-linecap="round" fill="none" />';
+    });
+
+    // Vì sao hình cũ vẫn đọc ra là "vẽ" chứ không phải "chụp": quầng sáng
+    // được làm bằng <circle> tô màu phẳng có alpha. Một hình tròn màu đồng
+    // nhất luôn đọc ra là cái ĐĨA — mắt thấy rìa của nó. Ánh sáng thật không
+    // có rìa: nó tắt dần theo một đường cong. Nên mọi quầng ở đây là
+    // radialGradient nhiều chặng, đúng công thức mà trang đăng nhập dùng cho
+    // sprite sao của nó: lõi cứng rất nhỏ, bloom rộng tắt mượt, tia nhiễu xạ
+    // mảnh cũng mờ dần về đầu mút.
+    const STAR_TINTS = [
+      { core: '#FFFFFF', glow: '215, 238, 255' },   // trắng xanh
+      { core: '#FFFFFF', glow: '190, 220, 255' },   // xanh lạnh
+      { core: '#FFF4E2', glow: '255, 224, 178' },   // ấm — dùng hiếm
+      { core: '#F4FAFF', glow: '168, 208, 255' }
+    ];
+
+    function tintFor(idx) { return STAR_TINTS[idx === 2 ? 2 : idx % 4]; }
+
+    // Bloom: sáng ở tâm rồi tắt hẳn. Bốn chặng để đường cong không bị gãy.
+    let starDefs = '';
+    STAR_TINTS.forEach(function (t, i) {
+      starDefs +=
+        '<radialGradient id="starBloom' + i + '" cx="50%" cy="50%" r="50%">' +
+          '<stop offset="0%"   stop-color="rgb(' + t.glow + ')" stop-opacity="0.85" />' +
+          '<stop offset="18%"  stop-color="rgb(' + t.glow + ')" stop-opacity="0.34" />' +
+          '<stop offset="44%"  stop-color="rgb(' + t.glow + ')" stop-opacity="0.11" />' +
+          '<stop offset="74%"  stop-color="rgb(' + t.glow + ')" stop-opacity="0.03" />' +
+          '<stop offset="100%" stop-color="rgb(' + t.glow + ')" stop-opacity="0" />' +
+        '</radialGradient>' +
+        // Tia nhiễu xạ dùng chung tâm với sao nên cũng là radial: sáng ở gốc,
+        // tắt về đầu mút — tia đều tăm tắp là dấu hiệu của hình vẽ.
+        '<radialGradient id="starSpike' + i + '" cx="50%" cy="50%" r="50%">' +
+          '<stop offset="0%"   stop-color="#FFFFFF" stop-opacity="0.95" />' +
+          '<stop offset="26%"  stop-color="rgb(' + t.glow + ')" stop-opacity="0.55" />' +
+          '<stop offset="62%"  stop-color="rgb(' + t.glow + ')" stop-opacity="0.16" />' +
+          '<stop offset="100%" stop-color="rgb(' + t.glow + ')" stop-opacity="0" />' +
+        '</radialGradient>';
+    });
+
+    function spikePath(x, y, len, waist) {
+      // Ngôi bốn cánh vẽ bằng bốn cung bậc hai: cạnh lõm nên tia thon dần về
+      // đầu mút, giống nhiễu xạ qua khẩu độ ống kính hơn là một dấu cộng.
+      return 'M' + x + ' ' + (y - len) +
+             ' Q' + (x + waist) + ' ' + (y - waist) + ' ' + (x + len) + ' ' + y +
+             ' Q' + (x + waist) + ' ' + (y + waist) + ' ' + x + ' ' + (y + len) +
+             ' Q' + (x - waist) + ' ' + (y + waist) + ' ' + (x - len) + ' ' + y +
+             ' Q' + (x - waist) + ' ' + (y - waist) + ' ' + x + ' ' + (y - len) + 'Z';
+    }
+
+    let starsHtml = '';
+    zodiac.stars.forEach((s, idx) => {
+      const delay = 100 + idx * 95;
+      const ti = idx === 2 ? 2 : idx % 4;
+      const tint = tintFor(idx);
+      const bright = !!s.alpha;
+
+      // Độ lớn theo cấp sao: sao sáng nở rộng hơn hẳn, không phải to hơn một chút.
+      const bloomR = s.r * (bright ? 9.2 : 4.0);
+      const spikeLen = s.r * (bright ? 8.4 : 5.2);
+      const waist = s.r * 0.26;
+      const coreR = s.r * (bright ? 0.92 : 0.78);
+
+      starsHtml += '' +
+        '<g class="constellation-star-node' + (bright ? ' is-alpha' : '') + '"' +
+        ' style="animation-delay: ' + delay + 'ms;" transform-origin="' + s.x + ' ' + s.y + '">' +
+          // 1. Bloom rộng, tắt dần — không còn rìa đĩa.
+          '<circle class="star-bloom" cx="' + s.x + '" cy="' + s.y + '" r="' + bloomR +
+            '" fill="url(#starBloom' + ti + ')" />' +
+          // 2. Tia nhiễu xạ, mờ dần về đầu mút.
+          '<path class="star-spike" d="' + spikePath(s.x, s.y, spikeLen, waist) +
+            '" fill="url(#starSpike' + ti + ')" />' +
+          // 3. Lõi cứng rất nhỏ — thứ làm điểm sáng "sắc" thay vì "mờ".
+          '<circle class="star-core" cx="' + s.x + '" cy="' + s.y + '" r="' + coreR +
+            '" fill="' + tint.core + '" />' +
+        '</g>';
+    });
+
+    const nebulaLayer = plateUrl
+      ? ('<div class="constellation-nebula-underlay" style="background-image:url(\'' + plateUrl + '\')"></div>')
+      : '';
+
+    stage.innerHTML = `
+      <div class="constellation-frame">
+        ${nebulaLayer}
+        <svg class="constellation-svg" viewBox="0 0 280 160" width="280" height="160">
+          <defs>
+            <linearGradient id="constellationBeamGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#9FD2FF" stop-opacity="0.85" />
+              <stop offset="50%" stop-color="#CFE6FF" stop-opacity="0.70" />
+              <stop offset="100%" stop-color="#6E9FE8" stop-opacity="0.55" />
+            </linearGradient>
+            ${starDefs}
+          </defs>
+          <g class="constellation-paths-group">${pathsHtml}</g>
+          <g class="constellation-stars-group">${starsHtml}</g>
+        </svg>
+        <div class="constellation-badge">
+          <span class="constellation-pulse-beacon"></span>
+          <span class="constellation-name-label">${zodiac.name}</span>
+        </div>
+      </div>
+    `;
+
+        // Trigger stroke-dashoffset line drawing animation with guaranteed reflow
+    const paths = stage.querySelectorAll('.constellation-beam');
+    paths.forEach((p) => {
+      const len = p.getTotalLength ? p.getTotalLength() : 350;
+      p.style.strokeDasharray = len;
+      p.style.strokeDashoffset = len;
+      p.getBoundingClientRect(); // force paint
+    });
+
+    setTimeout(() => {
+      paths.forEach((p, idx) => {
+        p.style.transition = `stroke-dashoffset 1100ms cubic-bezier(0.22, 1, 0.36, 1) ${60 + idx * 130}ms`;
+        p.style.strokeDashoffset = '0';
+      });
+    }, 40);
+  }
+
+  /* =========================================================================
+     3. LIVING COSMOS STARFIELD CANVAS (TWINKLING, PARALLAX, METEORS)
+     ========================================================================= */
+  function initLivingCosmosStarfield() {
+    // If login/register page, DO NOT touch (preserve auth Three.js)
+    if (document.querySelector('#glassAuthCard') || document.querySelector('#loginForm')) return;
+    // Chat owns a dedicated black-hole stage. The shared canvas also draws
+    // planets, so it must never mount on this route.
+    if (location.pathname.toLowerCase().startsWith('/chat') ||
+        document.querySelector('.messenger-shell')) {
+      document.querySelectorAll('#arisCosmicCanvas, canvas.aris-cosmos-canvas')
+        .forEach((canvas) => canvas.remove());
+      return;
+    }
+    if (document.getElementById('arisCosmicCanvas')) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.id = 'arisCosmicCanvas';
+    canvas.className = 'aris-cosmos-canvas';
+    document.body.prepend(canvas);
+
+    // Soft-disable living-cosmos canvas on Dashboard Earth stage (GPU save);
+    // constellation SVG remains separately mounted above Earth.
+    function isEarthStage() {
+      return !!(document.body && (
+        document.body.classList.contains('aris-home-earth-stage') ||
+        document.querySelector('.aris-earth-root')
+      ));
+    }
+    function syncEarthCanvasVisibility() {
+      if (isEarthStage()) {
+        canvas.style.display = 'none';
+        canvas.setAttribute('data-earth-paused', '1');
+      } else {
+        canvas.style.display = '';
+        canvas.removeAttribute('data-earth-paused');
+      }
+    }
+    syncEarthCanvasVisibility();
+    // Observe class changes on body (Dashboard may add class after boot)
+    try {
+      const mo = new MutationObserver(syncEarthCanvasVisibility);
+      mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    } catch (_) {}
+
+    const ctx = canvas.getContext('2d', { alpha: true });
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const reduceMotionMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let reduceMotion = reduceMotionMQ.matches;
+    if (typeof reduceMotionMQ.addEventListener === 'function') {
+      reduceMotionMQ.addEventListener('change', (e) => { reduceMotion = e.matches; });
+    } else if (typeof reduceMotionMQ.addListener === 'function') {
+      reduceMotionMQ.addListener((e) => { reduceMotion = e.matches; });
+    }
+
+    // Soft sun cue (upper-left) — photographic fill, not a cartoon ball
+    const SUN = { nx: 0.14, ny: 0.16 };
+
+    // NASA albedo maps — preload once
+    const PLANET_TEXTURE_BASE = '/img/cosmos/planets/';
+    const PLANET_TEXTURE_FILES = {
+      mercury: 'mercury.jpg', venus: 'venus.jpg', earth: 'earth.jpg', mars: 'mars.jpg',
+      jupiter: 'jupiter.jpg', saturn: 'saturn.jpg', uranus: 'uranus.jpg', neptune: 'neptune.jpg'
+    };
+    const planetTextures = Object.create(null);
+    function preloadPlanetTextures() {
+      Object.keys(PLANET_TEXTURE_FILES).forEach((key) => {
+        const img = new Image();
+        img.decoding = 'async';
+        img.src = PLANET_TEXTURE_BASE + PLANET_TEXTURE_FILES[key];
+        planetTextures[key] = img;
+      });
+    }
+    preloadPlanetTextures();
+    function getPlanetTexture(key) {
+      const img = planetTextures[key];
+      return (img && img.complete && img.naturalWidth > 0) ? img : null;
+    }
+
+    let milkyCache = null;
+    let milkyW = 0;
+    let milkyH = 0;
+    let milkySeed = 0xC31E57A1;
+
+    function mulberry32(a) {
+      return function () {
+        let t = (a += 0x6D2B79F5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function rebuildMilkyWay() {
+      milkyW = width;
+      milkyH = height;
+      const off = document.createElement('canvas');
+      off.width = milkyW;
+      off.height = milkyH;
+      const m = off.getContext('2d');
+      const minDim = Math.min(milkyW, milkyH);
+      const bandW = minDim * 0.24; // ~18–28% photographic ribbon
+      const rand = mulberry32(milkySeed);
+
+      // Diagonal galactic lane: lower-left → upper-right
+      m.save();
+      m.translate(milkyW * 0.42, milkyH * 0.58);
+      m.rotate(-0.52);
+
+      // Broad soft indigo/violet dust core
+      const ribbon = m.createLinearGradient(0, -bandW * 1.6, 0, bandW * 1.6);
+      ribbon.addColorStop(0, 'rgba(40,50,90,0)');
+      ribbon.addColorStop(0.18, 'rgba(45,55,100,0.10)');
+      ribbon.addColorStop(0.40, 'rgba(60,70,125,0.20)');
+      ribbon.addColorStop(0.52, 'rgba(85,90,140,0.16)');
+      ribbon.addColorStop(0.72, 'rgba(50,60,110,0.10)');
+      ribbon.addColorStop(1, 'rgba(40,50,90,0)');
+      m.fillStyle = ribbon;
+      m.fillRect(-milkyW * 1.2, -bandW * 1.6, milkyW * 2.4, bandW * 3.2);
+
+      // Warm dust overlay (muted, photographic)
+      const warm = m.createLinearGradient(0, -bandW, 0, bandW);
+      warm.addColorStop(0, 'rgba(120,100,140,0)');
+      warm.addColorStop(0.4, 'rgba(120,100,140,0.055)');
+      warm.addColorStop(0.6, 'rgba(140,115,150,0.04)');
+      warm.addColorStop(1, 'rgba(120,100,140,0)');
+      m.fillStyle = warm;
+      m.fillRect(-milkyW * 1.2, -bandW, milkyW * 2.4, bandW * 2);
+
+      // Layered radial blobs along ribbon (cloudy luminous clumps)
+      const blobCount = 28;
+      for (let i = 0; i < blobCount; i++) {
+        const along = (i / (blobCount - 1) - 0.5) * milkyW * 1.35;
+        const across = (rand() - 0.5) * bandW * 0.55;
+        const br = bandW * (0.35 + rand() * 0.55);
+        const cool = rand() < 0.55;
+        const g = m.createRadialGradient(along, across, 0, along, across, br);
+        if (cool) {
+          g.addColorStop(0, 'rgba(160,175,220,' + (0.045 + rand() * 0.06).toFixed(3) + ')');
+          g.addColorStop(0.35, 'rgba(70,85,140,' + (0.04 + rand() * 0.04).toFixed(3) + ')');
+          g.addColorStop(1, 'rgba(30,40,70,0)');
+        } else {
+          g.addColorStop(0, 'rgba(190,175,200,' + (0.035 + rand() * 0.045).toFixed(3) + ')');
+          g.addColorStop(0.4, 'rgba(110,95,130,' + (0.03 + rand() * 0.03).toFixed(3) + ')');
+          g.addColorStop(1, 'rgba(60,50,80,0)');
+        }
+        m.fillStyle = g;
+        m.beginPath();
+        m.ellipse(along, across, br * (1.1 + rand() * 0.5), br * (0.55 + rand() * 0.35), rand() * 0.4, 0, Math.PI * 2);
+        m.fill();
+      }
+
+      // Sparse brighter dust patches (luminous knots)
+      for (let i = 0; i < 18; i++) {
+        const along = (rand() - 0.5) * milkyW * 1.1;
+        const across = (rand() - 0.5) * bandW * 0.35;
+        const br = bandW * (0.12 + rand() * 0.18);
+        const g = m.createRadialGradient(along, across, 0, along, across, br);
+        g.addColorStop(0, 'rgba(210,220,245,' + (0.06 + rand() * 0.05).toFixed(3) + ')');
+        g.addColorStop(0.45, 'rgba(140,155,200,0.035)');
+        g.addColorStop(1, 'rgba(80,90,130,0)');
+        m.fillStyle = g;
+        m.beginPath();
+        m.arc(along, across, br, 0, Math.PI * 2);
+        m.fill();
+      }
+
+      // Faint grain / dust noise along the lane
+      m.globalAlpha = 0.045;
+      for (let i = 0; i < 220; i++) {
+        const along = (rand() - 0.5) * milkyW * 1.3;
+        const across = (rand() - 0.5) * bandW * 1.1;
+        const s = 0.6 + rand() * 1.8;
+        m.fillStyle = rand() < 0.55 ? 'rgba(180,195,230,0.9)' : 'rgba(150,140,190,0.75)';
+        m.fillRect(along, across, s, s);
+      }
+      m.globalAlpha = 1;
+
+      m.restore();
+
+      milkyCache = off;
+    }
+
+    function drawMilkyWay(t) {
+      if (!milkyCache || milkyW !== width || milkyH !== height) rebuildMilkyWay();
+      // Gentle drift cue (no bounce)
+      const drift = reduceMotion ? 0 : Math.sin(t * 0.035) * 6;
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.92;
+      ctx.drawImage(milkyCache, drift * 0.15, drift * -0.08);
+      ctx.restore();
+    }
+
+    window.addEventListener('resize', () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      milkyCache = null;
+      generateStars();
+      generateOrbits();
+    }, { passive: true });
+
+    let mouseX = width / 2;
+    let mouseY = height / 2;
+    let targetMouseX = mouseX;
+    let targetMouseY = mouseY;
+
+    window.addEventListener('mousemove', (e) => {
+      targetMouseX = e.clientX;
+      targetMouseY = e.clientY;
+    }, { passive: true });
+
+    let targetScrollY = window.scrollY || window.pageYOffset || 0;
+    let currentScrollY = targetScrollY;
+    let scrollVelocity = 0;
+
+    window.addEventListener('scroll', () => {
+      targetScrollY = window.scrollY || window.pageYOffset || 0;
+    }, { passive: true });
+
+    // Dense starfield — Celestail-like pinpoints + occasional blooms
+    let stars = [];
+    function starBudget() {
+      const area = width * height;
+      return Math.min(820, Math.max(420, Math.floor(area / 1750)));
+    }
+
+    function generateStars() {
+      stars = [];
+      const STAR_COUNT = starBudget();
+      for (let i = 0; i < STAR_COUNT; i++) {
+        const layer = Math.random() < 0.62 ? 1 : Math.random() < 0.88 ? 2 : 3;
+        const colorSeed = Math.random();
+        // Color temp mix: warm ~5%, cool ~25%, white rest
+        let starColor;
+        if (colorSeed < 0.05) starColor = layer === 3 ? '#ffd7a8' : '#ffe4c4';
+        else if (colorSeed < 0.30) starColor = layer === 3 ? '#93c5fd' : layer === 2 ? '#bfdbfe' : '#cfe3ff';
+        else starColor = layer === 3 ? '#ffffff' : layer === 2 ? '#e8eef8' : '#f5f7fb';
+
+        stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          baseRadius: layer === 1
+            ? Math.random() * 0.55 + 0.25
+            : layer === 2
+              ? Math.random() * 0.85 + 0.45
+              : Math.random() * 1.45 + 1.15,
+          layer: layer,
+          alpha: Math.random() * 0.5 + 0.35,
+          twinkleSpeed: Math.random() * 0.035 + 0.014,
+          twinklePhase: Math.random() * Math.PI * 2,
+          color: starColor,
+          halo: layer >= 2 && Math.random() < (layer === 3 ? 0.85 : 0.35)
+        });
+      }
+    }
+    generateStars();
+
+    // Subtle concentric orbit ellipses (gold/yellow, very low opacity)
+    let orbits = [];
+    function generateOrbits() {
+      const cx = width * 0.52;
+      const cy = height * 0.48;
+      orbits = [
+        { cx, cy, rx: Math.min(width, height) * 0.22, ry: Math.min(width, height) * 0.11, rot: -0.35, a: 0.045 },
+        { cx, cy, rx: Math.min(width, height) * 0.34, ry: Math.min(width, height) * 0.17, rot: -0.32, a: 0.038 },
+        { cx, cy, rx: Math.min(width, height) * 0.48, ry: Math.min(width, height) * 0.24, rot: -0.28, a: 0.028 },
+        { cx: width * 0.78, cy: height * 0.22, rx: 110, ry: 48, rot: 0.4, a: 0.032 },
+        { cx: width * 0.18, cy: height * 0.72, rx: 90, ry: 40, rot: -0.55, a: 0.03 }
+      ];
+    }
+    generateOrbits();
+
+    function drawOrbits(t, offsetX, offsetY) {
+      ctx.save();
+      ctx.lineWidth = 1;
+      for (let i = 0; i < orbits.length; i++) {
+        const o = orbits[i];
+        const pulse = reduceMotion ? 1 : (0.92 + 0.08 * Math.sin(t * 0.4 + i));
+        ctx.save();
+        ctx.translate(o.cx + offsetX * 0.15, o.cy + offsetY * 0.1);
+        ctx.rotate(o.rot);
+        ctx.strokeStyle = 'rgba(212, 175, 95,' + (o.a * pulse).toFixed(3) + ')';
+        ctx.shadowColor = 'rgba(234, 198, 120, 0.18)';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, o.rx, o.ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // Living Celestial Planetary System — denser frame fill
+    const planets = [
+      {
+        id: 'chronos',
+        name: 'Astra Chronos',
+        textureKey: 'saturn',
+        relX: 0.84,
+        baseY: 150,
+        radius: 72,
+        parallaxRate: 0.30,
+        hasRings: true,
+        ringTilt: 0.42,
+        ringInner: 1.18,
+        ringOuter: 1.95,
+        gasGiant: true,
+        palette: {
+          light: '#dbeafe',
+          subsurface: '#7dd3fc',
+          mid: '#2563eb',
+          deep: '#0f172a',
+          shadow: '#020617',
+          atmosphere: 'rgba(186, 230, 253, 0.35)',
+          corona: 'rgba(56, 189, 248, 0.12)',
+          coronaOuter: 'rgba(30, 58, 138, 0.04)'
+        },
+        moons: [
+          { r: 3.6, dist: 168, speed: 0.28, color: '#93C5FD', angle: 0.7 },
+          { r: 2.4, dist: 198, speed: -0.18, color: '#E2E8F0', angle: 2.5 }
+        ]
+      },
+      {
+        id: 'oceanus',
+        name: 'Cygnus Oceanus',
+        textureKey: 'earth',
+        relX: 0.11,
+        baseY: 520,
+        radius: 46,
+        parallaxRate: 0.44,
+        hasRings: false,
+        gasGiant: false,
+        rocky: true,
+        palette: {
+          light: '#a5f3fc',
+          subsurface: '#22d3ee',
+          mid: '#0e7490',
+          deep: '#042f2e',
+          shadow: '#021814',
+          atmosphere: 'rgba(165, 243, 252, 0.28)',
+          corona: 'rgba(6, 182, 212, 0.10)',
+          coronaOuter: 'rgba(13, 148, 136, 0.03)'
+        },
+        moons: [
+          { r: 2.6, dist: 78, speed: 0.42, color: '#A5F3FC', angle: 1.3 }
+        ]
+      },
+      {
+        id: 'helios',
+        name: 'Helios Ember',
+        textureKey: 'mars',
+        relX: 0.62,
+        baseY: 780,
+        radius: 34,
+        parallaxRate: 0.52,
+        hasRings: false,
+        gasGiant: false,
+        rocky: true,
+        palette: {
+          light: '#fed7aa',
+          subsurface: '#fb923c',
+          mid: '#c2410c',
+          deep: '#431407',
+          shadow: '#1c0802',
+          atmosphere: 'rgba(253, 186, 116, 0.22)',
+          corona: 'rgba(251, 146, 60, 0.08)',
+          coronaOuter: 'rgba(194, 65, 12, 0.03)'
+        },
+        moons: []
+      },
+      {
+        id: 'aegis',
+        name: 'Aegis Violet',
+        textureKey: 'jupiter',
+        relX: 0.90,
+        baseY: 1100,
+        radius: 36,
+        parallaxRate: 0.60,
+        hasRings: false,
+        gasGiant: true,
+        palette: {
+          light: '#ddd6fe',
+          subsurface: '#a78bfa',
+          mid: '#5b21b6',
+          deep: '#1e1b4b',
+          shadow: '#09071a',
+          atmosphere: 'rgba(196, 181, 253, 0.28)',
+          corona: 'rgba(139, 92, 246, 0.09)',
+          coronaOuter: 'rgba(99, 102, 241, 0.03)'
+        },
+        moons: [
+          { r: 2.0, dist: 58, speed: -0.48, color: '#C4B5FD', angle: 3.2 }
+        ]
+      },
+      {
+        id: 'selene',
+        name: 'Selene Drift',
+        textureKey: 'mercury',
+        relX: 0.28,
+        baseY: 1380,
+        radius: 26,
+        parallaxRate: 0.72,
+        hasRings: true,
+        ringTilt: -0.55,
+        ringInner: 1.22,
+        ringOuter: 1.78,
+        gasGiant: false,
+        rocky: true,
+        palette: {
+          light: '#e2e8f0',
+          subsurface: '#94a3b8',
+          mid: '#475569',
+          deep: '#1e293b',
+          shadow: '#0f172a',
+          atmosphere: 'rgba(226, 232, 240, 0.20)',
+          corona: 'rgba(148, 163, 184, 0.07)',
+          coronaOuter: 'rgba(71, 85, 105, 0.02)'
+        },
+        moons: []
+      },
+      {
+        id: 'solaris',
+        name: 'Solaris Dawn',
+        textureKey: 'venus',
+        relX: 0.08,
+        baseY: 1680,
+        radius: 40,
+        parallaxRate: 0.36,
+        hasRings: false,
+        gasGiant: false,
+        rocky: true,
+        palette: {
+          light: '#fef08a',
+          subsurface: '#fbbf24',
+          mid: '#b45309',
+          deep: '#451a03',
+          shadow: '#1c0b02',
+          atmosphere: 'rgba(254, 240, 138, 0.22)',
+          corona: 'rgba(251, 191, 36, 0.08)',
+          coronaOuter: 'rgba(217, 119, 6, 0.03)'
+        },
+        moons: [
+          { r: 2.1, dist: 64, speed: 0.34, color: '#FDE68A', angle: 0.4 }
+        ]
+      },
+      {
+        id: 'nereid',
+        name: 'Nereid Frost',
+        textureKey: 'neptune',
+        relX: 0.74,
+        baseY: 1980,
+        radius: 30,
+        parallaxRate: 0.48,
+        hasRings: false,
+        gasGiant: false,
+        rocky: true,
+        palette: {
+          light: '#e0f2fe',
+          subsurface: '#7dd3fc',
+          mid: '#0369a1',
+          deep: '#0c4a6e',
+          shadow: '#082f49',
+          atmosphere: 'rgba(186, 230, 253, 0.24)',
+          corona: 'rgba(56, 189, 248, 0.07)',
+          coronaOuter: 'rgba(3, 105, 161, 0.02)'
+        },
+        moons: [
+          { r: 1.8, dist: 48, speed: 0.55, color: '#BAE6FD', angle: 1.1 }
+        ]
+      }
+    ];
+
+    function drawPlanet(p, t, currentScrollY, scrollVelocity, offsetX, offsetY) {
+      const px = (width * p.relX) + (offsetX * (p.parallaxRate * 1.5)) + (scrollVelocity * -0.06);
+      const loopSpan = Math.max(height * 1.6, 1200);
+      const rawY = p.baseY - currentScrollY * p.parallaxRate;
+      const py = ((rawY % loopSpan + loopSpan) % loopSpan) - 140;
+
+      const ringOuterPx = p.hasRings ? p.radius * p.ringOuter : p.radius;
+      if (py < -ringOuterPx * 2.5 || py > height + ringOuterPx * 2.5) return;
+
+      const scale = width < 768 ? 0.72 : width < 1200 ? 0.88 : 1.0;
+      const R = p.radius * scale;
+      const tilt = Math.max(-0.12, Math.min(0.12, scrollVelocity * 0.0028));
+      // Soft sun from upper-left
+      const lx = -R * 0.42;
+      const ly = -R * 0.38;
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(tilt);
+
+      // Soft photographic corona (very restrained)
+      const coronaGrad = ctx.createRadialGradient(0, 0, R * 0.7, 0, 0, R * 1.85);
+      coronaGrad.addColorStop(0, p.palette.corona);
+      coronaGrad.addColorStop(0.55, p.palette.coronaOuter);
+      coronaGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = coronaGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 1.85, 0, Math.PI * 2);
+      ctx.fill();
+
+      const ringInner = (p.ringInner || 1.2) * R;
+      const ringOuter = (p.ringOuter || 1.9) * R;
+      const ringScaleY = 0.26;
+
+      function paintRing(front) {
+        if (!p.hasRings) return;
+        ctx.save();
+        ctx.rotate(p.ringTilt || 0.4);
+        ctx.scale(1, ringScaleY);
+        ctx.beginPath();
+        if (front) {
+          ctx.rect(-ringOuter * 1.7, 0, ringOuter * 3.4, ringOuter * 1.7);
+        } else {
+          ctx.rect(-ringOuter * 1.7, -ringOuter * 1.7, ringOuter * 3.4, ringOuter * 1.7);
+        }
+        ctx.clip();
+
+        // Multi-band translucent rings + Cassini-like gap
+        const alphaMul = front ? 1 : 0.55;
+        const bands = [
+          { a0: ringInner, a1: ringInner + (ringOuter - ringInner) * 0.28, a: 0.22 },
+          { a0: ringInner + (ringOuter - ringInner) * 0.34, a1: ringInner + (ringOuter - ringInner) * 0.58, a: 0.16 },
+          { a0: ringInner + (ringOuter - ringInner) * 0.66, a1: ringOuter, a: 0.12 }
+        ];
+        for (let b = 0; b < bands.length; b++) {
+          const band = bands[b];
+          const a = band.a * alphaMul;
+          ctx.beginPath();
+          ctx.arc(0, 0, band.a1, 0, Math.PI * 2);
+          ctx.arc(0, 0, band.a0, 0, Math.PI * 2, true);
+          const rg = ctx.createRadialGradient(0, 0, band.a0, 0, 0, band.a1);
+          rg.addColorStop(0, 'rgba(210,200,180,' + (a * 0.45).toFixed(3) + ')');
+          rg.addColorStop(0.5, 'rgba(190,185,165,' + a.toFixed(3) + ')');
+          rg.addColorStop(1, 'rgba(120,110,95,0.02)');
+          ctx.fillStyle = rg;
+          ctx.fill('evenodd');
+        }
+        // Dark Cassini gap
+        ctx.beginPath();
+        ctx.arc(0, 0, ringInner + (ringOuter - ringInner) * 0.64, 0, Math.PI * 2);
+        ctx.arc(0, 0, ringInner + (ringOuter - ringInner) * 0.58, 0, Math.PI * 2, true);
+        ctx.fillStyle = front ? 'rgba(8,10,18,0.55)' : 'rgba(8,10,18,0.35)';
+        ctx.fill('evenodd');
+        ctx.restore();
+      }
+
+      paintRing(false);
+
+      // Sphere body — REAL albedo texture (clip + drawImage cover) + photographic lighting
+      const tex = getPlanetTexture(p.textureKey);
+      const spin = reduceMotion ? 0 : (p.gasGiant ? t * 0.045 : t * 0.018);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, R, 0, Math.PI * 2);
+      ctx.clip();
+
+      if (tex) {
+        ctx.save();
+        ctx.rotate(spin);
+        const side = R * 2.08;
+        const iw = tex.naturalWidth;
+        const ih = tex.naturalHeight;
+        const cover = Math.max(side / iw, side / ih);
+        const dw = iw * cover;
+        const dh = ih * cover;
+        ctx.drawImage(tex, -dw * 0.5, -dh * 0.5, dw, dh);
+        ctx.restore();
+      } else {
+        const sphereGrad = ctx.createRadialGradient(lx, ly, R * 0.06, R * 0.18, R * 0.22, R * 1.18);
+        sphereGrad.addColorStop(0, p.palette.light);
+        sphereGrad.addColorStop(0.18, p.palette.subsurface);
+        sphereGrad.addColorStop(0.42, p.palette.mid);
+        sphereGrad.addColorStop(0.72, p.palette.deep);
+        sphereGrad.addColorStop(1, p.palette.shadow);
+        ctx.fillStyle = sphereGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, R, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Soft terminator — multiply/darken night side
+      ctx.globalCompositeOperation = 'multiply';
+      const term = ctx.createLinearGradient(lx * 1.55, ly * 1.55, R * 0.72, R * 0.68);
+      term.addColorStop(0, 'rgba(255,255,255,1)');
+      term.addColorStop(0.38, 'rgba(255,255,255,1)');
+      term.addColorStop(0.62, 'rgba(140,150,170,1)');
+      term.addColorStop(0.82, 'rgba(45,52,70,1)');
+      term.addColorStop(1, 'rgba(12,16,28,1)');
+      ctx.fillStyle = term;
+      ctx.fillRect(-R - 1, -R - 1, R * 2 + 2, R * 2 + 2);
+
+      // Limb darkening
+      const limb = ctx.createRadialGradient(0, 0, R * 0.35, 0, 0, R * 1.02);
+      limb.addColorStop(0, 'rgba(255,255,255,1)');
+      limb.addColorStop(0.65, 'rgba(230,235,245,1)');
+      limb.addColorStop(1, 'rgba(55,62,85,1)');
+      ctx.fillStyle = limb;
+      ctx.beginPath();
+      ctx.arc(0, 0, R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+
+      // Specular-ish highlight on lit limb only
+      ctx.globalCompositeOperation = 'screen';
+      const spec = ctx.createRadialGradient(lx * 0.85, ly * 0.85, R * 0.02, lx * 0.55, ly * 0.55, R * 0.72);
+      spec.addColorStop(0, 'rgba(255,255,255,0.28)');
+      spec.addColorStop(0.35, 'rgba(220,235,255,0.10)');
+      spec.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = spec;
+      ctx.beginPath();
+      ctx.arc(0, 0, R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.restore();
+
+      // Thin atmosphere rim on lit limb ONLY
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, R, 0, Math.PI * 2);
+      ctx.clip();
+      const rim = ctx.createRadialGradient(lx * 1.1, ly * 1.1, R * 0.55, lx * 1.1, ly * 1.1, R * 1.05);
+      rim.addColorStop(0, 'transparent');
+      rim.addColorStop(0.72, 'transparent');
+      rim.addColorStop(0.9, p.palette.atmosphere || 'rgba(224,242,254,0.25)');
+      rim.addColorStop(1, 'transparent');
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = rim;
+      ctx.beginPath();
+      ctx.arc(0, 0, R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+            paintRing(true);
+
+      // Quiet moons
+      if (p.moons && p.moons.length > 0) {
+        const moonSpeed = reduceMotion ? 0 : 1;
+        for (let m = 0; m < p.moons.length; m++) {
+          const moon = p.moons[m];
+          const orbitAng = moon.angle + t * moon.speed * 0.65 * moonSpeed + (currentScrollY * 0.0012 * Math.sign(moon.speed || 1));
+          const mDist = moon.dist * scale;
+          const mx = Math.cos(orbitAng) * mDist;
+          const my = Math.sin(orbitAng) * (mDist * 0.36);
+
+          const moonGrad = ctx.createRadialGradient(mx - moon.r * 0.3, my - moon.r * 0.3, 0, mx, my, moon.r * scale * 1.2);
+          moonGrad.addColorStop(0, '#FFFFFF');
+          moonGrad.addColorStop(0.55, moon.color);
+          moonGrad.addColorStop(1, 'rgba(15,23,42,0.85)');
+          ctx.fillStyle = moonGrad;
+          ctx.beginPath();
+          ctx.arc(mx, my, moon.r * scale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function drawSunCue(offsetX, offsetY) {
+      const sx = width * SUN.nx + offsetX * 0.2;
+      const sy = height * SUN.ny + offsetY * 0.15;
+      const r = Math.min(width, height) * 0.085;
+      ctx.save();
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 2.8);
+      g.addColorStop(0, 'rgba(255, 236, 200, 0.14)');
+      g.addColorStop(0.25, 'rgba(255, 210, 150, 0.06)');
+      g.addColorStop(0.55, 'rgba(180, 140, 90, 0.03)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r * 2.8, 0, Math.PI * 2);
+      ctx.fill();
+      // Tiny warm core (not a blocking ball)
+      const core = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 0.35);
+      core.addColorStop(0, 'rgba(255, 248, 230, 0.55)');
+      core.addColorStop(0.5, 'rgba(255, 220, 160, 0.18)');
+      core.addColorStop(1, 'rgba(255, 200, 120, 0)');
+      ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Meteors (Shooting Stars)
+    let meteors = [];
+    function spawnMeteor() {
+      if (reduceMotion) return;
+      const startX = Math.random() * (width * 0.85) + width * 0.08;
+      const startY = Math.random() * (height * 0.30);
+      const angle = (Math.PI / 4) + (Math.random() * 0.22 - 0.11);
+      const speed = Math.random() * 9 + 13;
+      meteors.push({
+        x: startX,
+        y: startY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        length: Math.random() * 100 + 80,
+        alpha: 1.0,
+        decay: Math.random() * 0.024 + 0.018
+      });
+    }
+
+    setInterval(() => {
+      if (!document.hidden && !reduceMotion && Math.random() < 0.85) {
+        spawnMeteor();
+      }
+    }, 5500);
+
+    if (!reduceMotion) {
+      setTimeout(spawnMeteor, 600);
+      setTimeout(spawnMeteor, 2200);
+    }
+
+    let animId = null;
+    let lastTime = performance.now();
+    let staticDrawn = false;
+
+    function renderCosmos(now) {
+      animId = requestAnimationFrame(renderCosmos);
+      if (document.hidden) return;
+      if (canvas.getAttribute('data-earth-paused') === '1') return;
+
+      const dt = Math.min(32, now - lastTime);
+      lastTime = now;
+
+      mouseX += (targetMouseX - mouseX) * 0.05;
+      mouseY += (targetMouseY - mouseY) * 0.05;
+      const offsetX = reduceMotion ? 0 : (mouseX / width - 0.5) * 15;
+      const offsetY = reduceMotion ? 0 : (mouseY / height - 0.5) * 15;
+
+      const scrollDiff = targetScrollY - currentScrollY;
+      currentScrollY += scrollDiff * 0.085;
+      scrollVelocity = reduceMotion ? 0 : scrollDiff * 0.085;
+
+      // Reduced motion: draw once (or on resize) without continuous animation
+      if (reduceMotion && staticDrawn && Math.abs(scrollDiff) < 0.5) {
+        // still allow scroll-driven reposition of planets without twinkle
+      }
+
+      ctx.clearRect(0, 0, width, height);
+
+      const t = reduceMotion ? 0 : now * 0.001;
+
+      // Soft sun cue behind milky / stars
+      drawSunCue(offsetX, offsetY);
+
+      // Milky Way galactic dust lane
+      drawMilkyWay(t);
+
+      // Subtle orbit ellipses (fill empty center without fighting UI)
+      drawOrbits(t, offsetX, offsetY);
+
+      // Stars
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        const parallaxMult = s.layer === 1 ? 0.2 : s.layer === 2 ? 0.6 : 1.0;
+        const starScrollSpeed = s.layer === 1 ? -0.025 : s.layer === 2 ? -0.065 : -0.12;
+        const sx = (s.x + offsetX * parallaxMult + width) % width;
+        const sy = ((s.y + offsetY * parallaxMult + currentScrollY * starScrollSpeed) % height + height) % height;
+        const twinkle = reduceMotion ? 1 : (0.70 + 0.30 * Math.sin(t * s.twinkleSpeed * 60 + s.twinklePhase));
+        const currentAlpha = Math.max(0.18, s.alpha * twinkle);
+
+        ctx.globalAlpha = currentAlpha;
+
+        if (s.halo) {
+          const hr = s.baseRadius * (s.layer === 3 ? 2.8 : 2.2);
+          const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, hr);
+          grad.addColorStop(0, 'rgba(200, 220, 255,' + (s.layer === 3 ? '0.55' : '0.28') + ')');
+          grad.addColorStop(0.4, 'rgba(150, 180, 230,' + (s.layer === 3 ? '0.12' : '0.06') + ')');
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(sx, sy, hr, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = s.color;
+          ctx.globalAlpha = Math.min(1, currentAlpha + 0.15);
+          ctx.beginPath();
+          ctx.arc(sx, sy, s.baseRadius * 0.7, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = s.color;
+          ctx.beginPath();
+          ctx.arc(sx, sy, s.baseRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.globalAlpha = 1.0;
+
+      for (let p = 0; p < planets.length; p++) {
+        drawPlanet(planets[p], t, currentScrollY, scrollVelocity, offsetX, offsetY);
+      }
+
+      if (!reduceMotion) {
+        for (let j = meteors.length - 1; j >= 0; j--) {
+          const m = meteors[j];
+          m.x += m.vx;
+          m.y += m.vy;
+          m.alpha -= m.decay;
+
+          if (m.alpha <= 0 || m.x > width + 100 || m.y > height + 100) {
+            meteors.splice(j, 1);
+            continue;
+          }
+
+          const tailX = m.x - (m.vx / 14) * m.length;
+          const tailY = m.y - (m.vy / 14) * m.length;
+
+          const mGrad = ctx.createLinearGradient(tailX, tailY, m.x, m.y);
+          mGrad.addColorStop(0, 'rgba(56, 189, 248, 0)');
+          mGrad.addColorStop(0.65, 'rgba(126, 200, 245,' + (m.alpha * 0.35) + ')');
+          mGrad.addColorStop(1, 'rgba(255, 255, 255,' + m.alpha + ')');
+
+          ctx.globalAlpha = m.alpha;
+          ctx.strokeStyle = mGrad;
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(tailX, tailY);
+          ctx.lineTo(m.x, m.y);
+          ctx.stroke();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(m.x, m.y, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.globalAlpha = 1.0;
+      staticDrawn = true;
+      void dt;
+    }
+
+    renderCosmos(performance.now());
+  }
+
+  function enrichDashboardLayout() {
+    const dashboardPage = document.querySelector('.dashboard-page');
+    if (!dashboardPage) return;
+
+    // Enrich empty feed state if present
+    const emptyFeed = document.querySelector('.feed-empty-state');
+    if (emptyFeed && !emptyFeed.querySelector('.launchpad-bento-grid')) {
+      const bento = document.createElement('div');
+      bento.className = 'launchpad-bento-grid';
+      bento.innerHTML = `
+        <div class="launchpad-card">
+          <div class="launchpad-icon"><i data-lucide="file-text"></i></div>
+          <h6>Hoàn thiện hồ sơ & CV</h6>
+          <p>Tăng cơ hội được AI kết nối tới nhà tuyển dụng hàng đầu.</p>
+          <a href="/Resume" class="launchpad-link">Chỉnh sửa CV ngay <i data-lucide="arrow-right"></i></a>
+        </div>
+        <div class="launchpad-card">
+          <div class="launchpad-icon"><i data-lucide="compass"></i></div>
+          <h6>Khám phá việc làm AI</h6>
+          <p>Thuật toán Aris gợi ý 24 công việc phù hợp với kỹ năng của bạn.</p>
+          <a href="/Jobs" class="launchpad-link">Tìm việc làm <i data-lucide="arrow-right"></i></a>
+        </div>
+        <div class="launchpad-card">
+          <div class="launchpad-icon"><i data-lucide="building"></i></div>
+          <h6>Hệ sinh thái đối tác</h6>
+          <p>Kết nối trực tiếp cùng các doanh nghiệp công nghệ tiêu biểu.</p>
+          <a href="/Company" class="launchpad-link">Xem doanh nghiệp <i data-lucide="arrow-right"></i></a>
+        </div>
+      `;
+      emptyFeed.appendChild(bento);
+    }
+  }
+
+  /* 4b. JOBS ENRICHMENT */
+  function enrichJobsLayout() {
+    const jobsHead = document.querySelector('.cosmos-page-head');
+    if (!jobsHead || !document.querySelector('#jobsSearchForm')) return;
+    const actions = jobsHead.querySelector('.cosmos-page-actions');
+    const inner = jobsHead.querySelector('.cosmos-page-head-inner');
+    if (actions && inner && actions.parentElement === jobsHead) {
+      inner.appendChild(actions);
+      actions.style.marginTop = '12px';
+      actions.style.display = 'inline-flex';
+    }
+  }
+
+  /* 4c. PROFILE ENRICHMENT */
+  function enrichProfileLayout() {
+    const profileContainer = document.querySelector('.aris-container');
+    if (!profileContainer || !document.querySelector('#btnEditBio')) return;
+    if (document.getElementById('profileCosmicHead')) return;
+    // View Profile/Index.cshtml ĐÃ có sẵn một .cosmos-page-head. Guard cũ chỉ
+    // kiểm tra id của chính khối này nên vẫn chèn thêm cái thứ hai, cho ra
+    // hai banner giống hệt nhau chồng lên nhau.
+    if (profileContainer.querySelector('.cosmos-page-head')) return;
+
+    const head = document.createElement('div');
+    head.id = 'profileCosmicHead';
+    head.className = 'cosmos-page-head mb-4';
+    head.style.paddingRight = '320px';
+    head.innerHTML = `
+      <div class="cosmos-page-head-inner">
+        <span class="cosmos-page-eyebrow">
+          <i data-lucide="sparkles"></i> Hồ sơ chuyên nghiệp & Định danh
+        </span>
+        <h1 class="cosmos-page-title"><span class="cosmos-gradient-text">Không gian cá nhân & Năng lực</span></h1>
+        <p class="cosmos-page-sub">Quản lý định danh nghề nghiệp, danh mục kỹ năng và kết nối cơ hội việc làm cùng Aris AI.</p>
+      </div>
+    `;
+    profileContainer.prepend(head);
+  }
+
+  /* 4d. COMPANY ENRICHMENT */
+  function enrichCompanyLayout() {
+    const grid = document.getElementById('companyListGrid');
+    if (!grid) return;
+
+    // Move actions into head-inner if present
+    const head = document.querySelector('.cosmos-page-head');
+    if (head) {
+      const actions = head.querySelector('.cosmos-page-actions');
+      const searchBox = head.querySelector('.position-relative');
+      if (actions && searchBox && actions.parentElement === head) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'd-flex align-items-center gap-3 mt-3 flex-wrap';
+        searchBox.parentElement.appendChild(wrapper);
+        wrapper.appendChild(searchBox);
+        wrapper.appendChild(actions);
+        actions.style.margin = '0';
+      }
+    }
+
+    // Add partner invitation card if fewer than 3 cards
+    if (!document.getElementById('companyPartnerInviteCard')) {
+      const items = grid.querySelectorAll('.company-card-item');
+      if (items.length <= 2) {
+        grid.className = 'row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-3';
+        const inviteCol = document.createElement('div');
+        inviteCol.id = 'companyPartnerInviteCard';
+        inviteCol.className = 'col';
+        inviteCol.innerHTML = `
+          <div class="card h-100 border rounded-4 shadow-sm p-4 d-flex flex-column justify-content-between" style="background: linear-gradient(145deg, rgba(16, 25, 45, 0.75) 0%, rgba(9, 15, 30, 0.90) 100%); border: 1px dashed rgba(147, 197, 253, 0.35) !important;">
+            <div>
+              <div class="cosmic-icon-housing mb-3">
+                <i data-lucide="sparkles"></i>
+              </div>
+              <h6 class="fw-bold text-white mb-2">Gia nhập mạng lưới đối tác</h6>
+              <p class="text-muted small mb-3" style="line-height: 1.6;">Kết nối tổ chức của bạn với hàng ngàn ứng viên tiềm năng và tối ưu quy trình phỏng vấn cùng Aris AI Studio.</p>
+            </div>
+            <a href="/Employer" class="btn btn-outline-primary rounded-pill btn-sm fw-semibold d-inline-flex align-items-center justify-content-center gap-2 py-2">
+              Đăng ký doanh nghiệp <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>
+            </a>
+          </div>
+        `;
+        grid.appendChild(inviteCol);
+      }
+    }
+  }
+
+  /* 4e. RESUME ENRICHMENT */
+  function enrichResumeLayout() {
+    if (!document.querySelector('script[src*="resume-actions.js"]')) return;
+
+    // Expand container
+    const container = document.querySelector('.aris-container');
+    if (container) {
+      container.style.maxWidth = '1380px';
+      container.style.width = '95%';
+    }
+
+    // Realign header action button to avoid overlap with Capricorn
+    const createCvBtn = container ? container.querySelector('a[href*="picker.html"]') : null;
+    if (createCvBtn) {
+      const parentRow = createCvBtn.closest('.d-flex');
+      if (parentRow && parentRow.classList.contains('justify-content-between')) {
+        parentRow.classList.remove('justify-content-between');
+        parentRow.classList.add('justify-content-start', 'gap-4');
+      }
+    }
+    const headRow = container ? container.querySelector('.d-flex.align-items-center.justify-content-between') : null;
+    if (headRow) {
+      const actionBtn = headRow.querySelector('.btn-outline-secondary');
+      const titleDiv = headRow.firstElementChild;
+      if (actionBtn && titleDiv && actionBtn.parentElement !== titleDiv) {
+        actionBtn.style.marginTop = '8px';
+        titleDiv.appendChild(actionBtn);
+      }
+    }
+
+    // Elevate empty CV state if present
+    const emptyCard = document.querySelector('.card.p-5.text-center');
+    if (emptyCard && !document.getElementById('cvTelemetryStrip')) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'cvTelemetryStrip';
+      wrapper.innerHTML = `
+        <div class="dash-telemetry-strip mb-4">
+          <div class="telemetry-pill">
+            <div class="telemetry-icon-box"><i data-lucide="file-text"></i></div>
+            <div class="telemetry-content">
+              <span class="telemetry-label">Trạng thái hồ sơ</span>
+              <span class="telemetry-value">Chưa tạo CV <span class="telemetry-tag">Cần thiết</span></span>
+            </div>
+          </div>
+          <div class="telemetry-pill">
+            <div class="telemetry-icon-box"><i data-lucide="shield-check"></i></div>
+            <div class="telemetry-content">
+              <span class="telemetry-label">Điểm chuẩn ATS</span>
+              <span class="telemetry-value">0% <span class="telemetry-tag tag-growth">Sẵn sàng tối ưu</span></span>
+            </div>
+          </div>
+          <div class="telemetry-pill">
+            <div class="telemetry-icon-box"><i data-lucide="sparkles"></i></div>
+            <div class="telemetry-content">
+              <span class="telemetry-label">Radar AI kết nối</span>
+              <span class="telemetry-value">Đang chờ CV <span class="telemetry-tag tag-new">Tự động</span></span>
+            </div>
+          </div>
+          <div class="telemetry-pill">
+            <div class="telemetry-icon-box"><i data-lucide="download"></i></div>
+            <div class="telemetry-content">
+              <span class="telemetry-label">Lượt xuất PDF</span>
+              <span class="telemetry-value">0 lượt</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="launchpad-bento-grid">
+          <div class="launchpad-card">
+            <div class="launchpad-icon"><i data-lucide="code-2"></i></div>
+            <h6>Mẫu CV Kỹ thuật & Công nghệ</h6>
+            <p>Thiết kế chuẩn ATS quốc tế, bố cục 2 cột tối ưu từ khóa kỹ thuật, ngôn ngữ và dự án GitHub.</p>
+            <a href="/cv-builder/picker.html?scratch=1" class="launchpad-link">Bắt đầu tạo CV Dev <i data-lucide="arrow-right"></i></a>
+          </div>
+          <div class="launchpad-card">
+            <div class="launchpad-icon"><i data-lucide="trending-up"></i></div>
+            <h6>Mẫu CV Quản lý & Kinh doanh</h6>
+            <p>Thiết kế sang trọng, tối giản, nhấn mạnh thành tựu định lượng, chỉ số tăng trưởng và dự án thực tế.</p>
+            <a href="/cv-builder/picker.html?scratch=1" class="launchpad-link">Bắt đầu tạo CV Business <i data-lucide="arrow-right"></i></a>
+          </div>
+          <div class="launchpad-card">
+            <div class="launchpad-icon"><i data-lucide="sparkles"></i></div>
+            <h6>Tải lên & AI Parse tự động</h6>
+            <p>Tải file PDF/DOCX có sẵn của bạn để Aris AI tự động trích xuất thông tin, kỹ năng và kinh nghiệm.</p>
+            <a href="/cv-builder/picker.html?scratch=1" class="launchpad-link">Tải lên file ngay <i data-lucide="arrow-right"></i></a>
+          </div>
+        </div>
+      `;
+      emptyCard.replaceWith(wrapper);
+    }
+  }
+
+  /* 4f. APPLICATIONS ENRICHMENT */
+  function enrichApplicationsLayout() {
+    if (!document.querySelector('script[src*="application-actions.js"]')) return;
+
+    // Expand container
+    const container = document.querySelector('.aris-container');
+    if (container) {
+      container.style.maxWidth = '1380px';
+      container.style.width = '95%';
+    }
+
+    // Realign header action button to avoid overlap with Scorpius
+    const headRow = container ? container.querySelector('.d-flex.align-items-center.justify-content-between') : null;
+    if (headRow) {
+      const actionBtn = headRow.querySelector('.btn-outline-primary');
+      const titleDiv = headRow.firstElementChild;
+      if (actionBtn && titleDiv && actionBtn.parentElement !== titleDiv) {
+        actionBtn.style.marginTop = '8px';
+        titleDiv.appendChild(actionBtn);
+      }
+    }
+
+    // Elevate empty application state if present
+    const emptyCard = document.querySelector('.card.p-5.text-center');
+    if (emptyCard && !document.getElementById('appTelemetryStrip')) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'appTelemetryStrip';
+      wrapper.innerHTML = `
+        <div class="dash-telemetry-strip mb-4">
+          <div class="telemetry-pill">
+            <div class="telemetry-icon-box"><i data-lucide="send"></i></div>
+            <div class="telemetry-content">
+              <span class="telemetry-label">Tổng đơn đã nộp</span>
+              <span class="telemetry-value">0 đơn <span class="telemetry-tag">Khởi tạo</span></span>
+            </div>
+          </div>
+          <div class="telemetry-pill">
+            <div class="telemetry-icon-box"><i data-lucide="clock"></i></div>
+            <div class="telemetry-content">
+              <span class="telemetry-label">Đang xem xét</span>
+              <span class="telemetry-value">0 đơn</span>
+            </div>
+          </div>
+          <div class="telemetry-pill">
+            <div class="telemetry-icon-box"><i data-lucide="calendar"></i></div>
+            <div class="telemetry-content">
+              <span class="telemetry-label">Lịch phỏng vấn</span>
+              <span class="telemetry-value">0 lịch <span class="telemetry-tag tag-new">Trực tuyến</span></span>
+            </div>
+          </div>
+          <div class="telemetry-pill">
+            <div class="telemetry-icon-box"><i data-lucide="sparkles"></i></div>
+            <div class="telemetry-content">
+              <span class="telemetry-label">Mẫu CV</span>
+              <span class="telemetry-value">Theo chuẩn Aris</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="launchpad-bento-grid">
+          <div class="launchpad-card">
+            <div class="launchpad-icon"><i data-lucide="compass"></i></div>
+            <h6>Khám phá 24 cơ hội tuyển dụng</h6>
+            <p>Tìm kiếm vị trí lý tưởng phù hợp năng lực với dải lương minh bạch và phúc lợi chi tiết.</p>
+            <a href="/Jobs" class="launchpad-link">Tìm việc làm ngay <i data-lucide="arrow-right"></i></a>
+          </div>
+          <div class="launchpad-card">
+            <div class="launchpad-icon"><i data-lucide="file-text"></i></div>
+            <h6>Tối ưu CV qua AI Scan</h6>
+            <p>Hoàn thiện hồ sơ để tăng 3.5x tỷ lệ được nhà tuyển dụng chủ động liên hệ và mời phỏng vấn.</p>
+            <a href="/Resume" class="launchpad-link">Chỉnh sửa hồ sơ CV <i data-lucide="arrow-right"></i></a>
+          </div>
+          <div class="launchpad-card">
+            <div class="launchpad-icon"><i data-lucide="building-2"></i></div>
+            <h6>Mạng lưới đối tác doanh nghiệp</h6>
+            <p>Khám phá môi trường làm việc, văn hóa doanh nghiệp và lộ trình thăng tiến tại các tổ chức hàng đầu.</p>
+            <a href="/Company" class="launchpad-link">Xem danh sách đối tác <i data-lucide="arrow-right"></i></a>
+          </div>
+        </div>
+      `;
+      emptyCard.replaceWith(wrapper);
+    }
+  }
+
+  /* 4g. SETTINGS ENRICHMENT */
+  function enrichSettingsLayout() {
+    const activeToggle = document.getElementById('activeStatusToggle');
+    if (!activeToggle) return;
+
+    const container = activeToggle.closest('.aris-container');
+    if (container) {
+      container.style.maxWidth = '1380px';
+      container.style.width = '95%';
+    }
+
+    if (!container) return;
+    if (container.querySelector('.col-lg-8') || document.getElementById('settingsSecurityHub')) {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+      return;
+    }
+
+    const cards = container.querySelectorAll('.card');
+    if (cards.length > 0) {
+        const row = document.createElement('div');
+        row.className = 'row g-4';
+
+        const leftCol = document.createElement('div');
+        leftCol.className = 'col-lg-4';
+        leftCol.id = 'settingsSecurityHub';
+        leftCol.innerHTML = `
+          <div class="card border rounded-4 p-4 shadow-sm mb-4" style="background: linear-gradient(145deg, rgba(16, 25, 45, 0.75) 0%, rgba(9, 15, 30, 0.90) 100%);">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <div class="cosmic-icon-housing">
+                <i data-lucide="shield-check"></i>
+              </div>
+              <div>
+                <h6 class="fw-bold text-white mb-0">Bảo mật tài khoản</h6>
+                <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1 mt-1 small">Đăng nhập không mật khẩu</span>
+              </div>
+            </div>
+            <p class="text-muted small mb-3">Tài khoản được bảo vệ với phiên đăng nhập mã hóa thời gian thực.</p>
+            <div class="p-3 rounded-3 mb-3" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);">
+              <div class="small text-white fw-semibold mb-1 d-flex align-items-center gap-2">
+                <span class="pulse-beacon-inline"></span> Thiết bị đang hoạt động
+              </div>
+              <div class="text-muted small" style="font-size: 11px;">Trình duyệt web hiện tại &bull; IP Việt Nam</div>
+            </div>
+            <hr class="my-3 opacity-25">
+            <div class="d-flex flex-column gap-2">
+              <a href="/Profile" class="btn btn-outline-secondary btn-sm rounded-pill text-start d-flex align-items-center justify-content-between px-3">
+                <span><i data-lucide="user" class="me-2" style="width: 14px; height: 14px;"></i> Xem hồ sơ cá nhân</span>
+                <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+              </a>
+              <a href="/Resume" class="btn btn-outline-secondary btn-sm rounded-pill text-start d-flex align-items-center justify-content-between px-3">
+                <span><i data-lucide="file-text" class="me-2" style="width: 14px; height: 14px;"></i> Quản lý CV</span>
+                <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+              </a>
+              <a href="/JobApplications/MyApplications" class="btn btn-outline-secondary btn-sm rounded-pill text-start d-flex align-items-center justify-content-between px-3">
+                <span><i data-lucide="send" class="me-2" style="width: 14px; height: 14px;"></i> Đơn ứng tuyển</span>
+                <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+              </a>
+            </div>
+          </div>
+        `;
+
+        const rightCol = document.createElement('div');
+        rightCol.className = 'col-lg-8';
+
+        const parentOfFirst = cards[0].parentNode;
+        cards.forEach(c => rightCol.appendChild(c));
+
+        row.appendChild(leftCol);
+        row.appendChild(rightCol);
+        parentOfFirst.appendChild(row);
+      }
+    }
+
+  /* =========================================================================
+     5. ICON COSMIC GLOW & REFRESH
+     ========================================================================= */
+  function enhanceIcons() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+  }
+
+  /* =========================================================================
+     6. INITIALIZATION & ROUTE CHANGE LISTENER
+     ========================================================================= */
+  function boot() {
+    initLivingCosmosStarfield();
+    mountSelfDrawingConstellation();
+    enrichDashboardLayout();
+    enrichJobsLayout();
+    enrichProfileLayout();
+    enrichCompanyLayout();
+    enrichResumeLayout();
+    enrichApplicationsLayout();
+    enrichSettingsLayout();
+    enhanceIcons();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  // Handle SPA transitions / popstate
+  window.addEventListener('popstate', () => {
+    setTimeout(mountSelfDrawingConstellation, 100);
+  });
+
+})();
+
+  /* ===== CONSTELLATION REACTS TO REAL EVENTS ==============================
+     Chòm sao của trang là chỗ duy nhất được phép "bùng nổ", và nó chỉ bùng
+     nổ khi người dùng vừa làm xong một việc: gửi form, lưu, bật/tắt trạng
+     thái, hoặc hệ thống vừa báo kết quả. Không có timer, không có vòng lặp.
+     ====================================================================== */
+  (function () {
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var cooldown = 0;
+
+    function pulse() {
+      if (reduceMotion) return;
+      var now = Date.now();
+      if (now - cooldown < 900) return;   // một sự kiện, một cú phản hồi
+      cooldown = now;
+      var frame = document.querySelector('.constellation-frame');
+      if (frame) {
+        frame.classList.remove('is-reacting');
+        void frame.offsetWidth;
+        frame.classList.add('is-reacting');
+        window.setTimeout(function () {
+          frame.classList.remove('is-reacting');
+        }, 900);
+      }
+
+      // Meaningful actions still receive a brief response from the shared
+      // cosmos. This creates no persistent render work.
+      var canvas = document.getElementById('arisCosmicCanvas');
+      if (canvas && typeof canvas.animate === 'function') {
+        var baseOpacity = getComputedStyle(canvas).opacity;
+        canvas.animate([
+          { filter: 'brightness(1) saturate(1)', opacity: baseOpacity },
+          { filter: 'brightness(1.3) saturate(1.22)', opacity: 0.78, offset: 0.34 },
+          { filter: 'brightness(1) saturate(1)', opacity: baseOpacity }
+        ], { duration: 760, easing: 'cubic-bezier(.22,1,.36,1)' });
+      }
+    }
+
+    window.arisCosmosPulse = pulse;
+    window.arisConstellationPulse = pulse;
+
+    // Gửi form thật — trừ các form tìm kiếm/lọc, vì chúng chạy liên tục.
+    document.addEventListener('submit', function (e) {
+      var f = e.target;
+      if (!f || f.tagName !== 'FORM') return;
+      var id = (f.id || '').toLowerCase();
+      if (id.indexOf('search') >= 0 || id.indexOf('filter') >= 0) return;
+      pulse();
+    }, true);
+
+    // Đổi một trạng thái có thật (công tắc, chọn lựa).
+    document.addEventListener('change', function (e) {
+      var t = e.target;
+      if (!t) return;
+      if (t.type === 'checkbox' || t.type === 'radio' || t.tagName === 'SELECT') pulse();
+    }, true);
+
+    // Hệ thống báo kết quả: bám vào toast có sẵn thay vì dựng kênh riêng.
+    if (typeof window.showToast === 'function') {
+      var originalToast = window.showToast;
+      window.showToast = function (message, type) {
+        pulse();
+        return originalToast.apply(this, arguments);
+      };
+    }
+  })();
+
+  /* ===== CONSTELLATION DEPTH & PARALLAX ==================================
+     Hình chòm sao trước đây là một lớp phẳng: mọi ngôi sao cùng một độ
+     sáng, mọi nét nối cùng một độ đậm, và cả khối đứng yên tuyệt đối nên
+     mắt đọc ra là một hình vẽ dán lên, không phải một thứ ở xa.
+
+     Ở đây mỗi ngôi sao được gán một "độ sâu" theo bán kính của nó: sao to
+     là sao gần, nhích nhiều khi con trỏ di chuyển; sao nhỏ ở xa, gần như
+     đứng im. Đó là thị sai — cách rẻ nhất và thật nhất để tạo chiều sâu.
+     ====================================================================== */
+  (function () {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    var frame = null, groups = [], raf = 0, tx = 0, ty = 0, cx = 0, cy = 0;
+
+    function collect() {
+      frame = document.querySelector('.constellation-frame');
+      groups = [];
+      if (!frame) return;
+      var nodes = frame.querySelectorAll('.constellation-star-node');
+      for (var i = 0; i < nodes.length; i++) {
+        var c = nodes[i].querySelector('circle');
+        var r = c ? parseFloat(c.getAttribute('r')) || 2 : 2;
+        // Bán kính lớn = gần = hệ số thị sai lớn.
+        groups.push({ el: nodes[i], depth: Math.min(1, r / 9) });
+      }
+      var beams = frame.querySelectorAll('.constellation-beam');
+      for (var j = 0; j < beams.length; j++) {
+        groups.push({ el: beams[j], depth: 0.22 });
+      }
+    }
+
+    function onMove(e) {
+      if (!frame) return;
+      var w = window.innerWidth || 1, h = window.innerHeight || 1;
+      tx = (e.clientX / w - 0.5) * 2;
+      ty = (e.clientY / h - 0.5) * 2;
+      if (!raf) raf = requestAnimationFrame(tick);
+    }
+
+    function tick() {
+      raf = 0;
+      cx += (tx - cx) * 0.08;
+      cy += (ty - cy) * 0.08;
+      for (var i = 0; i < groups.length; i++) {
+        var g = groups[i];
+        var dx = -cx * 9 * g.depth;
+        var dy = -cy * 6 * g.depth;
+        g.el.style.transform = 'translate(' + dx.toFixed(2) + 'px,' + dy.toFixed(2) + 'px)';
+      }
+      if (Math.abs(tx - cx) > 0.002 || Math.abs(ty - cy) > 0.002) {
+        raf = requestAnimationFrame(tick);
+      }
+    }
+
+    function init() {
+      collect();
+      if (!frame) return;
+      window.addEventListener('pointermove', onMove, { passive: true });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () { setTimeout(init, 60); });
+    } else {
+      setTimeout(init, 60);
+    }
+  })();
+
+  /* ===== SHELL AFFORDANCES ==============================================
+     Bốn thứ dưới đây là chức năng thật, không phải trang trí, và không thứ
+     nào cần thêm dữ liệu từ backend:
+
+       1. Thanh tiến trình đọc dưới navbar — đây đúng là "cử chỉ đặc trưng
+          của vỏ ứng dụng" mà bảng phân bổ chuyển động đã cấp cho shell.
+          Trên một trang cao 4100px, biết mình đang ở đâu là thông tin.
+       2. Nút về đầu trang — xuất hiện khi đã cuộn đủ xa.
+       3. Thẻ hiện dần khi lọt vào khung nhìn — mỗi thẻ đúng một lần, không
+          lặp, nên danh sách dài không còn đổ ập ra cùng lúc.
+       4. Nút xoá nội dung trong ô tìm kiếm.
+     ====================================================================== */
+  (function () {
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Temporary performance switch for the Dashboard feed.
+    var dashboardPostDofEnabled = false;
+
+    /* --- 1. Tiêu điểm bài viết + độ sâu trường ảnh ---
+       Thanh tiến trình đọc đã bỏ: biết mình đang ở 40% hay 60% của trang
+       feed không giúp gì cho việc đang làm, mà lại chiếm một dải ngang
+       suốt đầu màn hình.
+
+       Thay vào đó là một hệ tiêu điểm. Bài đang đọc giữ nguyên độ sắc và
+       được nâng lên; phần còn lại lùi ra sau bằng một lớp mờ rất nhẹ —
+       đúng cách ống kính khẩu độ mở tách chủ thể khỏi hậu cảnh.
+
+       Tiêu điểm đến từ ba nguồn, theo thứ tự ưu tiên:
+         · GHIM  — bấm vào một bài, hoặc mở bình luận của nó. Giữ nguyên
+                   cho tới khi bấm ra ngoài, nhấn Esc, hoặc cuộn đi.
+         · PHÍM  — J / K để đi giữa các bài, cuộn tới và ghim luôn.
+         · DỪNG  — ngừng cuộn 220ms thì bài ở tâm khung nhìn tự nhận tiêu điểm.
+
+       Trong lúc đang cuộn thì mọi thứ đều sắc nét: làm mờ theo từng khung
+       hình vừa tốn vừa gây chóng mặt. */
+    function focusReading() {
+      if (!dashboardPostDofEnabled) {
+        document.body.classList.remove('dof-on', 'dof-pinned');
+        document.querySelectorAll('.post-card.dof-near, .post-card.dof-far')
+          .forEach(function (card) { card.classList.remove('dof-near', 'dof-far'); });
+        return;
+      }
+      if (reduce) return;
+
+      var cards = [];
+      var pinned = null;
+      var idleTimer = 0;
+      var repinTimer = 0;
+      var on = false;
+
+      function cancelTimers() {
+        window.clearTimeout(idleTimer);
+        window.clearTimeout(repinTimer);
+      }
+
+      function collect() {
+        // Chỉ feed bài viết. Danh sách việc làm là để QUÉT, không phải đọc
+        // liên mạch — làm mờ ở đó chỉ khiến người ta khó so sánh các tin.
+        // Rail và bộ lọc thì không bao giờ được mờ: chúng là công cụ.
+        cards = [].slice.call(document.querySelectorAll('.post-card'));
+        return cards.length >= 2;
+      }
+      if (!collect()) return;
+
+      function clear() {
+        if (!on) return;
+        on = false;
+        document.body.classList.remove('dof-on', 'dof-pinned');
+        for (var i = 0; i < cards.length; i++) {
+          cards[i].classList.remove('dof-near', 'dof-far');
+        }
+      }
+
+      function focusOn(card, isPin) {
+        if (!card) { clear(); return; }
+        on = true;
+        document.body.classList.add('dof-on');
+        document.body.classList.toggle('dof-pinned', !!isPin);
+        for (var i = 0; i < cards.length; i++) {
+          var near = cards[i] === card;
+          cards[i].classList.toggle('dof-near', near);
+          cards[i].classList.toggle('dof-far', !near);
+        }
+      }
+
+      function centreCard() {
+        var centre = window.innerHeight * 0.46;
+        var best = null, bestDist = Infinity;
+        for (var i = 0; i < cards.length; i++) {
+          var r = cards[i].getBoundingClientRect();
+          if (r.bottom < 0 || r.top > window.innerHeight) continue;
+          // Bài dài hơn khung nhìn: chỉ cần nó phủ qua đường tâm là nó đang
+          // được đọc, không cần tâm của nó trùng tâm màn hình.
+          var d = (r.top <= centre && r.bottom >= centre)
+            ? 0
+            : Math.min(Math.abs(r.top - centre), Math.abs(r.bottom - centre));
+          if (d < bestDist) { bestDist = d; best = cards[i]; }
+        }
+        return best;
+      }
+
+      function settle() { if (!pinned) focusOn(centreCard(), false); }
+
+      window.addEventListener('scroll', function () {
+        pinned = null;                  // cuộn đi là thả ghim
+        clear();
+        window.clearTimeout(idleTimer);
+        idleTimer = window.setTimeout(settle, 220);
+      }, { passive: true });
+
+      window.addEventListener('resize', function () { collect(); clear(); }, { passive: true });
+
+      // GHIM: bấm vào bài — và rõ nhất là khi mở bình luận — thì khoá tiêu
+      // điểm vào đúng bài đó. Đây là lúc người dùng nói rõ họ đang ở đâu.
+      document.addEventListener('pointerdown', function (e) {
+        var card = e.target.closest && e.target.closest('.post-card');
+        if (card) {
+          pinned = card;
+          focusOn(card, true);
+        } else {
+          pinned = null;
+          clear();
+          window.clearTimeout(idleTimer);
+          idleTimer = window.setTimeout(settle, 220);
+        }
+      }, true);
+
+      // PHÍM: J xuống, K lên, Esc thả. Bỏ qua khi đang gõ trong ô nhập.
+      document.addEventListener('keydown', function (e) {
+        var t = e.target;
+        var typing = !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable));
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+        // Esc phải thoát được kể cả khi con trỏ đang nằm trong ô nhập —
+        // đó là lối ra duy nhất sau khi mở bình luận. J/K thì không, vì
+        // gõ chữ "j" trong ô bình luận không được phép nhảy bài.
+        if (e.key === 'Escape') {
+          // Phải huỷ cả các hẹn giờ đang chờ, nếu không cú cuộn hoặc cú
+          // nhảy phím vừa rồi sẽ ghim lại ngay sau khi vừa thả.
+          cancelTimers();
+          pinned = null;
+          clear();
+          if (typing && t.blur) t.blur();
+          return;
+        }
+
+        if (typing) return;
+
+        var k = e.key.toLowerCase();
+        if (k !== 'j' && k !== 'k') return;
+        e.preventDefault();
+
+        var current = pinned || centreCard();
+        var i = cards.indexOf(current);
+        if (i < 0) i = 0;
+        var next = cards[Math.min(cards.length - 1, Math.max(0, i + (k === 'j' ? 1 : -1)))];
+        if (!next) return;
+
+        pinned = next;
+        focusOn(next, true);
+        var r = next.getBoundingClientRect();
+        window.scrollTo({ top: window.scrollY + r.top - 96, behavior: 'smooth' });
+        // Cuộn sẽ thả ghim, nên đặt lại sau khi cuộn xong.
+        window.clearTimeout(repinTimer);
+        repinTimer = window.setTimeout(function () { pinned = next; focusOn(next, true); }, 520);
+      });
+
+      idleTimer = window.setTimeout(settle, 600);
+    }
+
+    /* --- 1b. Thu gọn bài dài ---
+       Một bài vài trăm chữ đẩy mọi bài sau nó ra khỏi màn hình. Cắt xuống
+       còn 8 dòng kèm nút mở — chỉ gắn cho bài thực sự tràn, đo bằng
+       scrollHeight nên không cắt nhầm bài ngắn. */
+    function collapseLongPosts() {
+      var bodies = document.querySelectorAll('.post-content-body');
+      for (var i = 0; i < bodies.length; i++) {
+        (function (body) {
+          if (body.dataset.clampBound) return;
+          body.dataset.clampBound = '1';
+          body.classList.add('is-clamped');
+          if (body.scrollHeight - body.clientHeight < 16) {
+            body.classList.remove('is-clamped');
+            return;
+          }
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'post-clamp-toggle';
+          btn.textContent = 'Xem thêm';
+          btn.addEventListener('click', function () {
+            var open = body.classList.toggle('is-clamped');
+            btn.textContent = open ? 'Xem thêm' : 'Thu gọn';
+          });
+          body.parentNode.insertBefore(btn, body.nextSibling);
+        })(bodies[i]);
+      }
+    }
+
+    /* --- 2. Về đầu trang --- */
+    function backToTop() {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'aris-to-top';
+      btn.setAttribute('aria-label', 'Về đầu trang');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<path d="M12 19V5"/><path d="m5.5 11.5 6.5-6.5 6.5 6.5"/></svg>';
+      btn.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+      });
+      document.body.appendChild(btn);
+
+      var ticking = false;
+      function update() {
+        ticking = false;
+        btn.classList.toggle('is-shown', window.scrollY > 640);
+      }
+      window.addEventListener('scroll', function () {
+        if (!ticking) { ticking = true; requestAnimationFrame(update); }
+      }, { passive: true });
+      update();
+    }
+
+    /* --- 3. Thẻ hiện dần khi lọt vào khung nhìn --- */
+    function revealOnScroll() {
+      if (reduce || !('IntersectionObserver' in window)) return;
+      var targets = document.querySelectorAll(
+        '.aris-container .card, .dashboard-page .card, .launchpad-card, ' +
+        '.company-card-item, .post-card, .job-mini-item, .cv-card-item');
+      if (!targets.length) return;
+
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          e.target.classList.add('is-revealed');
+          io.unobserve(e.target);          // đúng một lần cho mỗi thẻ
+        });
+      }, { rootMargin: '0px 0px -8% 0px', threshold: 0.06 });
+
+      for (var i = 0; i < targets.length; i++) {
+        // Thẻ đã nằm sẵn trong khung nhìn lúc tải thì hiện luôn, không đợi cuộn.
+        var r = targets[i].getBoundingClientRect();
+        if (r.top < window.innerHeight * 0.92) {
+          targets[i].classList.add('is-revealed');
+        } else {
+          targets[i].classList.add('will-reveal');
+          io.observe(targets[i]);
+        }
+      }
+    }
+
+    /* --- 4. Nút xoá trong ô tìm kiếm --- */
+    function searchClear() {
+      var inputs = document.querySelectorAll(
+        'input[type=search], .search-input, #globalSearchInput, #companySearchInput, #userSearchInput');
+      for (var i = 0; i < inputs.length; i++) {
+        (function (input) {
+          if (input.dataset.clearBound) return;
+          input.dataset.clearBound = '1';
+          var wrap = input.parentElement;
+          if (!wrap) return;
+          if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
+
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'aris-input-clear';
+          btn.setAttribute('aria-label', 'Xoá nội dung tìm kiếm');
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+            'stroke-width="1.8" stroke-linecap="round" aria-hidden="true">' +
+            '<path d="M6 6l12 12M18 6L6 18"/></svg>';
+          btn.addEventListener('click', function () {
+            input.value = '';
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+            toggle();
+          });
+          wrap.appendChild(btn);
+
+          function toggle() { btn.classList.toggle('is-shown', !!input.value); }
+          input.addEventListener('input', toggle);
+          toggle();
+        })(inputs[i]);
+      }
+    }
+
+    function boot() {
+      try { focusReading(); } catch (e) { }
+      try { collapseLongPosts(); } catch (e) { }
+      try { backToTop(); } catch (e) { }
+      try { revealOnScroll(); } catch (e) { }
+      try { searchClear(); } catch (e) { }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+  })();
+
+  /* ===== COSMOS PARALLAX & DISMISSIBLE ONBOARDING =======================
+     1. Trường sao trôi chậm hơn nội dung khi cuộn. Thị sai là cách rẻ nhất
+        để hai lớp đọc ra là ở hai khoảng cách khác nhau — và nó chỉ chạy
+        khi người dùng đang cuộn, không tốn gì lúc đứng yên.
+     2. Khối gợi ý ở đầu trang Jobs dành cho tài khoản chưa có CV: cho nó
+        một nút tắt, và nhớ lựa chọn đó.
+     ====================================================================== */
+  (function () {
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function parallax() {
+      // High-precision parallax is handled directly in Canvas2D render loop (initLivingCosmosStarfield)
+      return;
+    }
+
+    function dismissibleOnboarding() {
+      var box = document.getElementById('ai-recommendation-section');
+      if (!box || box.dataset.dismissBound) return;
+      box.dataset.dismissBound = '1';
+
+      var KEY = 'aris-hide-ai-prompt';
+      try {
+        if (localStorage.getItem(KEY) === '1') { box.style.display = 'none'; return; }
+      } catch (e) { /* chế độ riêng tư */ }
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'aris-dismiss';
+      btn.setAttribute('aria-label', 'Ẩn gợi ý này');
+      btn.title = 'Ẩn gợi ý này';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="1.8" stroke-linecap="round" aria-hidden="true">' +
+        '<path d="M6 6l12 12M18 6L6 18"/></svg>';
+      btn.addEventListener('click', function () {
+        box.style.transition = 'opacity .24s ease, transform .24s ease';
+        box.style.opacity = '0';
+        box.style.transform = 'translateY(-6px)';
+        window.setTimeout(function () { box.style.display = 'none'; }, 240);
+        try { localStorage.setItem(KEY, '1'); } catch (e) { /* chế độ riêng tư */ }
+      });
+      box.appendChild(btn);
+    }
+
+    function boot() {
+      try { parallax(); } catch (e) { }
+      try { dismissibleOnboarding(); } catch (e) { }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+  })();
+
+  /* ===== RUNE TRANSMISSION ==============================================
+     Thỉnh thoảng một mẩu chữ BẤT KỲ trên màn hình nhiễu thành rune Bắc Âu
+     cổ (Elder Futhark) rồi trở lại — như một tín hiệu từ xa vọng về.
+
+     Bản trước chỉ bám vào 7 selector tiêu đề, nên hiệu ứng luôn rơi đúng
+     vào mấy chỗ đó và đoán trước được. Giờ nó quét toàn bộ text node đang
+     nhìn thấy: nội dung bài đăng, mô tả việc làm, tên công ty, nhãn phụ —
+     chỗ nào có chữ thì chỗ đó có thể phát tín hiệu.
+
+     Năm ràng buộc để nó là hiệu ứng chứ không phải lỗi:
+
+     1. GIỮ NGUYÊN SỐ KÝ TỰ. Thay từng ký tự tại chỗ nên chiều dài không
+        đổi — không dòng nào nhảy hay xuống hàng giữa chừng.
+     2. KHÔNG PHÁ MARKUP. Chỉ sửa `data` của một text node, không đụng thẻ.
+     3. KHÔNG ĐỘNG VÀO CHỮ SỐ. Một đoạn văn nhiễu thì đọc ra là hiệu ứng;
+        một mức lương hay một ngày tháng nhiễu thì đọc ra là dữ liệu sai.
+        Chỉ thay chữ cái — bỏ số, khoảng trắng, dấu câu.
+     4. CHỈ MỘT MẨU, KHÔNG CẢ ĐOẠN. Với text dài (thân bài đăng), chọn một
+        cửa sổ liền mạch 12–28 ký tự thay vì rải khắp đoạn: mắt đọc ra là
+        một cụm từ đang chập chờn, chứ không phải cả đoạn đang tan.
+     5. TỰ TẮT NẾU MÁY KHÔNG CÓ FONT RUNIC. Đo chiều rộng glyph so với một
+        ký tự chắc chắn không tồn tại (U+E000): trùng nhau nghĩa là trình
+        duyệt đang vẽ ô vuông tofu, và khi đó thà không có hiệu ứng.
+     ====================================================================== */
+  (function () {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    var RUNES = 'ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛞᛟᛘᛣᛡ'.split('');
+
+    /* Nơi chữ không được phép nhiễu: mã nguồn, ô nhập liệu, nhãn nút bấm,
+       và bên trong SVG. Nhiễu ở những chỗ này không đọc ra là hiệu ứng —
+       nó đọc ra là hỏng, hoặc tệ hơn là bấm nhầm. */
+    var SKIP_TAGS = {
+      SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, TITLE: 1,
+      TEXTAREA: 1, INPUT: 1, SELECT: 1, OPTION: 1, OPTGROUP: 1,
+      CODE: 1, PRE: 1, KBD: 1, SAMP: 1, VAR: 1,
+      BUTTON: 1, SVG: 1, svg: 1, PATH: 1, path: 1
+    };
+
+    /* Vẫn giữ mấy tiêu đề này cho việc rê chuột — cố tình KHÔNG mở rộng ra
+       toàn trang, vì tín hiệu bám theo con trỏ lúc đang đọc bài thì phiền
+       chứ không đẹp. Nhịp nền mới là thứ đi khắp nơi. */
+    var HOVER_SEL = [
+      '.cosmos-page-title', '.dashboard-heading h1', '.greeting-title',
+      '.cosmos-page-eyebrow', '.feed-heading', '.composer-heading',
+      '.dashboard-heading .cosmos-gradient-text'
+    ].join(',');
+
+    function runicSupported() {
+      try {
+        var ctx = document.createElement('canvas').getContext('2d');
+        ctx.font = '28px "Space Grotesk", Inter, sans-serif';
+        var tofu = ctx.measureText('\uE000').width;
+        var hits = 0;
+        for (var i = 0; i < RUNES.length; i++) {
+          if (Math.abs(ctx.measureText(RUNES[i]).width - tofu) < 0.5) hits++;
+        }
+        return hits < RUNES.length * 0.5;   // đa số vẽ khác tofu thì coi là có font
+      } catch (e) { return false; }
+    }
+    if (!runicSupported()) return;
+
+    /* Chữ thật sự nằm ở đâu trên màn hình. Dùng Range chứ không dùng rect
+       của thẻ cha: một <p> có thể cao 300px trong khi dòng chữ ta định
+       nhiễu lại nằm ngoài khung nhìn. */
+    function nodeRect(n) {
+      try {
+        var rg = document.createRange();
+        rg.selectNodeContents(n);
+        return rg.getBoundingClientRect();
+      } catch (e) { return null; }
+    }
+
+    /* Gom mọi text node đang nhìn thấy. Bộ lọc chạy trên cả ELEMENT lẫn
+       TEXT: gặp một thẻ nằm trọn ngoài khung nhìn thì REJECT để bỏ luôn cả
+       cây con — đó là thứ giữ cho lần quét này rẻ trên feed dài. */
+    function harvest() {
+      var out = [];
+      var vh = window.innerHeight, vw = window.innerWidth;
+      var walk = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+        {
+          acceptNode: function (n) {
+            if (n.nodeType === 1) {
+              if (SKIP_TAGS[n.tagName]) return NodeFilter.FILTER_REJECT;
+              if (n.isContentEditable) return NodeFilter.FILTER_REJECT;
+              if (n.hasAttribute('data-no-rune')) return NodeFilter.FILTER_REJECT;
+              if (n.getAttribute('aria-hidden') === 'true') return NodeFilter.FILTER_REJECT;
+              // Chữ chỉ dành cho trình đọc màn hình: người dùng không thấy
+              // nó nhiễu, nên bắn vào đây là một lượt phát phí.
+              if (n.classList.contains('visually-hidden') ||
+                  n.classList.contains('sr-only')) return NodeFilter.FILTER_REJECT;
+              var r = n.getBoundingClientRect();
+              // Chỉ loại khi thẻ CÓ kích thước thật mà nằm ngoài khung nhìn.
+              // Thẻ rect rỗng (display:contents, thẻ bọc inline) thì vẫn đi
+              // tiếp vào con, vì con nó có thể đang hiện.
+              if ((r.width || r.height) &&
+                  (r.bottom < 8 || r.top > vh - 8 || r.right < 0 || r.left > vw)) {
+                return NodeFilter.FILTER_REJECT;
+              }
+              return NodeFilter.FILTER_SKIP;   // bản thân thẻ không phải ứng viên
+            }
+            return (n.nodeValue && n.nodeValue.trim().length >= 6)
+              ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+          }
+        }
+      );
+
+      var n;
+      while ((n = walk.nextNode())) {
+        var r = nodeRect(n);
+        if (!r || r.width < 24 || r.height < 6) continue;
+        if (r.bottom < 8 || r.top > vh - 8) continue;
+        var p = n.parentElement;
+        if (!p) continue;
+        if (p.dataset.runeBusy === '1') continue;
+        if (Date.now() - (+p.dataset.runeLast || 0) < 6000) continue;
+        out.push(n);
+        if (out.length >= 500) break;   // trần an toàn cho feed rất dài
+      }
+      return out;
+    }
+
+    /* Chọn khúc sẽ nhiễu.
+
+       Bản đầu cắt cửa sổ theo CHỈ SỐ KÝ TỰ, và nó hỏng ngay trên dữ liệu
+       thật: một text node của thân bài đăng dài 76 ký tự nhưng chỉ có 14
+       ký tự là chữ — phần còn lại là thụt đầu dòng từ Razor. Cửa sổ rơi
+       trúng vùng khoảng trắng, không đủ 3 chữ cái, và hiệu ứng lặng lẽ
+       không chạy. Đo được 0 rune ở cả 5 mốc thời gian.
+
+       Giờ cắt trong KHÔNG GIAN CHỮ CÁI: lấy danh sách vị trí các chữ cái
+       rồi cắt một đoạn liên tiếp trên chính danh sách đó. Khoảng trắng và
+       thụt dòng bao nhiêu cũng không còn ảnh hưởng, và vì các vị trí liền
+       nhau trong danh sách nên rune vẫn hiện thành một cụm liền mạch. */
+    function letterSlots(text) {
+      var all = [];
+      for (var i = 0; i < text.length; i++) {
+        if (/\p{L}/u.test(text[i])) all.push(i);
+      }
+      if (all.length <= 34) return all;              // câu ngắn: nhiễu cả câu
+      var span = 12 + ((Math.random() * 13) | 0);    // 12–24 chữ cái
+      var st = (Math.random() * (all.length - span)) | 0;
+      return all.slice(st, st + span);
+    }
+
+    function transmit(target, force) {
+      var node, el;
+
+      // Nhận cả Element (rê chuột, gọi tay) lẫn text node (nhịp nền).
+      if (target && target.nodeType === 3) {
+        node = target; el = node.parentElement;
+      } else if (target && target.nodeType === 1) {
+        el = target;
+        var pool = [];
+        var w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+        var t;
+        while ((t = w.nextNode())) {
+          if (t.nodeValue && t.nodeValue.trim().length >= 4) pool.push(t);
+        }
+        if (!pool.length) return;
+        node = pool[(Math.random() * pool.length) | 0];
+      } else { return; }
+
+      if (!el || el.dataset.runeBusy === '1') return;
+      // Cooldown nằm ở đây chứ không chỉ ở nhịp nền: rê chuột qua lại sẽ
+      // gọi hàm này liên tục, và hiệu ứng lặp mỗi 400ms thì hết là tín
+      // hiệu, thành ra là chữ nhấp nháy.
+      if (!force && Date.now() - (+el.dataset.runeLast || 0) < 6000) return;
+
+      // Đang bôi đen chữ thì đừng động vào — sửa nodeValue sẽ phá vùng chọn.
+      try {
+        var sel = window.getSelection();
+        if (sel && !sel.isCollapsed && sel.containsNode(node, true)) return;
+      } catch (e) { }
+
+      var original = node.nodeValue;
+
+      // Chỉ nhiễu chữ cái. Số để nguyên: lương, ngày tháng, số lượt ứng
+      // tuyển mà nhiễu thì người đọc hiểu là dữ liệu sai, không phải hiệu ứng.
+      var slots = letterSlots(original);
+      if (slots.length < 3) return;
+
+      // Giữ nguyên văn bản thật cho trình đọc màn hình.
+      if (!el.getAttribute('aria-label') && (el.textContent || '').trim().length < 300) {
+        el.setAttribute('aria-label', (el.textContent || '').trim());
+      }
+
+      var take = Math.max(3, Math.round(slots.length * 0.45));
+      var picked = [];
+      var pool2 = slots.slice();
+      while (picked.length < take && pool2.length) {
+        picked.push(pool2.splice((Math.random() * pool2.length) | 0, 1)[0]);
+      }
+
+      el.dataset.runeBusy = '1';
+      el.classList.add('is-transmitting');
+
+      function done() {
+        if (node.isConnected) node.nodeValue = original;
+        el.classList.remove('is-transmitting');
+        el.dataset.runeBusy = '0';
+        el.dataset.runeLast = String(Date.now());
+      }
+
+      // 13 khung x 135ms ~ 1,75s, chia ba nhịp: nhiễu dâng lên, GIỮ ở đỉnh,
+      // rồi tan dần. Nhịp giữ mới là chỗ người ta thực sự đọc được chữ rune.
+      var frame = 0;
+      var FRAMES = 13;
+      var timer = window.setInterval(function () {
+        frame++;
+        // Feed có thể vẽ lại và tháo node ra giữa chừng — dừng cho sạch.
+        if (!node.isConnected || frame >= FRAMES) {
+          window.clearInterval(timer);
+          done();
+          return;
+        }
+
+        var t2 = frame / (FRAMES - 1);
+        var ratio;
+        if (t2 < 0.22) ratio = t2 / 0.22;              // dâng lên
+        else if (t2 < 0.62) ratio = 1;                 // giữ ở đỉnh
+        else ratio = 1 - (t2 - 0.62) / 0.38;           // tan dần
+
+        var count = Math.max(1, Math.round(take * ratio));
+        var chars = original.split('');
+        for (var k = 0; k < count; k++) {
+          chars[picked[k]] = RUNES[(Math.random() * RUNES.length) | 0];
+        }
+        node.nodeValue = chars.join('');
+      }, 135);
+    }
+
+    /* Nhịp nền: thỉnh thoảng một mẩu, ở bất kỳ đâu, không bao giờ hai mẩu
+       cùng lúc — nhiều chỗ nhiễu một lượt thì trang đọc ra là đang lỗi. */
+    function tick() {
+      var delay = 6000 + Math.random() * 7000;
+      window.setTimeout(function () {
+        if (!document.hidden) {
+          var ae = document.activeElement;
+          var typing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
+          if (!typing) {
+            try {
+              var list = harvest();
+              if (list.length) transmit(list[(Math.random() * list.length) | 0]);
+            } catch (e) { }
+          }
+        }
+        tick();
+      }, delay);
+    }
+
+    /* Rê chuột lên tiêu đề cũng gọi tín hiệu về — để hiệu ứng tìm thấy
+       được, chứ không chỉ chờ may. */
+    document.addEventListener('pointerover', function (e) {
+      var el = e.target.closest && e.target.closest(HOVER_SEL);
+      if (el) transmit(el);
+    }, true);
+
+    window.arisRuneTransmit = transmit;
+    window.arisRuneHarvest = harvest;
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', tick);
+    } else {
+      tick();
+    }
+  })();

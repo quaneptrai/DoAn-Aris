@@ -1,0 +1,119 @@
+@model List<ArisSkyve.Domain.Entities.Resume>
+
+@{
+    var cvs = Model ?? new List<ArisSkyve.Domain.Entities.Resume>();
+}
+
+@if (!cvs.Any())
+{
+    <div class="a-empty" style="padding: 48px 24px;">
+        <i data-lucide="file-text"></i>
+        <div class="a-empty__title">Bạn chưa có CV nào</div>
+        <div class="a-empty__text">Đã có CV? Tải file PDF/Word lên để AI đọc và gợi ý việc phù hợp. Chưa có thì tạo CV trong 5 phút từ hồ sơ.</div>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center;">
+            <button type="button" class="a-btn a-btn--primary" data-cv-upload>
+                <i data-lucide="upload"></i> Tải CV có sẵn lên
+            </button>
+            <a href="/Resume/Studio?new=1" class="a-btn a-btn--secondary">
+                <i data-lucide="file-plus"></i> Tạo CV mới
+            </a>
+        </div>
+        <div class="a-help" style="margin-top:8px;">PDF, DOC hoặc DOCX · có thể kéo thả file vào trang này</div>
+    </div>
+}
+else
+{
+    <div class="cv-grid" id="cvGrid">
+        @foreach (var resume in cvs)
+        {
+            var isReady = !string.IsNullOrWhiteSpace(resume.FileUrl) || !string.IsNullOrWhiteSpace(resume.BuilderDataJson);
+            var label = string.IsNullOrWhiteSpace(resume.Label) ? "CV chưa đặt tên" : resume.Label;
+            var isPublished = ArisSkyve.Infrastructure.Services.CanonicalResumeContract.IsPublished(resume.BuilderDataJson);
+            var inStudio = ArisSkyve.Infrastructure.Services.CanonicalResumeContract.IsStoredDocument(resume.BuilderDataJson);
+
+            <article class="cv-card" data-resume-id="@resume.Id">
+                <div class="cv-card__thumb">
+                    @if (!string.IsNullOrWhiteSpace(resume.PreviewImageUrl))
+                    {
+                        <img src="/Resume/OpenCv?url=@Uri.EscapeDataString(resume.PreviewImageUrl)" alt="@label" onerror="this.style.display='none'">
+                    }
+                    else
+                    {
+                        <div class="cv-thumb-paper" aria-hidden="true">
+                            <span class="cv-thumb-line cv-thumb-line--head"></span>
+                            <span class="cv-thumb-line" style="width: 80%;"></span>
+                            <span class="cv-thumb-line" style="width: 90%;"></span>
+                            <span class="cv-thumb-line" style="width: 70%; margin-top: 6px;"></span>
+                            <span class="cv-thumb-line" style="width: 85%;"></span>
+                            <span class="cv-thumb-line" style="width: 60%;"></span>
+                        </div>
+                    }
+                </div>
+
+                <div class="cv-card__info">
+                    <div class="cv-card__name-row">
+                        <span class="cv-card__name resume-label" title="@label">@label</span>
+                        <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm rename-resume-btn" type="button" data-id="@resume.Id" aria-label="Đổi tên CV">
+                            <i data-lucide="pencil"></i>
+                        </button>
+                    </div>
+                    <div class="cv-card__sub">
+                        Cập nhật @resume.LastUpdatedAt.ToString("dd/MM/yyyy HH:mm")
+                    </div>
+                    <div class="cv-card__tags">
+                        @if (isReady)
+                        {
+                            <span class="a-tag a-tag--sm a-tag--success"><i data-lucide="check"></i> Sẵn sàng</span>
+                        }
+                        @if (isPublished)
+                        {
+                            <a class="a-tag a-tag--sm cv-tag-live" href="/portfolio/@resume.Id" target="_blank" rel="noopener" title="Trang web công khai của CV này"><i data-lucide="globe"></i> Đang công khai</a>
+                        }
+                        else if (!inStudio && !string.IsNullOrWhiteSpace(resume.FileUrl))
+                        {
+                            <span class="a-tag a-tag--sm" title="Mở bằng Resume Studio để sửa trực tiếp và chọn 32 layout">File tải lên</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="cv-card__extra">
+                    <a href="/Resume/Studio?resumeId=@resume.Id&amp;coach=1" class="cv-card__coach" title="Chấm CV và gợi ý cách sửa để khớp vị trí bạn muốn">
+                        <i data-lucide="sparkles"></i> Trợ lý CV
+                    </a>
+                    <button type="button" class="cv-card__share" data-cv-share="@resume.Id" data-published="@(isPublished ? "1" : "0")" title="Biến CV thành trang web và lấy link chia sẻ">
+                        <i data-lucide="@(isPublished ? "link" : "globe")"></i> @(isPublished ? "Sao chép link" : "Chia sẻ trang web")
+                    </button>
+                </div>
+
+                <footer class="cv-card__actions">
+                    <a href="/Resume/Studio?resumeId=@resume.Id" class="a-btn a-btn--primary a-btn--sm" title="Mở trong Resume Studio">
+                        <i data-lucide="square-pen"></i> Sửa
+                    </a>
+                    @if (!string.IsNullOrWhiteSpace(resume.FileUrl))
+                    {
+                        <a href="/Resume/OpenCv?url=@Uri.EscapeDataString(resume.FileUrl)" target="_blank" rel="noopener" class="a-btn a-btn--secondary a-btn--sm" title="Xem file">
+                            <i data-lucide="eye"></i>
+                        </a>
+                    }
+                    <button type="button" class="a-btn a-btn--ghost a-btn--icon a-btn--sm" data-cv-replace="@resume.Id" data-label="@label" aria-label="Thay file cho CV này" title="Thay bằng file PDF/Word khác">
+                        <i data-lucide="upload"></i>
+                    </button>
+                    <button type="button" class="a-btn a-btn--ghost a-btn--icon a-btn--sm delete-resume-btn" data-id="@resume.Id" aria-label="Xoá CV" style="color:var(--danger)">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </footer>
+            </article>
+        }
+
+        <!-- Thẻ tạo CV mới thêm ở cuối lưới -->
+        <a href="/Resume/Studio?new=1" class="cv-card--add" aria-label="Tạo thêm CV mới">
+            <span class="cv-card--add__icon"><i data-lucide="plus"></i></span>
+            <span class="cv-card--add__title">Tạo CV mới</span>
+        </a>
+        <button type="button" class="cv-card--add" data-cv-upload aria-label="Tải CV có sẵn lên">
+            <span class="cv-card--add__icon"><i data-lucide="upload"></i></span>
+            <span class="cv-card--add__title">Tải CV có sẵn</span>
+            <span class="a-help">PDF / Word · hoặc kéo thả vào đây</span>
+        </button>
+    </div>
+}

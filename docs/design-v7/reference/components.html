@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Thành phần giao diện — Aris Line V7</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('aris-theme');
+        if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      } catch (e) { document.documentElement.dataset.theme = 'light'; }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="line.css">
+  <link rel="stylesheet" href="components.css">
+</head>
+<body>
+<div class="a-app">
+
+  <nav class="a-rail" aria-label="Điều hướng chính">
+    <a class="a-rail__logo" href="feed.html" aria-label="Aris — về Bảng tin">
+      <svg viewBox="0 0 200 200" aria-hidden="true"><path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30"/></svg>
+    </a>
+    <div class="a-rail__nav">
+      <span class="a-indicator" data-axis="y" data-inset="15"></span>
+      <a class="a-rail__item" href="feed.html" data-mobile><i data-lucide="home"></i><span>Bảng tin</span></a>
+      <a class="a-rail__item" href="jobs.html" data-mobile><i data-lucide="briefcase"></i><span>Việc làm</span></a>
+      <a class="a-rail__item" href="chat.html" data-mobile><i data-lucide="message-circle"></i><span>Tin nhắn</span><span class="a-badge a-badge--accent a-num">3</span></a>
+      <a class="a-rail__item" href="#applications" id="railApplications"><i data-lucide="file-check"></i><span>Ứng tuyển</span></a>
+      <a class="a-rail__item" href="#cv"><i data-lucide="file-text"></i><span>CV</span></a>
+      <a class="a-rail__item" href="#companies"><i data-lucide="building-2"></i><span>Công ty</span></a>
+      <a class="a-rail__item a-rail__item--mobile" href="#notifications" data-mobile><i data-lucide="bell"></i><span>Thông báo</span></a>
+      <a class="a-rail__item a-rail__item--mobile" href="#me" data-mobile><i data-lucide="circle-user"></i><span>Tôi</span></a>
+    </div>
+    <div class="a-rail__foot">
+      <button class="a-rail__btn a-rail__create" type="button" data-action="compose" data-tip="Tạo bài viết" data-kbd="N" aria-label="Tạo bài viết"><i data-lucide="plus-square"></i></button>
+      <button class="a-rail__btn" type="button" data-action="palette" data-tip="Tìm nhanh" data-kbd="Ctrl K" aria-label="Tìm nhanh"><i data-lucide="search"></i></button>
+      <button class="a-rail__btn" type="button" data-action="notifications" data-tip="Thông báo" aria-label="Thông báo, 4 chưa đọc"><i data-lucide="bell"></i><span class="a-badge a-badge--accent a-num">4</span></button>
+      <button class="a-rail__btn" type="button" data-action="theme" data-tip="Giao diện sáng / tối" aria-label="Đổi giao diện sáng tối"><i data-lucide="moon"></i></button>
+      <button class="a-rail__me" type="button" data-action="account" aria-label="Tài khoản của bạn"><span class="a-avatar a-avatar--32" data-tone="1">ĐK</span></button>
+    </div>
+  </nav>
+
+  <main class="a-main a-page cg" id="main">
+    <header class="a-pagehead">
+      <div>
+        <h1 class="a-pagehead__title">Thành phần giao diện</h1>
+        <div class="a-pagehead__meta">Aris Line · V7 · mọi component và chuyển động, đúng như khi port vào app</div>
+      </div>
+      <div class="a-pagehead__actions">
+        <div class="a-seg" role="tablist" aria-label="Giao diện" id="themeSeg"><span class="a-seg__thumb"></span>
+          <button class="a-seg__btn" type="button" role="tab" data-theme-set="light"><i data-lucide="sun"></i>Sáng</button>
+          <button class="a-seg__btn" type="button" role="tab" data-theme-set="dark"><i data-lucide="moon"></i>Tối</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="cg__grid">
+      <div class="cg__body">
+
+        <!-- ============================== MÀU ============================== -->
+        <section class="cg-sec" id="mau" aria-labelledby="h-mau">
+          <h2 id="h-mau">Màu</h2>
+          <p class="cg-lead">Trung tính ấm + <b>một</b> màu brand (hành động chính, lựa chọn) + <b>một</b> accent chỉ cho "mới / chưa đọc / đang live". Màu trạng thái chỉ dùng khi báo trạng thái. <code>--like</code> là ngoại lệ duy nhất, chỉ cho trái tim. Giá trị bên dưới đọc trực tiếp từ CSS và đổi theo giao diện sáng/tối.</p>
+          <div id="swatches"></div>
+        </section>
+
+        <section class="cg-sec" id="tuong-phan" aria-labelledby="h-tp">
+          <h2 id="h-tp">Tương phản (đo trực tiếp)</h2>
+          <p class="cg-lead">WCAG 2.2 AA: chữ thường ≥ 4.5:1, đồ hoạ và viền control ≥ 3:1. Bảng tự đo lại khi đổi giao diện. Bản cho cả hai giao diện: <code>node docs/design-v7/tools/contrast.js</code>.</p>
+          <div class="cg-card cg-card--flush"><table class="cg-table" id="contrastTable"><thead><tr><th>Chữ / đồ hoạ</th><th>Nền</th><th>Dùng cho</th><th>Ngưỡng</th><th>Đo được</th></tr></thead><tbody></tbody></table></div>
+        </section>
+
+        <!-- ============================== CHỮ ============================== -->
+        <section class="cg-sec" id="chu" aria-labelledby="h-chu">
+          <h2 id="h-chu">Chữ</h2>
+          <p class="cg-lead">Be Vietnam Pro 400 / 500 / 600 / 700. Phân cấp bằng cỡ và độ đậm — không dùng chữ in hoa giãn cách làm "eyebrow", không dùng màu để làm tiêu đề.</p>
+          <div class="cg-card">
+            <div class="cg-type"><span class="cg-type__meta">28 · 600</span><span style="font:600 28px/1.25 var(--font);letter-spacing:-.02em">Số lớn trên trang tổng quan</span></div>
+            <div class="cg-type"><span class="cg-type__meta">22 · 600</span><span style="font:600 22px/1.25 var(--font);letter-spacing:-.015em">Tiêu đề trang: Việc làm</span></div>
+            <div class="cg-type"><span class="cg-type__meta">18 · 600</span><span style="font:600 18px/1.35 var(--font)">Tiêu đề hộp thoại lớn, tiêu đề bài viết dạng bài báo</span></div>
+            <div class="cg-type"><span class="cg-type__meta">16 · 600</span><span style="font:600 16px/1.4 var(--font)">Tiêu đề mục trong trang chi tiết</span></div>
+            <div class="cg-type"><span class="cg-type__meta">15 · 400</span><span style="font:400 15px/1.6 var(--font)">Nội dung đọc dài, tin nhắn chat, mô tả công việc.</span></div>
+            <div class="cg-type"><span class="cg-type__meta">14 · 400/500</span><span style="font:400 14px/1.5 var(--font)">Chữ giao diện mặc định: nút, ô nhập, danh sách.</span></div>
+            <div class="cg-type"><span class="cg-type__meta">13 · 400</span><span style="font:400 13px/1.45 var(--font);color:var(--text-3)">Metadata: tên công ty · địa điểm · thời gian</span></div>
+            <div class="cg-type"><span class="cg-type__meta">12 · 500</span><span style="font:500 12px/1.4 var(--font);color:var(--text-3)">Tag, trạng thái, chú thích nhỏ</span></div>
+            <div class="cg-type"><span class="cg-type__meta">11 · 500</span><span style="font:500 11px/1.2 var(--font);color:var(--text-3)">Nhãn rail, badge</span></div>
+          </div>
+        </section>
+
+        <!-- ========================= KHOẢNG CÁCH ========================= -->
+        <section class="cg-sec" id="khoang-cach" aria-labelledby="h-kc">
+          <h2 id="h-kc">Khoảng cách · bo góc · độ nổi</h2>
+          <p class="cg-lead">Lưới 4px. Bo 6 (tag) · 8 (nút, ô nhập) · 12 (card, menu) · 16 (sheet, dialog) · tròn hẳn (chip, avatar). Bóng chỉ cho thứ nổi trên trang (popover, dialog, toast) — card nằm trên trang dùng viền, không dùng bóng.</p>
+          <div class="cg-card">
+            <div class="cg-row" id="spaceRow"></div>
+            <div class="cg-row" style="margin-top:20px">
+              <div class="cg-radius" style="border-radius:6px">6<small>--r-xs</small></div>
+              <div class="cg-radius" style="border-radius:8px">8<small>--r-sm</small></div>
+              <div class="cg-radius" style="border-radius:12px">12<small>--r-md</small></div>
+              <div class="cg-radius" style="border-radius:16px">16<small>--r-lg</small></div>
+              <div class="cg-radius" style="border-radius:999px">999<small>--r-full</small></div>
+            </div>
+            <div class="cg-row" style="margin-top:20px">
+              <div class="cg-shadow" style="box-shadow:var(--shadow-1)">--shadow-1<small>hàng đang chọn</small></div>
+              <div class="cg-shadow" style="box-shadow:var(--shadow-2)">--shadow-2<small>hover card, nút tròn nổi</small></div>
+              <div class="cg-shadow" style="box-shadow:var(--shadow-3)">--shadow-3<small>popover, dialog, toast</small></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================== NÚT ============================== -->
+        <section class="cg-sec" id="nut" aria-labelledby="h-nut">
+          <h2 id="h-nut">Nút</h2>
+          <p class="cg-lead">Mỗi vùng màn hình tối đa <b>một</b> nút primary. Nhấn: co 0.97 trong 60ms. Nút gửi dữ liệu dùng <code>morphButton</code>: nhãn trượt lên, nét quỹ đạo chạy, rồi dấu ✓ tự vẽ — chiều rộng nút không đổi.</p>
+          <div class="cg-card">
+            <div class="cg-row"><span class="cg-label">Kiểu</span>
+              <button class="a-btn a-btn--primary" type="button">Ứng tuyển</button>
+              <button class="a-btn a-btn--secondary" type="button">Lưu nháp</button>
+              <button class="a-btn a-btn--ghost" type="button">Huỷ</button>
+              <button class="a-btn a-btn--danger" type="button">Xoá tài khoản</button>
+              <button class="a-btn a-btn--danger-ghost" type="button">Xoá</button>
+            </div>
+            <div class="cg-row"><span class="cg-label">Cỡ</span>
+              <button class="a-btn a-btn--primary a-btn--sm" type="button">Nhỏ 32</button>
+              <button class="a-btn a-btn--primary" type="button">Vừa 36</button>
+              <button class="a-btn a-btn--primary a-btn--lg" type="button">Lớn 44</button>
+              <button class="a-btn a-btn--secondary a-btn--icon" type="button" aria-label="Chia sẻ" data-tip="Chia sẻ"><i data-lucide="share-2"></i></button>
+              <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" aria-label="Tuỳ chọn" data-tip="Tuỳ chọn"><i data-lucide="more-horizontal"></i></button>
+            </div>
+            <div class="cg-row"><span class="cg-label">Có icon</span>
+              <button class="a-btn a-btn--primary" type="button"><i data-lucide="message-circle"></i>Nhắn tin</button>
+              <button class="a-btn a-btn--secondary" type="button"><i data-lucide="calendar-plus"></i>Thêm vào lịch</button>
+              <button class="a-btn a-btn--ghost a-btn--sm" type="button"><i data-lucide="arrow-up-down"></i>Mới nhất</button>
+            </div>
+            <div class="cg-row"><span class="cg-label">Trạng thái</span>
+              <button class="a-btn a-btn--primary" type="button" disabled>Không bấm được</button>
+              <button class="a-btn a-btn--primary" type="button" id="btnLoading">Đang gửi</button>
+              <button class="a-btn a-btn--primary" type="button" id="btnSuccess">Đã gửi</button>
+            </div>
+            <div class="cg-row"><span class="cg-label">Thử</span>
+              <button class="a-btn a-btn--primary" type="button" id="morphOk">Gửi hồ sơ</button>
+              <button class="a-btn a-btn--secondary" type="button" id="morphErr">Gửi (sẽ lỗi)</button>
+              <span class="cg-note">Bấm để xem idle → loading → success / error (rung)</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================== Ô NHẬP ============================== -->
+        <section class="cg-sec" id="o-nhap" aria-labelledby="h-on">
+          <h2 id="h-on">Ô nhập</h2>
+          <p class="cg-lead">Nhãn luôn hiện phía trên (không dùng placeholder thay nhãn). Viền <code>--line-control</code> đạt 3:1. Focus: viền brand + vòng 3px mờ. Lỗi: viền đỏ + dòng lỗi có icon, nói cách sửa.</p>
+          <div class="cg-card cg-form">
+            <div class="a-field"><label class="a-label" for="f1">Họ và tên</label><input class="a-input" id="f1" value="Đặng Khoa"></div>
+            <div class="a-field"><label class="a-label" for="f2">Email</label><input class="a-input" id="f2" value="khoa@" aria-invalid="true" aria-describedby="f2e"><span class="a-error" id="f2e"><i data-lucide="alert-circle"></i>Email thiếu phần tên miền, ví dụ khoa@gmail.com</span></div>
+            <div class="a-field"><label class="a-label" for="f3">Mã giới thiệu <span class="cg-opt">(không bắt buộc)</span></label><input class="a-input" id="f3" placeholder="Ví dụ: ARIS2026" disabled><span class="a-help">Chỉ nhập khi được bạn bè mời.</span></div>
+            <div class="a-field"><label class="a-label" for="f4">Thành phố</label><select class="a-select" id="f4"><option>TP.HCM</option><option>Hà Nội</option><option>Đà Nẵng</option></select></div>
+            <div class="a-field cg-form__wide"><label class="a-label" for="f5">Giới thiệu bản thân</label><textarea class="a-textarea" id="f5" rows="3" placeholder="3–4 câu về kinh nghiệm và điều bạn đang tìm"></textarea></div>
+            <label class="a-search cg-form__wide"><i data-lucide="search"></i><input class="a-input" type="search" placeholder="Ô tìm kiếm đặt trên canvas" aria-label="Tìm"><span class="a-kbd">/</span></label>
+            <div class="cg-form__wide cg-row">
+              <label class="a-check-row"><input class="a-switch" type="checkbox" checked> Hiện trạng thái hoạt động</label>
+              <label class="a-check-row"><input class="a-check-input" type="checkbox" checked> Nhận email tóm tắt</label>
+              <label class="a-check-row"><input class="a-check-input" type="checkbox"> Nhận SMS</label>
+              <label class="a-check-row"><input class="a-check-input" type="radio" name="r1" checked> Công khai</label>
+              <label class="a-check-row"><input class="a-check-input" type="radio" name="r1"> Chỉ bạn bè</label>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================= CHIP · TAG ========================= -->
+        <section class="cg-sec" id="chip" aria-labelledby="h-chip">
+          <h2 id="h-chip">Chip · tag · trạng thái · badge</h2>
+          <p class="cg-lead"><b>Chip</b> bấm được (bộ lọc), có trạng thái đang chọn. <b>Tag</b> chỉ để đọc. <b>Trạng thái</b> có chấm màu, chỉ khi báo trạng thái thật. <b>Badge</b> đếm: accent = chưa đọc.</p>
+          <div class="cg-card">
+            <div class="cg-row"><span class="cg-label">Chip</span>
+              <button class="a-chip" type="button" aria-pressed="false" data-chip><i data-lucide="map-pin"></i>Địa điểm<i data-lucide="chevron-down"></i></button>
+              <button class="a-chip" type="button" aria-pressed="true" data-chip>TP.HCM +1<i data-lucide="chevron-down"></i></button>
+              <button class="a-chip" type="button" aria-pressed="false" data-chip>Remote</button>
+            </div>
+            <div class="cg-row"><span class="cg-label">Tag</span>
+              <span class="a-tag"><i data-lucide="briefcase"></i>Hybrid</span><span class="a-tag">Công nghệ thông tin</span><span class="a-tag a-tag--new">Mới</span>
+            </div>
+            <div class="cg-row"><span class="cg-label">Trạng thái</span>
+              <span class="a-status">Nháp</span><span class="a-status a-status--info">Đã xem</span><span class="a-status a-status--success">Mời phỏng vấn</span><span class="a-status a-status--warning">Sắp hết hạn</span><span class="a-status a-status--danger">Không phù hợp</span>
+            </div>
+            <div class="cg-row"><span class="cg-label">Badge</span>
+              <span class="a-badge a-num">2</span><span class="a-badge a-badge--accent a-num">12</span><span class="a-badge a-badge--muted a-num">99+</span><span class="a-dot" aria-label="Chưa đọc"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================== AVATAR ============================== -->
+        <section class="cg-sec" id="avatar" aria-labelledby="h-av">
+          <h2 id="h-av">Avatar · logo</h2>
+          <p class="cg-lead">Người = tròn (<code>initials()</code>: 2 từ cuối); tổ chức = vuông bo góc (<code>orgInitials()</code>). Tông màu ổn định theo tên (<code>toneOf()</code>). Chấm xanh = đang online (viền theo nền chứa qua <code>--ring</code>). Vòng brand = có tin 24h chưa xem.</p>
+          <div class="cg-card">
+            <div class="cg-row" id="avSizes"></div>
+            <div class="cg-row" id="avTones"></div>
+            <div class="cg-row">
+              <span class="a-avatar a-avatar--44" data-tone="2" data-online="true">TH</span>
+              <span class="sring"><span class="a-avatar a-avatar--36" data-tone="3">GH</span></span>
+              <span class="sring is-seen"><span class="a-avatar a-avatar--36" data-tone="5">KL</span></span>
+              <span class="a-logo a-logo--28" data-tone="1">TN</span><span class="a-logo" data-tone="4">GF</span><span class="a-logo a-logo--56" data-tone="6">NP</span>
+              <span class="cg-note">online · có tin chưa xem · tin đã xem · logo 28/40/56</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================= CHỌN: THE LINE ========================= -->
+        <section class="cg-sec" id="chon" aria-labelledby="h-chon">
+          <h2 id="h-chon">Chọn · "The Line"</h2>
+          <p class="cg-lead">Mọi trạng thái "đang chọn" dùng <b>một</b> chỉ báo trượt tới mục được chọn (spring 320ms): rail, tab, danh sách, mục lục. Segmented dùng "thumb" nền trắng trượt. Bấm để thử.</p>
+          <div class="cg-card">
+            <div class="cg-row"><span class="cg-label">Segmented</span>
+              <div class="a-seg" role="tablist" aria-label="Loại hội thoại" style="width:320px" data-demo-seg><span class="a-seg__thumb"></span>
+                <button class="a-seg__btn" type="button" role="tab" aria-selected="true">Đoạn chat</button><button class="a-seg__btn" type="button" role="tab" aria-selected="false">Bạn bè</button><button class="a-seg__btn" type="button" role="tab" aria-selected="false">Lời mời <span class="a-badge a-badge--accent a-num">2</span></button>
+              </div>
+            </div>
+            <div class="cg-row"><span class="cg-label">Tabs</span>
+              <div class="a-tabs" role="tablist" style="flex:1" data-demo-tabs><span class="a-indicator" data-axis="x" data-inset="12"></span>
+                <button class="a-tab" type="button" role="tab" aria-selected="true">Tổng quan</button><button class="a-tab" type="button" role="tab" aria-selected="false">Việc đang tuyển <span class="a-badge a-badge--muted a-num">12</span></button><button class="a-tab" type="button" role="tab" aria-selected="false">Đánh giá</button><button class="a-tab" type="button" role="tab" aria-selected="false">Hình ảnh</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================== DANH SÁCH ============================== -->
+        <section class="cg-sec" id="danh-sach" aria-labelledby="h-ds">
+          <h2 id="h-ds">Danh sách</h2>
+          <p class="cg-lead">Hàng trên canvas: hover = lớp phủ mờ; đang chọn = nền trắng + bóng nhẹ + chỉ báo trái; chưa đọc = chữ đậm + giờ màu accent. Thông báo chưa đọc = vạch accent bên trái, đọc xong vạch co lại.</p>
+          <div class="cg-2col">
+            <div class="cg-canvas">
+              <div class="a-list" role="listbox" aria-label="Ví dụ danh sách" id="demoList"><span class="a-indicator" data-axis="y" data-inset="14"></span>
+                <div class="a-row" role="option" aria-selected="true" tabindex="0"><span class="a-avatar a-avatar--44" data-tone="1" data-online="true">MA</span><div class="a-row__main"><div class="a-row__top"><span class="a-row__title">Nguyễn Minh Anh</span><span class="a-row__meta">14:32</span></div><div class="a-row__sub"><span>Văn phòng bên mình ở tầng 12…</span></div></div></div>
+                <div class="a-row a-row--unread" role="option" aria-selected="false" tabindex="-1"><span class="a-avatar a-avatar--44" data-tone="2">TH</span><div class="a-row__main"><div class="a-row__top"><span class="a-row__title">Lê Thu Hà</span><span class="a-row__meta">13:05</span></div><div class="a-row__sub"><span>Cậu xem giúp tớ bản thiết kế nhé</span><span class="a-badge a-badge--accent a-num">2</span></div></div></div>
+                <div class="a-row" role="option" aria-selected="false" tabindex="-1"><span class="a-avatar a-avatar--44" data-tone="3">GH</span><div class="a-row__main"><div class="a-row__top"><span class="a-row__title">Phạm Gia Huy</span><span class="a-row__meta">Hôm qua</span></div><div class="a-row__sub"><span>Bạn: Ok anh, mai em gửi</span></div></div></div>
+              </div>
+            </div>
+            <div class="cg-card" style="padding:6px">
+              <div class="a-list" style="gap:0" id="notifDemo">
+                <a class="a-row notif is-unread" href="#" style="align-items:flex-start;min-height:0;padding:10px"><span class="notif__bar" aria-hidden="true"></span><i data-lucide="calendar-clock" style="width:18px;height:18px;margin-top:2px;color:var(--text-3)"></i><span class="a-row__main" style="font-size:13px;line-height:1.45;color:var(--text-2)"><b>TechNova</b> hẹn bạn phỏng vấn lúc 14:00, thứ Ba<br><span class="a-row__meta">5 phút trước</span></span></a>
+                <a class="a-row notif is-unread" href="#" style="align-items:flex-start;min-height:0;padding:10px"><span class="notif__bar" aria-hidden="true"></span><i data-lucide="user-plus" style="width:18px;height:18px;margin-top:2px;color:var(--text-3)"></i><span class="a-row__main" style="font-size:13px;line-height:1.45;color:var(--text-2)"><b>Lê Thu Hà</b> đã chấp nhận lời mời kết bạn<br><span class="a-row__meta">1 giờ trước</span></span></a>
+                <a class="a-row notif" href="#" style="align-items:flex-start;min-height:0;padding:10px"><span class="notif__bar" aria-hidden="true"></span><i data-lucide="briefcase" style="width:18px;height:18px;margin-top:2px;color:var(--text-3)"></i><span class="a-row__main" style="font-size:13px;line-height:1.45;color:var(--text-2)">3 việc làm mới khớp với hồ sơ <b>React · TP.HCM</b><br><span class="a-row__meta">2 ngày trước</span></span></a>
+              </div>
+              <div style="padding:6px"><button class="a-btn a-btn--ghost a-btn--sm" type="button" id="notifRead">Bấm một thông báo để đánh dấu đã đọc</button></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================== NỔI ============================== -->
+        <section class="cg-sec" id="noi" aria-labelledby="h-noi">
+          <h2 id="h-noi">Popover · menu · tooltip · thẻ hồ sơ</h2>
+          <p class="cg-lead">Mọi thứ nổi lên đều nở ra từ đúng nút đã bấm (<code>pop()</code>, 180ms) và thu lại khi đóng (110ms). Esc đóng và trả focus về nút. Tooltip hiện sau 450ms khi rê chuột, ngay lập tức khi focus bằng bàn phím.</p>
+          <div class="cg-card">
+            <div class="cg-row">
+              <button class="a-btn a-btn--secondary" type="button" id="menuBtn" aria-haspopup="menu"><i data-lucide="more-horizontal"></i>Mở menu</button>
+              <button class="a-btn a-btn--secondary" type="button" data-tip="Tooltip ngắn gọn" data-kbd="Ctrl K">Rê chuột để xem tooltip</button>
+              <span class="cg-note">Thẻ hồ sơ khi hover: xem trên <a href="feed.html">Bảng tin</a> (rê chuột vào tên người đăng)</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================== HỘP THOẠI ============================== -->
+        <section class="cg-sec" id="hop-thoai" aria-labelledby="h-ht">
+          <h2 id="h-ht">Hộp thoại · bottom sheet · xác nhận · toast</h2>
+          <p class="cg-lead">Desktop: hộp thoại mọc ra từ nút gốc. Mobile: <b>mọi</b> hộp thoại là bottom sheet tràn ngang, có tay nắm. Hành động phá huỷ nhẹ (xoá bài, xoá bình luận, từ chối lời mời) KHÔNG hỏi xác nhận — làm ngay và cho Hoàn tác 6 giây; chỉ hỏi khi không thể hoàn tác (xoá tài khoản, bỏ bài đang soạn).</p>
+          <div class="cg-card">
+            <div class="cg-row">
+              <button class="a-btn a-btn--primary" type="button" id="dlgBtn">Mở hộp thoại</button>
+              <button class="a-btn a-btn--danger-ghost" type="button" id="confirmBtn">Xoá tài khoản…</button>
+              <button class="a-btn a-btn--secondary" type="button" id="toastOk">Toast thành công</button>
+              <button class="a-btn a-btn--secondary" type="button" id="toastErr">Toast lỗi</button>
+              <button class="a-btn a-btn--secondary" type="button" id="toastUndo">Xoá + Hoàn tác</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================== TRẠNG THÁI ============================== -->
+        <section class="cg-sec" id="trang-thai" aria-labelledby="h-tt">
+          <h2 id="h-tt">Đang tải · trống · lỗi</h2>
+          <p class="cg-lead">Đang tải: skeleton đúng hình nội dung thật (không spinner giữa trang). Nút đang gửi: nét quỹ đạo của logo. Trống: nói vì sao trống + một hành động. Lỗi: nói chuyện gì xảy ra + nút Thử lại, giữ nguyên dữ liệu người dùng đã nhập.</p>
+          <div class="cg-3col">
+            <div class="cg-card">
+              <div style="display:flex;gap:12px"><span class="a-skel" style="width:40px;height:40px;border-radius:10px;flex:none"></span><div style="flex:1;display:grid;gap:8px"><span class="a-skel" style="height:14px;width:75%"></span><span class="a-skel" style="height:12px;width:45%"></span><span class="a-skel" style="height:10px;width:60%"></span></div></div>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:20px;color:var(--brand)" id="loaderSlot"><span class="cg-note">Nét quỹ đạo (thay spinner)</span></div>
+            </div>
+            <div class="cg-card"><div class="a-empty" style="padding:12px"><i data-lucide="file-text"></i><div class="a-empty__title">Bạn chưa có CV nào</div><div class="a-empty__text">Tạo CV trong 5 phút từ hồ sơ có sẵn để ứng tuyển bằng một cú bấm.</div><button class="a-btn a-btn--primary a-btn--sm" type="button">Tạo CV</button></div></div>
+            <div class="cg-card"><div class="a-empty" style="padding:12px"><i data-lucide="wifi-off"></i><div class="a-empty__title">Không tải được việc làm</div><div class="a-empty__text">Mất kết nối tới máy chủ. Bộ lọc của bạn vẫn được giữ.</div><button class="a-btn a-btn--secondary a-btn--sm" type="button" id="retryBtn">Thử lại</button></div></div>
+          </div>
+        </section>
+
+        <!-- ============================== CHUYỂN ĐỘNG ============================== -->
+        <section class="cg-sec" id="chuyen-dong" aria-labelledby="h-cd">
+          <h2 id="h-cd">Chuyển động (<code>ArisMotion</code>)</h2>
+          <p class="cg-lead">Mỗi chuyển động phải trả lời được "nó giúp người dùng hiểu điều gì?". Không có vòng rAF chạy liên tục. Người dùng bật "giảm chuyển động" → mọi hàm tự bỏ animation, trạng thái cuối vẫn đúng. Bấm "Chạy lại" trên từng thẻ.</p>
+          <div class="cg-motion" id="motionGrid"></div>
+        </section>
+
+        <!-- ============================== MẪU TƯƠNG TÁC ============================== -->
+        <section class="cg-sec" id="mau-tuong-tac" aria-labelledby="h-mtt">
+          <h2 id="h-mtt">Mẫu tương tác dùng lại</h2>
+          <p class="cg-lead">Các mẫu này xuất hiện ở nhiều trang — triển khai một lần, dùng chung.</p>
+          <div class="cg-motion" id="patternGrid"></div>
+        </section>
+
+      </div>
+
+      <nav class="a-toc" data-toc aria-label="Mục lục">
+        <span class="a-indicator" data-axis="y"></span>
+        <a href="#mau">Màu</a><a href="#tuong-phan">Tương phản</a><a href="#chu">Chữ</a><a href="#khoang-cach">Khoảng cách</a><a href="#nut">Nút</a><a href="#o-nhap">Ô nhập</a><a href="#chip">Chip · tag</a><a href="#avatar">Avatar · logo</a><a href="#chon">The Line</a><a href="#danh-sach">Danh sách</a><a href="#noi">Popover · menu</a><a href="#hop-thoai">Hộp thoại · toast</a><a href="#trang-thai">Tải · trống · lỗi</a><a href="#chuyen-dong">Chuyển động</a><a href="#mau-tuong-tac">Mẫu tương tác</a>
+      </nav>
+    </div>
+  </main>
+</div>
+
+<div class="a-pop" id="demoMenu" role="menu" hidden>
+  <button class="a-menu__item" type="button" role="menuitem"><i data-lucide="pencil"></i>Sửa</button>
+  <button class="a-menu__item" type="button" role="menuitem"><i data-lucide="link"></i>Sao chép liên kết</button>
+  <div class="a-menu__sep"></div>
+  <button class="a-menu__item a-menu__item--danger" type="button" role="menuitem"><i data-lucide="trash-2"></i>Xoá</button>
+</div>
+<div class="a-scrim" id="dlgScrim" hidden></div>
+<div class="a-dialog" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle" hidden>
+  <div class="a-dialog__head"><h2 class="a-dialog__title" id="dlgTitle">Đổi tên CV</h2><button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" data-close aria-label="Đóng"><i data-lucide="x"></i></button></div>
+  <div class="a-dialog__body"><div class="a-field"><label class="a-label" for="dlgIn">Tên mới</label><input class="a-input" id="dlgIn" value="CV Frontend — 2026"></div></div>
+  <div class="a-dialog__foot"><button class="a-btn a-btn--ghost" type="button" data-close>Huỷ</button><button class="a-btn a-btn--primary" type="button" id="dlgSave">Lưu</button></div>
+</div>
+<div class="a-scrim" id="cfScrim" hidden></div>
+<div class="a-dialog" id="cf" role="alertdialog" aria-modal="true" aria-labelledby="cfTitle" aria-describedby="cfText" hidden>
+  <div class="a-dialog__head"><h2 class="a-dialog__title" id="cfTitle">Xoá tài khoản vĩnh viễn?</h2></div>
+  <div class="a-dialog__body"><p id="cfText" style="color:var(--text-2)">Hồ sơ, CV, tin nhắn và đơn ứng tuyển sẽ bị xoá và <b>không thể khôi phục</b>. Gõ <b>XOÁ</b> để xác nhận.</p><input class="a-input" id="cfIn" style="margin-top:12px" aria-label="Gõ XOÁ để xác nhận" autocomplete="off"></div>
+  <div class="a-dialog__foot"><button class="a-btn a-btn--secondary" type="button" data-close>Giữ tài khoản</button><button class="a-btn a-btn--danger" type="button" id="cfGo" disabled>Xoá vĩnh viễn</button></div>
+</div>
+
+<div class="a-pop" id="notifPop" hidden></div>
+<div class="a-pop" id="accountPop" hidden role="menu"></div>
+<div class="a-scrim" id="paletteScrim" hidden></div>
+<div class="a-palette" id="palette" role="dialog" aria-modal="true" aria-label="Tìm nhanh" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+<script src="motion.js"></script>
+<script src="shell.js"></script>
+<script src="components-demo.js"></script>
+</body>
+</html>

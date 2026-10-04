@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Việc làm — Aris (bản thiết kế V7)</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('aris-theme');
+        if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      } catch (e) { document.documentElement.dataset.theme = 'light'; }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="line.css">
+  <link rel="stylesheet" href="jobs.css">
+</head>
+<body>
+<div class="a-app">
+
+  <nav class="a-rail" aria-label="Điều hướng chính">
+    <a class="a-rail__logo" href="feed.html" aria-label="Aris — về Bảng tin">
+      <svg viewBox="0 0 200 200" aria-hidden="true"><path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30"/></svg>
+    </a>
+    <div class="a-rail__nav">
+      <span class="a-indicator" data-axis="y" data-inset="15"></span>
+      <a class="a-rail__item" href="feed.html" data-mobile><i data-lucide="home"></i><span>Bảng tin</span></a>
+      <a class="a-rail__item" href="jobs.html" data-mobile aria-current="page"><i data-lucide="briefcase"></i><span>Việc làm</span></a>
+      <a class="a-rail__item" href="chat.html" data-mobile><i data-lucide="message-circle"></i><span>Tin nhắn</span><span class="a-badge a-badge--accent a-num">3</span></a>
+      <a class="a-rail__item" href="#applications" id="railApplications"><i data-lucide="file-check"></i><span>Ứng tuyển</span></a>
+      <a class="a-rail__item" href="#cv"><i data-lucide="file-text"></i><span>CV</span></a>
+      <a class="a-rail__item" href="#companies"><i data-lucide="building-2"></i><span>Công ty</span></a>
+      <a class="a-rail__item a-rail__item--mobile" href="#notifications" data-mobile><i data-lucide="bell"></i><span>Thông báo</span></a>
+      <a class="a-rail__item a-rail__item--mobile" href="#me" data-mobile><i data-lucide="circle-user"></i><span>Tôi</span></a>
+    </div>
+    <div class="a-rail__foot">
+      <button class="a-rail__btn a-rail__create" type="button" data-action="compose" data-tip="Tạo bài viết" data-kbd="N" aria-label="Tạo bài viết"><i data-lucide="plus-square"></i></button>
+      <button class="a-rail__btn" type="button" data-action="palette" data-tip="Tìm nhanh" data-kbd="Ctrl K" aria-label="Tìm nhanh"><i data-lucide="search"></i></button>
+      <button class="a-rail__btn" type="button" data-action="notifications" data-tip="Thông báo" aria-label="Thông báo, 4 chưa đọc"><i data-lucide="bell"></i><span class="a-badge a-badge--accent a-num">4</span></button>
+      <button class="a-rail__btn" type="button" data-action="theme" data-tip="Giao diện sáng / tối" aria-label="Đổi giao diện sáng tối"><i data-lucide="moon"></i></button>
+      <button class="a-rail__btn" type="button" data-action="demo" data-tip="Bảng demo (chỉ có trong bản thiết kế)" aria-label="Bảng demo"><i data-lucide="flask-conical"></i></button>
+      <button class="a-rail__me" type="button" data-action="account" aria-label="Tài khoản của bạn"><span class="a-avatar a-avatar--32" data-tone="1">ĐK</span></button>
+    </div>
+  </nav>
+
+  <main class="a-main jobs" id="jobs">
+
+    <section class="jobs-list" aria-label="Danh sách việc làm">
+      <header class="jobs-list__head">
+        <h1 class="jobs-list__title">Việc làm</h1>
+        <span class="jobs-list__count a-num" id="totalCount">128 việc đang tuyển</span>
+      </header>
+
+      <label class="a-search jobs-search">
+        <i data-lucide="search"></i>
+        <input class="a-input" type="search" id="jobSearch" placeholder="Chức danh, kỹ năng hoặc công ty" autocomplete="off" aria-label="Tìm việc làm">
+      </label>
+
+      <div class="jobs-filters" id="filters">
+        <button class="a-chip" type="button" data-filter="location" aria-pressed="false" aria-haspopup="dialog"><i data-lucide="map-pin"></i><span>Địa điểm</span><i data-lucide="chevron-down"></i></button>
+        <button class="a-chip" type="button" data-filter="category" aria-pressed="false" aria-haspopup="dialog"><span>Ngành nghề</span><i data-lucide="chevron-down"></i></button>
+        <button class="a-chip" type="button" data-filter="mode" aria-pressed="false" aria-haspopup="dialog"><span>Hình thức</span><i data-lucide="chevron-down"></i></button>
+      </div>
+
+      <div class="jobs-meta">
+        <span aria-live="polite"><b class="a-num" id="resultCount">12</b> kết quả</span>
+        <button class="a-btn a-btn--ghost a-btn--sm" type="button" id="clearFilters" hidden>Xoá bộ lọc</button>
+        <button class="a-btn a-btn--ghost a-btn--sm jobs-sort" type="button" id="sortBtn" data-filter="sort" aria-haspopup="dialog" aria-label="Sắp xếp: Mới nhất"><i data-lucide="arrow-up-down"></i><span>Mới nhất</span></button>
+      </div>
+
+      <div class="jobs-list__scroll" id="listScroll">
+        <div class="a-list" id="jobList" role="listbox" aria-label="Kết quả việc làm">
+          <span class="a-indicator" data-axis="y" data-inset="18"></span>
+        </div>
+        <div id="listSentinel" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section class="job-detail a-sheet" id="jobDetail" aria-label="Chi tiết việc làm">
+      <div class="jd-compact" id="jdCompact" aria-hidden="true">
+        <span class="a-logo a-logo--28" id="jdCompactLogo"></span>
+        <div class="jd-compact__title" id="jdCompactTitle"></div>
+        <button class="a-btn a-btn--primary a-btn--sm" type="button" data-apply tabindex="-1">Ứng tuyển</button>
+      </div>
+      <div class="job-detail__scroll" id="jdScroll">
+        <div class="job-detail__inner" id="jdInner"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Bộ lọc -->
+<div class="a-pop filter-pop" id="filterPop" role="dialog" aria-label="Bộ lọc" hidden></div>
+
+<!-- Ứng tuyển -->
+<div class="a-scrim" id="applyScrim" hidden></div>
+<div class="a-dialog apply-dialog" id="applyDialog" role="dialog" aria-modal="true" aria-labelledby="applyTitle" hidden></div>
+
+<div class="a-pop" id="notifPop" hidden></div>
+<div class="a-pop" id="accountPop" hidden role="menu"></div>
+<div class="a-pop demo-pop" id="demoPop" hidden role="menu"></div>
+<div class="a-scrim" id="paletteScrim" hidden></div>
+<div class="a-palette" id="palette" role="dialog" aria-modal="true" aria-label="Tìm nhanh" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+<script src="motion.js"></script>
+<script src="shell.js"></script>
+<script src="jobs-demo.js"></script>
+</body>
+</html>

@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aris Career Studio — Login V2 (Quỹ Đạo Điêu Khắc)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --aris-bg: #FAFBFC;
+      --aris-text-main: #0F172A;
+      --aris-text-sub: #475569;
+      --aris-text-muted: #64748B;
+      --aris-blue: #2F6FED;
+      --aris-blue-hover: #1E5AD6;
+      --aris-blue-glow: rgba(47, 111, 237, 0.25);
+      --aris-border: #E2E8F0;
+      --aris-input-border: #CBD5E1;
+      --aris-danger: #DC2626;
+      --aris-danger-text: #991B1B;
+      --aris-danger-bg: #FEF2F2;
+      --aris-radius: 12px;
+      --font-stack: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-stack);
+      background: var(--aris-bg);
+      color: var(--aris-text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Dev Controller Dock (Collapsible) */
+    .dev-panel {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 1000;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      font-size: 12px;
+      color: #E2E8F0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .dev-panel.dev-hidden {
+      display: none !important;
+    }
+    .dev-panel.minimized {
+      transform: translateX(-50%) translateY(70px);
+      opacity: 0.2;
+    }
+    .dev-panel.minimized:hover {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .dev-title {
+      font-weight: 600;
+      color: #94A3B8;
+      margin-right: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dev-btn {
+      background: #1E293B;
+      border: 1px solid #334155;
+      color: #CBD5E1;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .dev-btn:hover { background: #334155; color: #FFFFFF; }
+    .dev-btn.active {
+      background: var(--aris-blue);
+      border-color: var(--aris-blue);
+      color: #FFFFFF;
+      font-weight: 600;
+    }
+    .dev-toggle-hide {
+      background: transparent;
+      border: none;
+      color: #94A3B8;
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 13px;
+      border-left: 1px solid #334155;
+      margin-left: 4px;
+    }
+
+    /* Master Layout Container */
+    .app-shell {
+      flex: 1;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 100vh;
+      width: 100%;
+      max-width: 1560px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    /* Header */
+    .site-header {
+      padding: 36px 64px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 20;
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+    }
+    .brand-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--aris-text-main);
+    }
+    .header-aside {
+      font-size: 14px;
+      color: var(--aris-text-sub);
+    }
+    .header-aside a {
+      color: var(--aris-blue);
+      font-weight: 600;
+      text-decoration: none;
+      margin-left: 4px;
+    }
+    .header-aside a:hover { text-decoration: underline; }
+
+    /* Main Stage: Sculpture + Form */
+    .stage-main {
+      display: grid;
+      grid-template-columns: 1.35fr 400px;
+      align-items: center;
+      padding: 10px 64px 30px;
+      gap: 50px;
+      position: relative;
+    }
+
+    /* Left Column */
+    .left-hero-column {
+      position: relative;
+      width: 100%;
+      height: 600px;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Left 3D Visual Theater */
+    .visual-theater {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: auto;
+    }
+    .sculpture-canvas-wrap {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    .sculpture-canvas-wrap:active { cursor: grabbing; }
+    #sculptureCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Headline overlay in negative space */
+    .hero-narrative {
+      position: relative;
+      z-index: 2;
+      max-width: 480px;
+      pointer-events: none;
+    }
+    .hero-caption {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--aris-blue);
+      background: rgba(47, 111, 237, 0.08);
+      padding: 5px 12px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+    }
+    .hero-headline {
+      font-size: 58px;
+      line-height: 1.08;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--aris-text-main);
+      margin-bottom: 20px;
+    }
+    .hero-subheadline {
+      font-size: 17px;
+      line-height: 1.55;
+      color: var(--aris-text-sub);
+      max-width: 420px;
+    }
+
+    /* Right Form Stage */
+    .form-stage {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .form-pod {
+      width: 100%;
+      max-width: 400px;
+      background: #FFFFFF;
+      border: 1px solid var(--aris-border);
+      border-radius: 24px;
+      padding: 38px 32px;
+      box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.02), 0 20px 32px -8px rgba(15, 23, 42, 0.04);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .pod-heading {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--aris-text-main);
+      letter-spacing: -0.025em;
+      margin-bottom: 8px;
+    }
+    .pod-desc {
+      font-size: 14.5px;
+      color: var(--aris-text-sub);
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+
+    /* Form Elements */
+    .control-group {
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .control-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--aris-text-main);
+      margin-bottom: 8px;
+    }
+    .control-input {
+      width: 100%;
+      height: 52px;
+      padding: 0 16px;
+      border: 1px solid var(--aris-input-border);
+      border-radius: var(--aris-radius);
+      font-size: 16px;
+      font-family: inherit;
+      color: var(--aris-text-main);
+      background: #FFFFFF;
+      transition: all 0.18s ease-out;
+      outline: none;
+    }
+    .control-input:hover { border-color: #94A3B8; }
+    .control-input:focus {
+      border-color: var(--aris-blue);
+      box-shadow: 0 0 0 3.5px var(--aris-blue-glow);
+    }
+    .control-input.input-error {
+      border-color: var(--aris-danger) !important;
+      background: #FFFDFD;
+    }
+    .control-input.input-error:focus {
+      box-shadow: 0 0 0 3.5px rgba(220, 38, 38, 0.15) !important;
+    }
+
+    .error-announcement {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      color: var(--aris-danger-text);
+      background: var(--aris-danger-bg);
+      border: 1px solid #FECACA;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-top: 10px;
+      line-height: 1.4;
+    }
+    .error-announcement svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      fill: var(--aris-danger);
+    }
+
+    /* CTA Button */
+    .btn-action-primary {
+      width: 100%;
+      height: 52px;
+      background: var(--aris-blue);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--aris-radius);
+      font-size: 15.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-action-primary:hover:not(:disabled) {
+      background: var(--aris-blue-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px -4px rgba(47, 111, 237, 0.35);
+    }
+    .btn-action-primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .btn-action-primary:disabled {
+      opacity: 0.85;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .pod-annotation {
+      font-size: 12.5px;
+      color: var(--aris-text-muted);
+      text-align: center;
+      margin-top: 14px;
+      line-height: 1.45;
+    }
+
+    /* Separation Line */
+    .pod-divider {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 26px 0 22px;
+      color: #94A3B8;
+      font-size: 12px;
+      text-transform: lowercase;
+    }
+    .pod-divider::before, .pod-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--aris-border);
+    }
+
+    /* Social Auth Grid */
+    .social-dock {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .social-btn {
+      height: 48px;
+      background: #FFFFFF;
+      border: 1px solid var(--aris-border);
+      border-radius: var(--aris-radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+    .social-btn:hover:not(:disabled) {
+      background: #F8FAFC;
+      border-color: #94A3B8;
+    }
+    .social-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .social-btn svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    /* Specialized State Views */
+    .state-check-email {
+      text-align: center;
+      padding: 10px 0;
+    }
+    .state-badge-icon {
+      width: 68px;
+      height: 68px;
+      border-radius: 999px;
+      background: #EFF5FF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 22px;
+      color: var(--aris-blue);
+      box-shadow: 0 0 0 10px rgba(47, 111, 237, 0.05);
+    }
+    .state-badge-icon svg {
+      width: 32px;
+      height: 32px;
+      stroke: var(--aris-blue);
+      stroke-width: 2.2;
+      fill: none;
+    }
+    .target-address {
+      font-weight: 700;
+      color: var(--aris-text-main);
+      word-break: break-all;
+    }
+    .btn-secondary-action {
+      width: 100%;
+      height: 48px;
+      background: #F8FAFC;
+      border: 1px solid var(--aris-border);
+      border-radius: var(--aris-radius);
+      color: var(--aris-text-main);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 24px;
+      transition: all 0.15s;
+    }
+    .btn-secondary-action:hover:not(:disabled) {
+      background: #EFF5FF;
+      border-color: #BFDBFE;
+      color: var(--aris-blue);
+    }
+    .btn-secondary-action:disabled {
+      color: #94A3B8;
+      cursor: not-allowed;
+    }
+    .btn-back-link {
+      display: inline-block;
+      margin-top: 18px;
+      color: var(--aris-blue);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn-back-link:hover { text-decoration: underline; }
+
+    /* Provider Unavailable Banner */
+    .provider-alert {
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #92400E;
+      margin-bottom: 20px;
+      line-height: 1.45;
+    }
+
+    /* Animated Mini Spinner */
+    .spinner-disc {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #FFFFFF;
+      border-radius: 50%;
+      animation: spinRound 0.75s linear infinite;
+    }
+    @keyframes spinRound { to { transform: rotate(360deg); } }
+
+    /* Footer */
+    .site-footer {
+      padding: 24px 64px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--aris-text-muted);
+      z-index: 20;
+    }
+    .footer-nav {
+      display: flex;
+      gap: 24px;
+    }
+    .footer-nav a {
+      color: var(--aris-text-muted);
+      text-decoration: none;
+    }
+    .footer-nav a:hover { color: var(--aris-blue); }
+
+    /* ==========================================================================
+       RESPONSIVE ADAPTATIONS (Desktop 1440px -> Laptop 1024px -> Mobile 390px)
+       ========================================================================== */
+    @media (max-width: 1080px) {
+      .site-header { padding: 28px 40px 16px; }
+      .stage-main {
+        grid-template-columns: 1fr 380px;
+        gap: 36px;
+        padding: 10px 40px 30px;
+      }
+      .visual-theater { height: 520px; }
+      .hero-headline { font-size: 48px; }
+      .site-footer { padding: 20px 40px 24px; }
+    }
+
+    @media (max-width: 820px) {
+      .stage-main {
+        display: flex;
+        flex-direction: column;
+        padding: 10px 20px 40px;
+        gap: 16px;
+      }
+      .left-hero-column {
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+      }
+      .visual-theater {
+        height: 175px;
+        width: 100%;
+        position: relative;
+        justify-content: center;
+        align-items: center;
+        order: 1;
+      }
+      .hero-narrative {
+        order: 2;
+        text-align: center;
+        max-width: 100%;
+        padding-bottom: 0;
+        margin-top: 4px;
+      }
+      .hero-caption { margin-bottom: 8px; font-size: 11px; }
+      .hero-headline {
+        font-size: 30px;
+        line-height: 1.15;
+        margin-bottom: 8px;
+      }
+      .hero-subheadline {
+        font-size: 14px;
+        max-width: 320px;
+        margin: 0 auto 12px;
+      }
+      .form-stage {
+        order: 3;
+        width: 100%;
+      }
+      .form-pod {
+        width: 100%;
+        max-width: 100%;
+        padding: 28px 20px;
+        border-radius: 20px;
+      }
+      .site-header { padding: 18px 20px 10px; }
+      .site-footer {
+        flex-direction: column;
+        gap: 12px;
+        padding: 20px 20px;
+        text-align: center;
+      }
+      .dev-panel {
+        bottom: 8px;
+        padding: 6px 12px;
+        max-width: 95vw;
+        overflow-x: auto;
+      }
+    }
+
+    /* Accessibility reduced-motion */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Dev Testing Switcher Panel (Collapsible for Clean Export) -->
+  <aside class="dev-panel" id="devPanel" aria-label="Bộ điều khiển kiểm thử giao diện">
+    <span class="dev-title">
+      <span>Trạng thái</span>
+      <span style="font-size:10px; background:#334155; padding:2px 6px; border-radius:4px;">V2</span>
+    </span>
+    <button class="dev-btn active" onclick="setScreenState('default')">1. Default</button>
+    <button class="dev-btn" onclick="setScreenState('loading')">2. Loading</button>
+    <button class="dev-btn" onclick="setScreenState('check-email')">3. Check Email</button>
+    <button class="dev-btn" onclick="setScreenState('error')">4. Invalid Email</button>
+    <button class="dev-btn" onclick="setScreenState('send-failure')">5. Send Failure</button>
+    <button class="dev-btn" onclick="setScreenState('cooldown')">6. Cooldown</button>
+    <button class="dev-btn" onclick="setScreenState('provider-unavailable')">7. Provider Down</button>
+    <button class="dev-toggle-hide" title="Ẩn thanh điều khiển (Nhấn phím D để hiện lại)" onclick="toggleDevPanel()">✕</button>
+  </aside>
+
+  <div class="app-shell">
+    
+    <!-- Top Brand Header -->
+    <header class="site-header">
+      <a href="#" class="brand-group" aria-label="Aris Career Studio Trang chủ">
+        <svg class="brand-mark" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="brandLogoGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#2F6FED"/>
+              <stop offset="100%" stop-color="#7EC8F5"/>
+            </linearGradient>
+          </defs>
+          <path d="M 30,145 C 65,180 125,160 120,115 C 115,70 70,70 70,115 C 70,150 115,95 170,30" fill="none" stroke="url(#brandLogoGrad)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="brand-title">Aris</span>
+      </a>
+
+      <div class="header-aside">
+        Chưa có tài khoản? <a href="#">Đăng ký ngay</a>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Stage -->
+    <main class="stage-main">
+
+      <!-- Left Column / Narrative & 3D Stage -->
+      <div class="left-hero-column">
+        
+        <!-- 3D Sculpture Theater Dock -->
+        <section class="visual-theater" aria-hidden="true">
+          <div class="sculpture-canvas-wrap" id="canvasWrap" title="Kéo để tương tác với quỹ đạo 3D">
+            <canvas id="sculptureCanvas"></canvas>
+          </div>
+        </section>
+
+        <!-- Headline in Negative Space -->
+        <section class="hero-narrative">
+          <span class="hero-caption">QUỸ ĐẠO MỚI</span>
+          <h1 class="hero-headline">
+            Đi xa hơn.<br>
+            Theo cách của bạn.
+          </h1>
+          <p class="hero-subheadline">
+            Nền tảng công nghệ kết nối năng lực thực chất của bạn với những nấc thang sự nghiệp xứng tầm.
+          </p>
+        </section>
+
+      </div>
+
+      <!-- Right Login Interaction Pod -->
+      <section class="form-stage">
+        <div class="form-pod" id="formPod">
+          <!-- Dynamically populated by JS renderPod() -->
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Clean Legal Footer -->
+    <footer class="site-footer">
+      <div>© 2026 Aris Career Platform. Tất cả quyền được bảo lưu.</div>
+      <nav class="footer-nav" aria-label="Liên kết chính sách">
+        <a href="#">Trợ giúp</a>
+        <a href="#">Điều khoản</a>
+        <a href="#">Quyền riêng tư</a>
+      </nav>
+    </footer>
+
+  </div>
+
+  <!-- Pinned Local Three.js -->
+  <script src="vendor/three.min.js"></script>
+
+  <script>
+    /* ==========================================================================
+       1. FORM STATE MACHINE & SIMULATION LOGIC
+       ========================================================================== */
+    let currentAppState = 'default';
+    let userEnteredEmail = '';
+    let cooldownRemaining = 45;
+    let cooldownTimer = null;
+
+    function setScreenState(state) {
+      currentAppState = state;
+      document.querySelectorAll('.dev-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(state.replace('-', ' ')));
+      });
+      renderPod();
+
+      // Trigger Three.js responsive pulse/gesture
+      if (window.sculptureInstance) {
+        if (state === 'loading') {
+          window.sculptureInstance.triggerLoadingPulse(true);
+        } else if (state === 'check-email') {
+          window.sculptureInstance.triggerLoadingPulse(false);
+          window.sculptureInstance.triggerSettlingGesture();
+        } else {
+          window.sculptureInstance.triggerLoadingPulse(false);
+        }
+      }
+    }
+
+    function toggleDevPanel() {
+      const p = document.getElementById('devPanel');
+      p.classList.toggle('minimized');
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'd' || e.key === 'D') {
+        if (document.activeElement.tagName !== 'INPUT') {
+          toggleDevPanel();
+        }
+      }
+    });
+
+    function renderPod() {
+      const pod = document.getElementById('formPod');
+
+      // State 4: Check Email Screen
+      if (currentAppState === 'check-email') {
+        pod.innerHTML = `
+          <div class="state-check-email">
+            <div class="state-badge-icon">
+              <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <h2 class="pod-heading">Kiểm tra email của bạn</h2>
+            <p class="pod-desc">
+              Chúng tôi vừa gửi liên kết đăng nhập an toàn tới <br>
+              <span class="target-address">${userEnteredEmail || 'ban@example.com'}</span>.<br><br>
+              Vui lòng mở email và nhấn vào liên kết để tiếp tục (kể cả mục Thư rác/Spam).
+            </p>
+            <button class="btn-secondary-action" id="cooldownBtn" disabled onclick="handleResendTrigger()">
+              Gửi lại liên kết (${cooldownRemaining}s)
+            </button>
+            <div>
+              <a class="btn-back-link" onclick="setScreenState('default')">← Đổi địa chỉ email khác</a>
+            </div>
+          </div>
+        `;
+        startCooldownTimer();
+        return;
+      }
+
+      // States: default, loading, error, send-failure, cooldown, provider-unavailable
+      const isError = (currentAppState === 'error');
+      const isLoading = (currentAppState === 'loading');
+      const isSendFailure = (currentAppState === 'send-failure');
+      const isCooldown = (currentAppState === 'cooldown');
+      const isProviderDown = (currentAppState === 'provider-unavailable');
+
+      pod.innerHTML = `
+        <h2 class="pod-heading">Chào mừng trở lại.</h2>
+        <p class="pod-desc">Tiếp tục hành trình cùng Aris.</p>
+
+        ${isProviderDown ? `
+          <div class="provider-alert" role="alert">
+            <strong>Lưu ý:</strong> Đăng nhập bằng Google đang bảo trì cập nhật. Bạn vẫn có thể nhập Email để nhận liên kết đăng nhập bình thường.
+          </div>
+        ` : ''}
+
+        ${isSendFailure ? `
+          <div class="error-announcement" style="margin-bottom:18px;" role="alert">
+            <svg viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <span>Không thể kết nối máy chủ gửi thư lúc này. Địa chỉ của bạn đã được lưu lại, vui lòng thử gửi lại.</span>
+          </div>
+        ` : ''}
+
+        <form onsubmit="handleFormSubmission(event)">
+          <div class="control-group">
+            <label class="control-label" for="txtEmail">Email</label>
+            <input
+              id="txtEmail"
+              type="text"
+              class="control-input ${isError ? 'input-error' : ''}"
+              placeholder="ban@example.com"
+              value="${isError ? 'email-khong-hop-le' : (isLoading ? 'nguyenvana@gmail.com' : userEnteredEmail)}"
+              ${isLoading ? 'disabled' : ''}
+              onfocus="handleInputFocus(true)"
+              onblur="handleInputFocus(false)"
+              aria-invalid="${isError}"
+              aria-describedby="${isError ? 'errInline' : ''}"
+              required
+            />
+            ${isError ? `
+              <div class="error-announcement" id="errInline" role="alert">
+                <svg viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                <span>Email chưa đúng định dạng. Vui lòng nhập dạng ten@domain.com</span>
+              </div>
+            ` : ''}
+          </div>
+
+          <button type="submit" class="btn-action-primary" ${isLoading || isCooldown ? 'disabled' : ''}>
+            ${isLoading ? `
+              <div class="spinner-disc"></div>
+              <span>Đang gửi…</span>
+            ` : (isCooldown ? `
+              <span>Đợi gửi lại (40s)</span>
+            ` : `
+              <span>Gửi liên kết đăng nhập</span>
+            `)}
+          </button>
+
+          <p class="pod-annotation">
+            Không cần mật khẩu. Nhận liên kết đăng nhập qua email.
+          </p>
+
+          <div class="pod-divider">
+            <span>hoặc tiếp tục với</span>
+          </div>
+
+          <div class="social-dock">
+            <button type="button" class="social-btn" ${isLoading || isProviderDown ? 'disabled' : ''} onclick="alert('Mô phỏng chuyển hướng đăng nhập Google')">
+              <svg viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z"/></svg>
+              <span>Google</span>
+            </button>
+            <button type="button" class="social-btn" ${isLoading ? 'disabled' : ''} onclick="alert('Mô phỏng chuyển hướng đăng nhập Facebook')">
+              <svg viewBox="0 0 18 18"><path fill="#1877F2" d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.31V9h2.284V7.017c0-2.255 1.343-3.501 3.4-3.501.985 0 2.014.176 2.014.176v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.497l-.4 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z"/></svg>
+              <span>Facebook</span>
+            </button>
+          </div>
+        </form>
+      `;
+    }
+
+    function handleInputFocus(focused) {
+      if (window.sculptureInstance) {
+        window.sculptureInstance.setFocusDamping(focused);
+      }
+    }
+
+    function handleFormSubmission(e) {
+      e.preventDefault();
+      const input = document.getElementById('txtEmail');
+      const val = input.value.trim();
+      if (!val || !val.includes('@') || !val.includes('.')) {
+        setScreenState('error');
+        return;
+      }
+      userEnteredEmail = val;
+      setScreenState('loading');
+      setTimeout(() => {
+        setScreenState('check-email');
+      }, 1600);
+    }
+
+    function startCooldownTimer() {
+      clearInterval(cooldownTimer);
+      cooldownRemaining = 45;
+      const btn = document.getElementById('cooldownBtn');
+      if (!btn) return;
+      btn.disabled = true;
+      cooldownTimer = setInterval(() => {
+        cooldownRemaining--;
+        if (cooldownRemaining <= 0) {
+          clearInterval(cooldownTimer);
+          btn.disabled = false;
+          btn.textContent = 'Gửi lại liên kết';
+        } else {
+          btn.textContent = `Gửi lại liên kết (${cooldownRemaining}s)`;
+        }
+      }, 1000);
+    }
+
+    function handleResendTrigger() {
+      alert('Đã gửi lại liên kết mô phỏng tới ' + userEnteredEmail);
+      startCooldownTimer();
+    }
+
+    /* ==========================================================================
+       2. THREE.JS 3D SCULPTURAL RIBBON REALITY
+       ========================================================================== */
+    class ArisSculpture {
+      constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.container = this.canvas.parentElement;
+        this.clock = new THREE.Clock();
+        this.mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
+        this.focusDamping = 1.0;
+        this.pulseActive = false;
+        this.pulseTime = 0;
+        this.settleOffset = 0;
+
+        this.init();
+      }
+
+      init() {
+        // Scene setup
+        this.scene = new THREE.Scene();
+
+        // Camera setup
+        const aspect = this.container.clientWidth / this.container.clientHeight;
+        this.camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 100);
+        this.camera.position.set(0, 0.8, 8.2);
+
+        // WebGL Renderer with pixel ratio optimization
+        this.renderer = new THREE.WebGLRenderer({
+          canvas: this.canvas,
+          alpha: true,
+          antialias: true,
+          powerPreference: "high-performance"
+        });
+        this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // Lighting Architecture
+        const ambientLight = new THREE.AmbientLight(0xF8FAFC, 1.1);
+        this.scene.add(ambientLight);
+
+        // Key Light
+        this.keyLight = new THREE.DirectionalLight(0xFFFFFF, 1.4);
+        this.keyLight.position.set(4, 8, 6);
+        this.keyLight.castShadow = true;
+        this.keyLight.shadow.mapSize.width = 1024;
+        this.keyLight.shadow.mapSize.height = 1024;
+        this.keyLight.shadow.camera.near = 0.5;
+        this.keyLight.shadow.camera.far = 25;
+        this.keyLight.shadow.bias = -0.0005;
+        this.scene.add(this.keyLight);
+
+        // Inner Blue Glow Light (Rim Light)
+        this.glowLight = new THREE.PointLight(0x2F6FED, 2.8, 14);
+        this.glowLight.position.set(0.5, 0.5, -0.5);
+        this.scene.add(this.glowLight);
+
+        // Soft Fill Light
+        const fillLight = new THREE.DirectionalLight(0xE2E8F0, 0.6);
+        fillLight.position.set(-5, -2, 4);
+        this.scene.add(fillLight);
+
+        // Build 3D Trajectory Ribbon Geometry
+        this.buildRibbon();
+
+        // Soft Floor Contact Shadow
+        this.buildShadowPlane();
+
+        // Event listeners
+        window.addEventListener('resize', () => this.onResize());
+        window.addEventListener('mousemove', (e) => this.onMouseMove(e));
+
+        // Touch parallax
+        window.addEventListener('touchmove', (e) => {
+          if (e.touches.length > 0) {
+            const touch = e.touches[0];
+            this.mouse.targetX = (touch.clientX / window.innerWidth - 0.5) * 2;
+            this.mouse.targetY = -(touch.clientY / window.innerHeight - 0.5) * 2;
+          }
+        }, { passive: true });
+
+        // Camera Entrance Reveal animation
+        this.revealProgress = 0;
+
+        // Start render loop
+        this.animate();
+      }
+
+      buildRibbon() {
+        // Sculptural continuous ribbon evocative of the Aris logo curve
+        const curvePoints = [
+          new THREE.Vector3(-1.5, -1.3, 0.4),
+          new THREE.Vector3(-0.5, -0.2, 1.1),
+          new THREE.Vector3(0.5, 0.9, 0.7),
+          new THREE.Vector3(1.2, 0.1, -0.8),
+          new THREE.Vector3(1.5, -0.7, -0.5),
+          new THREE.Vector3(1.9, 0.5, 0.3),
+          new THREE.Vector3(2.5, 1.7, 0.6)
+        ];
+
+        this.path = new THREE.CatmullRomCurve3(curvePoints);
+        this.path.tension = 0.55;
+
+        const numSegments = 200;
+        const ribbonWidth = 0.92;
+
+        this.sculptureGroup = new THREE.Group();
+
+        // Outer Ceramic/Paper Material (Warm textured white)
+        this.matOuter = new THREE.MeshStandardMaterial({
+          color: 0xF8FAFC,
+          roughness: 0.78,
+          metalness: 0.03,
+          side: THREE.FrontSide
+        });
+
+        // Inner Radiant Aris Blue Material
+        this.matInner = new THREE.MeshStandardMaterial({
+          color: 0x2F6FED,
+          roughness: 0.32,
+          metalness: 0.1,
+          emissive: 0x1E5AD6,
+          emissiveIntensity: 0.32,
+          side: THREE.BackSide
+        });
+
+        const geom = new THREE.BufferGeometry();
+        const positions = [];
+        const normals = [];
+        const uvs = [];
+        const indices = [];
+
+        for (let i = 0; i <= numSegments; i++) {
+          const t = i / numSegments;
+          const pt = this.path.getPoint(t);
+          const tangent = this.path.getTangent(t);
+
+          // Variable width tapering at ends
+          const widthTaper = Math.sin(t * Math.PI) * 0.42 + 0.58;
+          const currentWidth = ribbonWidth * widthTaper;
+
+          let up = new THREE.Vector3(0, 1, 0);
+          const twistAngle = Math.sin(t * Math.PI * 1.7) * 1.1 + (t * 0.4);
+          const binormal = new THREE.Vector3().crossVectors(tangent, up).normalize();
+          const normal = new THREE.Vector3().crossVectors(tangent, binormal).normalize();
+
+          binormal.applyAxisAngle(tangent, twistAngle);
+
+          const pLeft = pt.clone().addScaledVector(binormal, -currentWidth / 2);
+          const pRight = pt.clone().addScaledVector(binormal, currentWidth / 2);
+
+          positions.push(pLeft.x, pLeft.y, pLeft.z);
+          positions.push(pRight.x, pRight.y, pRight.z);
+
+          normals.push(normal.x, normal.y, normal.z);
+          normals.push(normal.x, normal.y, normal.z);
+
+          uvs.push(0, t);
+          uvs.push(1, t);
+        }
+
+        for (let i = 0; i < numSegments; i++) {
+          const v0 = i * 2;
+          const v1 = i * 2 + 1;
+          const v2 = (i + 1) * 2;
+          const v3 = (i + 1) * 2 + 1;
+
+          indices.push(v0, v1, v2);
+          indices.push(v1, v3, v2);
+        }
+
+        geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geom.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+        geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        geom.setIndex(indices);
+        geom.computeVertexNormals();
+
+        const meshOuter = new THREE.Mesh(geom, this.matOuter);
+        meshOuter.castShadow = true;
+        this.sculptureGroup.add(meshOuter);
+
+        const meshInner = new THREE.Mesh(geom, this.matInner);
+        meshInner.castShadow = true;
+        this.sculptureGroup.add(meshInner);
+
+        // Position sculpture to elegantly balance negative space
+        const isMobile = window.innerWidth < 820;
+        if (isMobile) {
+          this.sculptureGroup.scale.set(0.68, 0.68, 0.68);
+          this.sculptureGroup.position.set(-0.3, 0.05, 0);
+          this.camera.position.set(0, 0.2, 7.5);
+        } else {
+          this.sculptureGroup.scale.set(1.0, 1.0, 1.0);
+          this.sculptureGroup.position.set(0.65, 0.1, 0);
+          this.camera.position.set(0.2, 0.4, 7.8);
+        }
+
+        this.scene.add(this.sculptureGroup);
+      }
+
+      buildShadowPlane() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createRadialGradient(128, 128, 10, 128, 128, 110);
+        grad.addColorStop(0, 'rgba(15, 23, 42, 0.14)');
+        grad.addColorStop(0.4, 'rgba(15, 23, 42, 0.05)');
+        grad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 256, 256);
+
+        const shadowTex = new THREE.CanvasTexture(canvas);
+        const shadowGeo = new THREE.PlaneGeometry(8.5, 4);
+        const shadowMat = new THREE.MeshBasicMaterial({
+          map: shadowTex,
+          transparent: true,
+          opacity: 0.9
+        });
+        const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+        shadowMesh.rotation.x = -Math.PI / 2;
+        shadowMesh.position.set(0.65, -1.9, 0.2);
+        this.scene.add(shadowMesh);
+      }
+
+      onResize() {
+        const w = this.container.clientWidth;
+        const h = this.container.clientHeight;
+        this.camera.aspect = w / h;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(w, h);
+
+        const isMobile = window.innerWidth < 820;
+        if (isMobile) {
+          this.sculptureGroup.scale.set(0.75, 0.75, 0.75);
+          this.sculptureGroup.position.set(0, 0.1, 0);
+        } else {
+          this.sculptureGroup.scale.set(1.05, 1.05, 1.05);
+          this.sculptureGroup.position.set(0.75, 0.15, 0);
+        }
+      }
+
+      onMouseMove(e) {
+        this.mouse.targetX = (e.clientX / window.innerWidth - 0.5) * 2;
+        this.mouse.targetY = -(e.clientY / window.innerHeight - 0.5) * 2;
+      }
+
+      setFocusDamping(focused) {
+        this.focusDamping = focused ? 0.2 : 1.0;
+      }
+
+      triggerLoadingPulse(active) {
+        this.pulseActive = active;
+      }
+
+      triggerSettlingGesture() {
+        this.settleOffset = 0.25;
+      }
+
+      animate() {
+        requestAnimationFrame(() => this.animate());
+
+        const dt = this.clock.getDelta();
+        const time = this.clock.getElapsedTime();
+
+        this.mouse.x += (this.mouse.targetX - this.mouse.x) * 0.05;
+        this.mouse.y += (this.mouse.targetY - this.mouse.y) * 0.05;
+
+        if (this.revealProgress < 1.0) {
+          this.revealProgress += dt * 0.55;
+          const t = Math.min(1.0, this.revealProgress);
+          const ease = 1 - Math.pow(1 - t, 3);
+          this.camera.position.z = 9.8 - (ease * 1.8);
+          this.sculptureGroup.rotation.y = -0.3 + (ease * 0.3);
+        }
+
+        const breathe = Math.sin(time * 0.7) * 0.035 * this.focusDamping;
+        const twist = Math.cos(time * 0.45) * 0.03 * this.focusDamping;
+
+        const parallaxX = this.mouse.y * 0.15;
+        const parallaxY = this.mouse.x * 0.2;
+
+        this.sculptureGroup.rotation.x = breathe + parallaxX;
+        this.sculptureGroup.rotation.y = twist + parallaxY;
+        this.sculptureGroup.rotation.z = Math.sin(time * 0.35) * 0.012 * this.focusDamping;
+
+        if (this.settleOffset > 0) {
+          this.settleOffset = Math.max(0, this.settleOffset - dt * 0.3);
+          this.sculptureGroup.position.y = 0.15 + this.settleOffset;
+        }
+
+        if (this.pulseActive) {
+          this.pulseTime += dt * 3.2;
+          const pulseIntensity = 0.32 + Math.sin(this.pulseTime) * 0.45;
+          this.matInner.emissiveIntensity = Math.max(0.2, pulseIntensity);
+          this.glowLight.intensity = 2.0 + Math.sin(this.pulseTime) * 1.5;
+        } else {
+          this.matInner.emissiveIntensity = 0.32;
+          this.glowLight.intensity = 2.8;
+        }
+
+        this.renderer.render(this.scene, this.camera);
+      }
+    }
+
+    // Initialize application & handle query parameters
+    window.addEventListener('DOMContentLoaded', () => {
+      // Check for clean mode (hides dev panel for presentation/evidence capture)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('clean') === 'true' || window.location.hash.includes('clean')) {
+        document.getElementById('devPanel').classList.add('dev-hidden');
+      }
+
+      // Check for state param (?state=loading, check-email, error, send-failure, cooldown, provider-unavailable)
+      const requestedState = urlParams.get('state');
+      if (requestedState) {
+        currentAppState = requestedState;
+      }
+
+      renderPod();
+
+      try {
+        window.sculptureInstance = new ArisSculpture('sculptureCanvas');
+        if (requestedState === 'loading') {
+          window.sculptureInstance.triggerLoadingPulse(true);
+        }
+      } catch (err) {
+        console.warn('WebGL init failed, using fallback:', err);
+      }
+    });
+  </script>
+</body>
+</html>

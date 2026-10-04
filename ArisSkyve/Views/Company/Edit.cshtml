@@ -1,0 +1,296 @@
+@model ArisSkyve.Domain.Entities.BussinessAccount
+@{
+    var logo = !string.IsNullOrWhiteSpace(Model.AvatarUrl) 
+        ? Model.AvatarUrl 
+        : ("https://ui-avatars.com/api/?name=" + Uri.EscapeDataString(Model.CompanyName) + "&background=2F6FED&color=fff&size=128");
+
+    var cover = Model.CoverPhotoUrl;
+
+    ViewData["Title"] = "Chỉnh sửa hồ sơ công ty";
+    ViewData["ActiveNav"] = "Companies";
+    Layout = "_AppLayout";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/company.css" asp-append-version="true" />
+}
+
+<div class="company-page">
+    <!-- Header -->
+    <header class="a-pagehead">
+        <div class="a-pagehead__eyebrow">
+            <i data-lucide="building"></i> Hồ sơ doanh nghiệp
+        </div>
+        <div class="a-pagehead__title-row">
+            <h1 class="a-pagehead__title">Chỉnh sửa thông tin công ty</h1>
+            <a asp-controller="Company" asp-action="Details" asp-route-id="@Model.Id" class="a-btn a-btn--secondary a-btn--sm ms-auto">
+                <i data-lucide="arrow-left"></i> Về trang công ty
+            </a>
+        </div>
+        <p class="a-pagehead__sub">Cập nhật hình ảnh nhận diện, thông tin giới thiệu và kênh liên kết để thu hút nhân tài.</p>
+    </header>
+
+    <div class="company-edit-grid">
+        <!-- Sticky Navigation -->
+        <nav class="company-edit-nav" aria-label="Mục chỉnh sửa">
+            <a href="#sec-branding" class="company-edit-nav__item is-active">
+                <i data-lucide="image" style="width: 15px; height: 15px;"></i> Nhận diện thương hiệu
+            </a>
+            <a href="#sec-basic" class="company-edit-nav__item">
+                <i data-lucide="info" style="width: 15px; height: 15px;"></i> Thông tin chung
+            </a>
+            <a href="#sec-about" class="company-edit-nav__item">
+                <i data-lucide="file-text" style="width: 15px; height: 15px;"></i> Giới thiệu công ty
+            </a>
+        </nav>
+
+        <!-- Form Content -->
+        <main class="company-edit-content">
+            <form id="companyEditForm" class="d-flex flex-column gap-4">
+                @Html.AntiForgeryToken()
+
+                <!-- 1. Nhận diện thương hiệu -->
+                <section class="a-card p-4" id="sec-branding">
+                    <h2 class="fw-bold mb-1" style="font-size: var(--fs-16); color: var(--text);">Nhận diện thương hiệu</h2>
+                    <p class="small mb-4" style="color: var(--text-3);">Ảnh bìa và logo hiển thị trực tiếp trên trang hồ sơ và các tin tuyển dụng.</p>
+
+                    <!-- Cover Photo Upload -->
+                    <div class="mb-4">
+                        <label class="a-label">Ảnh bìa (Tỷ lệ 3:1)</label>
+                        <div class="position-relative rounded-3 overflow-hidden" style="background: var(--field); border: 1px solid var(--line); min-height: 120px;">
+                            <img id="coverPreview" src="@(string.IsNullOrWhiteSpace(cover) ? "/images/default-cover.png" : cover)" alt="Ảnh bìa" class="w-100" style="max-height: 160px; object-fit: cover; display: @(string.IsNullOrWhiteSpace(cover) ? "none" : "block");" />
+                            <div class="d-flex align-items-center justify-content-center p-3 gap-2 @(string.IsNullOrWhiteSpace(cover) ? "" : "position-absolute bottom-0 end-0 m-2")">
+                                <button type="button" class="a-btn a-btn--secondary a-btn--sm" onclick="document.getElementById('coverInput').click()">
+                                    <i data-lucide="camera"></i> @(string.IsNullOrWhiteSpace(cover) ? "Tải lên ảnh bìa" : "Thay đổi ảnh bìa")
+                                </button>
+                                <input type="file" id="coverInput" accept="image/png,image/jpeg,image/webp" class="d-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Logo Upload -->
+                    <div>
+                        <label class="a-label">Logo công ty</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="@logo" id="logoPreview" alt="@Model.CompanyName" class="rounded-3" style="width: 72px; height: 72px; object-fit: cover; border: 2px solid var(--line);">
+                            <div>
+                                <button type="button" class="a-btn a-btn--secondary a-btn--sm mb-1" onclick="document.getElementById('logoInput').click()">
+                                    <i data-lucide="camera"></i> Chọn logo mới
+                                </button>
+                                <input type="file" id="logoInput" accept="image/png,image/jpeg,image/webp,image/gif" class="d-none">
+                                <div class="small" style="color: var(--text-3); font-size: var(--fs-12);">Định dạng PNG, JPG, WEBP tối đa 5MB.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. Thông tin chung -->
+                <section class="a-card p-4" id="sec-basic">
+                    <h2 class="fw-bold mb-1" style="font-size: var(--fs-16); color: var(--text);">Thông tin cơ bản</h2>
+                    <p class="small mb-4" style="color: var(--text-3);">Các thông tin hành chính và liên hệ chính thức của doanh nghiệp.</p>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="a-label" for="companyName">Tên doanh nghiệp <span class="text-danger">*</span></label>
+                            <input type="text" class="a-input" name="CompanyName" id="companyName" value="@Model.CompanyName" required />
+                        </div>
+
+                        <div class="col-md-7">
+                            <label class="a-label" for="industry">Lĩnh vực hoạt động</label>
+                            <input type="text" class="a-input" name="Industry" id="industry" value="@Model.Industry" placeholder="Công nghệ thông tin, Bán lẻ, Tài chính..." />
+                        </div>
+
+                        <div class="col-md-5">
+                            <label class="a-label" for="taxCode">Mã số thuế</label>
+                            <input type="text" class="a-input" name="TaxCode" id="taxCode" value="@Model.TaxCode" placeholder="VD: 0101234567" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="a-label" for="foundedYear">Năm thành lập</label>
+                            <input type="number" class="a-input" name="FoundedYear" id="foundedYear" value="@Model.FoundedYear" min="1900" max="2026" />
+                        </div>
+
+                        <div class="col-md-8">
+                            <label class="a-label" for="companySize">Quy mô nhân sự</label>
+                            <select class="a-select" name="CompanySize" id="companySize">
+                                @{
+                                    var sizes = new[] { "1-10", "11-50", "51-200", "200+" };
+                                    var sizeLabels = new[] { "Dưới 10 nhân sự", "11 - 50 nhân sự", "51 - 200 nhân sự", "Trên 200 nhân sự" };
+                                }
+                                @for (int i = 0; i < sizes.Length; i++)
+                                {
+                                    <option value="@sizes[i]" selected="@(Model.CompanySize == sizes[i])">@sizeLabels[i]</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="a-label" for="websiteUrl">Trang web công ty</label>
+                            <input type="url" class="a-input" name="WebsiteUrl" id="websiteUrl" value="@Model.WebsiteUrl" placeholder="https://www.example.com" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="a-label" for="companyAddress">Địa chỉ trụ sở</label>
+                            <input type="text" class="a-input" name="CompanyAddress" id="companyAddress" value="@Model.CompanyAddress" placeholder="Số nhà, đường, quận/huyện, tỉnh/thành phố" />
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. Giới thiệu công ty -->
+                <section class="a-card p-4" id="sec-about">
+                    <h2 class="fw-bold mb-1" style="font-size: var(--fs-16); color: var(--text);">Giới thiệu công ty</h2>
+                    <p class="small mb-4" style="color: var(--text-3);">Mô tả chi tiết tầm nhìn, sứ mệnh, sản phẩm và môi trường làm việc.</p>
+
+                    <div>
+                        <label class="a-label" for="companyDescription">Mô tả tổng quan</label>
+                        <textarea class="a-textarea" name="Description" id="companyDescription" rows="6" placeholder="Chia sẻ câu chuyện, sứ mệnh và giá trị cốt lõi của doanh nghiệp bạn...">@Model.Description</textarea>
+                    </div>
+                </section>
+
+                <!-- Actions -->
+                <div class="d-flex align-items-center justify-content-end gap-2 pt-2">
+                    <a asp-controller="Company" asp-action="Details" asp-route-id="@Model.Id" class="a-btn a-btn--ghost">
+                        Hủy bỏ
+                    </a>
+                    <button type="submit" class="a-btn a-btn--primary" id="saveCompanyBtn">
+                        <i data-lucide="save"></i> Lưu thông tin
+                    </button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <!-- Floating Unsaved Changes Bar -->
+    <div class="unsaved-bar" id="unsavedBar">
+        <span class="small fw-medium" style="color: var(--text);">Có thay đổi chưa lưu</span>
+        <button type="button" class="a-btn a-btn--ghost a-btn--sm" id="unsavedResetBtn">Hủy</button>
+        <button type="button" class="a-btn a-btn--primary a-btn--sm" id="unsavedSaveBtn">Lưu thay đổi</button>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.getElementById("companyEditForm");
+            const unsavedBar = document.getElementById("unsavedBar");
+            const unsavedResetBtn = document.getElementById("unsavedResetBtn");
+            const unsavedSaveBtn = document.getElementById("unsavedSaveBtn");
+            const saveBtn = document.getElementById("saveCompanyBtn");
+
+            function antiForgeryHeaders(headers = {}) {
+                const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                return token ? { ...headers, RequestVerificationToken: token } : headers;
+            }
+
+            // Track form dirty state
+            let isDirty = false;
+            form.querySelectorAll("input, select, textarea").forEach(field => {
+                field.addEventListener("input", () => {
+                    if (!isDirty) {
+                        isDirty = true;
+                        unsavedBar?.classList.add("is-visible");
+                    }
+                });
+            });
+
+            if (unsavedResetBtn) {
+                unsavedResetBtn.addEventListener("click", () => {
+                    location.reload();
+                });
+            }
+
+            if (unsavedSaveBtn) {
+                unsavedSaveBtn.addEventListener("click", () => {
+                    form.requestSubmit();
+                });
+            }
+
+            // Cover photo upload
+            const coverInput = document.getElementById("coverInput");
+            const coverPreview = document.getElementById("coverPreview");
+            if (coverInput) {
+                coverInput.addEventListener("change", async function () {
+                    const file = this.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append("cover", file);
+
+                    try {
+                        const res = await fetch("/Settings/UpdateCoverPhoto", { method: "POST", headers: antiForgeryHeaders(), body: formData });
+                        const result = await res.json();
+                        if (result.success) {
+                            if (coverPreview) {
+                                coverPreview.src = result.coverUrl;
+                                coverPreview.style.display = "block";
+                            }
+                            if (window.showToast) window.showToast("Đã cập nhật ảnh bìa thành công!", "success");
+                        } else {
+                            if (window.showToast) window.showToast(result.message || "Tải ảnh bìa thất bại.", "danger");
+                        }
+                    } catch {
+                        if (window.showToast) window.showToast("Lỗi kết nối máy chủ.", "danger");
+                    }
+                });
+            }
+
+            // Logo upload
+            const logoInput = document.getElementById("logoInput");
+            const logoPreview = document.getElementById("logoPreview");
+            if (logoInput) {
+                logoInput.addEventListener("change", async function () {
+                    const file = this.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append("avatar", file);
+
+                    try {
+                        const res = await fetch("/Settings/UpdateAvatar", { method: "POST", headers: antiForgeryHeaders(), body: formData });
+                        const result = await res.json();
+                        if (result.success) {
+                            if (logoPreview) logoPreview.src = result.avatarUrl;
+                            if (window.showToast) window.showToast("Đã cập nhật logo thành công!", "success");
+                        } else {
+                            if (window.showToast) window.showToast(result.message || "Tải logo thất bại.", "danger");
+                        }
+                    } catch {
+                        if (window.showToast) window.showToast("Lỗi kết nối máy chủ.", "danger");
+                    }
+                });
+            }
+
+            // Form Submit via AJAX
+            form.addEventListener("submit", async function (e) {
+                e.preventDefault();
+                if (saveBtn) saveBtn.disabled = true;
+
+                const formData = new FormData(form);
+
+                try {
+                    const res = await fetch("/Company/Edit", {
+                        method: "POST",
+                        headers: antiForgeryHeaders(),
+                        body: formData
+                    });
+                    const result = await res.json();
+
+                    if (result.success) {
+                        isDirty = false;
+                        unsavedBar?.classList.remove("is-visible");
+                        if (window.showToast) window.showToast("Đã lưu hồ sơ doanh nghiệp thành công!", "success");
+                        setTimeout(() => {
+                            window.location.href = `/Company/Details/${result.companyId}`;
+                        }, 800);
+                    } else {
+                        if (window.showToast) window.showToast(result.message || "Không thể lưu thông tin.", "danger");
+                    }
+                } catch {
+                    if (window.showToast) window.showToast("Lỗi kết nối khi lưu hồ sơ doanh nghiệp.", "danger");
+                } finally {
+                    if (saveBtn) saveBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+}

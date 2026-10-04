@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+
+		<NoWarn>$(NoWarn);NU1901</NoWarn>
+		<NuGetAuditLevel>moderate</NuGetAuditLevel>
+		<UserSecretsId>6c17849a-0c96-4eee-95d2-d2819a9a2015</UserSecretsId>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Folder Include="Infrastructure\Data\Configuration\" />
+		<Content Remove="resume-engine\**" />
+		<EmbeddedResource Include="resume-engine\contracts\canonical-resume.schema.json" LogicalName="ArisSkyve.CanonicalResumeSchema" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="JsonSchema.Net" Version="7.3.4" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.Facebook" Version="10.0.4" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.4" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.4" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.4" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.4">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" />
+	</ItemGroup>
+
+</Project>
