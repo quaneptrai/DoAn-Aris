@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.Facebook;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.FileProviders;
 using ArisSkyve.Infrastructure.Services.Recruitment;
 using System.Net;
@@ -38,6 +39,12 @@ builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "RequestVerificationToken";
 });
+// Persist data-protection keys (auth cookies, antiforgery tokens, TempData) under App_Data. Shared IIS
+// hosting often has no user profile, so keys would otherwise be ephemeral: every app-pool recycle or
+// redeploy would sign everyone out and reject open forms. App_Data is git-ignored and never published.
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "dataprotection-keys")))
+    .SetApplicationName("ArisSkyve");
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("resume-original-fetch")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
