@@ -231,8 +231,9 @@ public static class PublicMediaValidator
     }
 
     /// <summary>
-    /// Writes a validated upload using a server-generated name. Public callers
-    /// should persist the returned filename only; never reuse IFormFile.FileName.
+    /// Writes a validated upload using a server-generated name. This remains for
+    /// controlled legacy-media migration/serving only; new public uploads use
+    /// <see cref="IPublicMediaStore"/> and do not write under the app root.
     /// </summary>
     public static async Task<string> SaveAsync(
         IFormFile file,
@@ -558,9 +559,9 @@ public static class PublicMediaValidator
 }
 
 /// <summary>
-/// Keeps newly uploaded public media out of wwwroot. The media controller is
-/// then the sole route which can expose these files with an explicit MIME type
-/// and response hardening headers.
+/// Resolves the old local public-media layout for read-only compatibility and
+/// migration. New uploads are stored by <see cref="IPublicMediaStore"/> in
+/// Google Drive rather than under the application root.
 /// </summary>
 public static class PublicMediaStorage
 {
@@ -569,6 +570,13 @@ public static class PublicMediaStorage
     public const string Avatars = "avatars";
     public const string Covers = "covers";
     public const string Chat = "chat";
+
+    public static bool IsSupportedCollection(string? collection) =>
+        string.Equals(collection, Posts, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(collection, Stories, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(collection, Avatars, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(collection, Covers, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(collection, Chat, StringComparison.OrdinalIgnoreCase);
 
     public static bool TryGetStorageDirectory(string? contentRootPath, string? collection, out string storageDirectory)
     {

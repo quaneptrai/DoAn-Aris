@@ -200,10 +200,13 @@
         else form.append('newResume', 'true');
 
         try {
-            const res = await fetch('/Resume/AnalyzeCv', { method: 'POST', body: form });
+            const send = window.arisFetchWithCvAiConsent || fetch;
+            const res = await send('/Resume/AnalyzeCv', { method: 'POST', body: form });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
                 const msg = typeof data.detail === 'string' ? data.detail
+                    : res.status === 428 ? 'Cần đồng ý cho AI xử lý CV để đọc file này. Bạn có thể bật tại trang Chính sách quyền riêng tư (/privacy).'
+                    : typeof data.error === 'string' ? data.error
                     : res.status === 400 ? 'Không đọc được nội dung file — nếu là bản scan, thử file PDF có chữ.'
                     : `Không xử lý được CV (HTTP ${res.status}).`;
                 throw new Error(msg);

@@ -20,5 +20,10 @@ namespace ArisSkyve.Application.DTOs
 
         // Step 3: Quyền riêng tư & chia sẻ
         public bool ShareWithRecruiters { get; set; }
+
+        // Bắt buộc: đồng ý Chính sách quyền riêng tư (/privacy). Tuỳ chọn: cho AI xử lý CV
+        // (có thể bật/tắt lại bất cứ lúc nào ở /privacy).
+        public bool AcceptPrivacy { get; set; }
+        public bool AllowCvAi { get; set; }
     }
 }

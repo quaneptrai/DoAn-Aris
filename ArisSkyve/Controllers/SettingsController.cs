@@ -20,13 +20,13 @@ namespace ArisSkyve.Controllers
 
         private readonly ArisDBContext _context;
         private readonly IHubContext<ChatHub> _hub;
-        private readonly IWebHostEnvironment _env;
+        private readonly IPublicMediaStore _publicMedia;
 
-        public SettingsController(ArisDBContext context, IHubContext<ChatHub> hub, IWebHostEnvironment env)
+        public SettingsController(ArisDBContext context, IHubContext<ChatHub> hub, IPublicMediaStore publicMedia)
         {
             _context = context;
             _hub = hub;
-            _env = env;
+            _publicMedia = publicMedia;
         }
 
         private int CurrentUserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -115,22 +115,17 @@ namespace ArisSkyve.Controllers
                 _context.Profiles.Add(user.Profile);
             }
 
-            if (!PublicMediaStorage.TryGetStorageDirectory(_env.ContentRootPath, PublicMediaStorage.Avatars, out var storageDirectory))
-            {
-                return Json(new { success = false, message = "Unable to prepare image storage." });
-            }
-
-            string fileName;
+            PublicMediaUpload upload;
             try
             {
-                fileName = await PublicMediaValidator.SaveAsync(avatar, validation.Media, storageDirectory, HttpContext.RequestAborted);
+                upload = await _publicMedia.UploadAsync(PublicMediaStorage.Avatars, avatar, validation.Media, HttpContext.RequestAborted);
             }
-            catch
+            catch (PublicMediaStorageException)
             {
-                return Json(new { success = false, message = "Unable to save image." });
+                return Json(new { success = false, message = "Google Drive could not store the image. Please try again." });
             }
 
-            user.Profile.AvatarUrl = $"/media/{PublicMediaStorage.Avatars}/{fileName}";
+            user.Profile.AvatarUrl = upload.Url;
             await _context.SaveChangesAsync();
 
             return Json(new { success = true, avatarUrl = user.Profile.AvatarUrl });
@@ -156,22 +151,17 @@ namespace ArisSkyve.Controllers
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
             if (user?.Profile == null) return NotFound();
 
-            if (!PublicMediaStorage.TryGetStorageDirectory(_env.ContentRootPath, PublicMediaStorage.Covers, out var storageDirectory))
-            {
-                return Json(new { success = false, message = "Unable to prepare image storage." });
-            }
-
-            string fileName;
+            PublicMediaUpload upload;
             try
             {
-                fileName = await PublicMediaValidator.SaveAsync(cover, validation.Media, storageDirectory, HttpContext.RequestAborted);
+                upload = await _publicMedia.UploadAsync(PublicMediaStorage.Covers, cover, validation.Media, HttpContext.RequestAborted);
             }
-            catch
+            catch (PublicMediaStorageException)
             {
-                return Json(new { success = false, message = "Unable to save image." });
+                return Json(new { success = false, message = "Google Drive could not store the image. Please try again." });
             }
 
-            user.Profile.CoverPhotoUrl = $"/media/{PublicMediaStorage.Covers}/{fileName}";
+            user.Profile.CoverPhotoUrl = upload.Url;
             await _context.SaveChangesAsync();
 
             return Json(new { success = true, coverUrl = user.Profile.CoverPhotoUrl });

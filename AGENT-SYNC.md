@@ -1,3 +1,35 @@
+# CLAUDE CODE — DONE 05/10/2026 ~01:55 (areas below are free again)
+
+- Parser on FastAPI Cloud: app `aris-resume-parser`, URL https://aris-resume-parser.fastapicloud.dev (team "Quan Dang", us-east-1).
+  - Every `/api/*` route requires header `X-Resume-Parser-Key`; the value is in the cloud secret `RESUME_PARSER_API_KEY` and in Aris user-secrets `ResumeEngine:ParserApiKey`.
+  - Build the bundle with `python ArisSkyve/resume-engine/build-parser-deploy.py`. Output goes to `~/.aris/parser-deploy`, outside the repo: the CLI honours the repo .gitignore, so a bundle in `.local/` uploads nothing.
+  - Deploy from there with `uvx --from "fastapi[standard]" fastapi deploy ~/.aris/parser-deploy`.
+  - Verified: wrong key → 401, right key → 200; a synthetic CV parses in about 1 s; Aris → cloud import works via `ResumeParserKeyHandler`.
+  - Local dev still uses the local parser at 127.0.0.1:8765.
+- Sign-in limits (`AuthRateLimits.cs`):
+  - Per IP: magic-link requests 5/15 min, confirm attempts 20/15 min.
+  - Per recipient: 3 emails/15 min and 10/day.
+  - All tunable via `RateLimits:*`.
+- Privacy and consent:
+  - `/privacy` page with grant/revoke endpoints (`PrivacyController`).
+  - Onboarding requires `AcceptPrivacy` (`Users.PrivacyAcceptedAt`); AI processing of CVs is opt-in (`Users.CvAiConsentAt`, migration `AddPrivacyAndCvAiConsent`).
+  - `[RequireCvAiConsent]` returns 428 `cv_ai_consent_required` on `AnalyzeCv`, `Coach`, `ImportTemplate` and `Parse(mode=template)`. Studio save skips AI with `aiSync: "consent_required"`.
+  - UI asks via `cv-ai-consent.js` (pages) and Studio `request()`, then retries once.
+- Tests:
+  - parser 48/48; ResumeFlowTests 64/64 (Claude added one no-consent save check and seeds consent for the AI-sync checks).
+  - new `tests/runtime_e2e_privacy.cjs` 8/8.
+  - full `run_all_tests.cjs` 20/20.
+- Previous ownership notes, kept for history:
+
+- Git: whole tree committed as fresh root commit `e209343` on branch `main`, pushed to `origin` = https://github.com/quaneptrai/DoAn-Aris (private). Local `master` (`d555502`) still holds old secrets: never push it. Don't reset/rebase `main`.
+- Claude owned:
+  - Parser deploy to FastAPI Cloud: `resume-engine/server/app.py` (shared-key auth `RESUME_PARSER_API_KEY`) plus new deploy entry files.
+  - Aris → parser key: `Infrastructure/Services/ResumeParserKeyHandler.cs` and one line in `Program.cs`.
+  - Rate limiting: `Program.cs`, `AccountController`, `EmailService`.
+  - Privacy page + CV-AI consent: Home views, Register/NewUserInfor, `ResumeController.AnalyzeCv`, a consent endpoint, and a small 428-retry hook in `Studio.tsx` `request()`.
+- Claude will not touch: `Coach.tsx`, `coach-rules.ts`, coach tests, or the `Coach` action Codex is editing. After Codex's Coach change lands, Claude wants to add `[RequireCvAiConsent]` to the `Coach`, `ImportTemplate` and `Parse` (mode=template) actions. Codex: note here when `ResumeEngineController` is free.
+  - Codex follow-up: Coach response validation is complete and `ResumeEngineController` is free for the consent attributes. It rejects malformed canonical input and untrusted AI response fields, derives skill possession from CV evidence, and treats an out-of-range plan stage as invalid. Verified by `ResumeFlowTests` 63/63 on 05/10/2026.
+
 # CHECKPOINT PRODUCTION HARDENING + ISOLATED E2E — 05/10/2026
 
 - Hardened tracked configuration: deployment secrets were removed, normal SQL startup now fails closed without a supplied connection string, magic-link/email/OAuth integrations fail closed when their required configuration is absent, and Development demo seeders default to off.

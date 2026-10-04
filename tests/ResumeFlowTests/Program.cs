@@ -71,6 +71,11 @@ Check(await ctl.PublicDocument(100, ct) is NotFoundResult, "Private legacy docum
 var canonical = JsonNode.Parse(first.GetProperty("data").GetRawText())!;
 canonical["basics"]!["summary"] = "Built reliable Python SQL services and reduced query latency by thirty percent.";
 Check(CanonicalResumeContract.IsValid(Document(canonical)), "Converted canonical document validates");
+var savedWithoutConsent = Json(await ctl.SaveDocument(new(100, Document(canonical), "t2"), ct));
+Check(savedWithoutConsent.GetProperty("aiSync").GetString() == "consent_required" && legacy.ExtractedFullText!.Contains("Python SQL") && !(factory.LastBody ?? "").Contains("revision_ms"),
+    "Save without AI consent keeps the CV text but never sends it to AI indexing");
+owner.CvAiConsentAt = DateTime.UtcNow;
+await db.SaveChangesAsync();
 var saved = Json(await ctl.SaveDocument(new(100, Document(canonical), "t2"), ct));
 Check(saved.GetProperty("aiSync").GetString() == "scheduled", "Save awaits AI acknowledgement");
 Check(legacy.ExtractedFullText!.Contains("Python SQL"), "SQL text updates together with Studio document");
@@ -78,6 +83,46 @@ Check(factory.LastBody!.Contains("revision_ms"), "AI sync carries saved revision
 Check(legacy.FileUrl!.Contains("original.pdf") && legacy.Label == "My original", "Saving preserves original file and user label");
 await ctl.SaveDocument(new(100, Document(canonical), "t2"), ct);
 Check(db.Resumes.Count(x => x.Id == 100) == 1, "Repeated conversion/save is idempotent");
+
+var coachCallsBeforeInvalid = factory.CoachCalls;
+Check(await ctl.Coach(new(Document(new JsonObject()), "Backend Developer"), ct) is BadRequestObjectResult && factory.CoachCalls == coachCallsBeforeInvalid,
+    "Coach rejects malformed CanonicalResume data before calling AiCore");
+Check(await ctl.Coach(new(Document(canonical), new string('x', 121)), ct) is BadRequestObjectResult && factory.CoachCalls == coachCallsBeforeInvalid,
+    "Coach bounds an overlong target before calling AiCore");
+factory.CoachResponse = """
+    {
+      "status":"success",
+      "cv_skills":["Python","SQL","Python"],
+      "roles":[{"title":"Data Engineer","postings":2,"coverage":80,"matched":["Python","Invented"],"missing":["SQL","Docker"]}],
+      "target":{
+        "query":"untrusted target",
+        "postings":2,
+        "skills":[{"skill":"Python","share":1.5,"postings":2,"have":false},{"skill":"Docker","share":-1,"postings":-4,"have":true}],
+        "sample_titles":["Data Engineer"],
+        "plan":{"coverage":{"now":150,"after_stage1":-2},"steps":[{"skill":"Docker","stage":1,"stage_label":"Start","related_to":["Python"],"after":[],"active_postings":1,"opens":1},{"skill":"Invalid","stage":4,"stage_label":"Ignore","related_to":[],"after":[],"active_postings":1,"opens":1}],"total_steps":2,"soft_skills":["Teamwork"],"matched":["Python","Invented"]}
+      },
+      "titles_indexed":true,
+      "unexpected":"must not be proxied"
+    }
+    """;
+var coach = Json(await ctl.Coach(new(Document(canonical), "  Data Engineer  "), ct));
+Check(factory.CoachCalls == coachCallsBeforeInvalid + 1 && factory.LastRequestPath == "/api/v2/skills/cv-coach", "Coach calls only the expected AiCore endpoint");
+using (var sentCoach = JsonDocument.Parse(factory.LastBody!))
+    Check(sentCoach.RootElement.GetProperty("target").GetString() == "Data Engineer" && sentCoach.RootElement.GetProperty("limit").GetInt32() == 8,
+        "Coach sends a trimmed bounded target and fixed plan limit");
+Check(coach.GetProperty("marketDataScope").GetString() == "indexed_skill_graph" && !coach.TryGetProperty("unexpected", out _),
+    "Coach returns only its normalized response contract and declares graph scope");
+Check(coach.GetProperty("cv_skills").GetArrayLength() == 2 && coach.GetProperty("roles")[0].GetProperty("matched").GetArrayLength() == 1 && coach.GetProperty("roles")[0].GetProperty("missing")[0].GetString() == "Docker",
+    "Coach keeps role evidence consistent with recognized CV skills");
+var coachTarget = coach.GetProperty("target");
+Check(coachTarget.GetProperty("query").GetString() == "Data Engineer" && coachTarget.GetProperty("skills")[0].GetProperty("have").GetBoolean() && !coachTarget.GetProperty("skills")[1].GetProperty("have").GetBoolean(),
+    "Coach derives market-skill possession from CV evidence instead of trusting AiCore flags");
+Check(coachTarget.GetProperty("skills")[0].GetProperty("share").GetDouble() == 1 && coachTarget.GetProperty("skills")[1].GetProperty("postings").GetInt32() == 0,
+    "Coach bounds target-skill numerical fields");
+Check(coachTarget.GetProperty("plan").GetProperty("coverage").GetProperty("now").GetInt32() == 100 && coachTarget.GetProperty("plan").GetProperty("steps").GetArrayLength() == 1,
+    "Coach bounds coverage and removes invalid plan steps");
+factory.CoachResponse = "[]";
+Check(await ctl.Coach(new(Document(canonical), "Data Engineer"), ct) is ObjectResult { StatusCode: 502 }, "Coach rejects an invalid AiCore response instead of proxying it");
 Check(Json(await ctl.GetDocument(100, ct)).GetProperty("templateId").GetString() == "t2", "Reload preserves saved template");
 
 Check(await other.SaveDocument(new(100, Document(canonical)), ct) is NotFoundResult, "Foreign user cannot edit");
@@ -273,14 +318,23 @@ sealed class FixtureFactory : IHttpClientFactory {
     public HttpStatusCode Status = HttpStatusCode.OK;
     public bool Throw;
     public string? LastBody;
+    public string? LastRequestPath;
     public string? LastClientName;
     public int StructureCalls;
+    public int CoachCalls;
+    public string? CoachResponse;
     public HttpClient CreateClient(string name) { LastClientName = name; return new(new Handler(this)); }
     private sealed class Handler(FixtureFactory owner) : HttpMessageHandler {
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct) {
             if (owner.Throw) throw new HttpRequestException("Fixture offline");
+            owner.LastRequestPath = req.RequestUri?.AbsolutePath;
             if (req.RequestUri?.AbsolutePath == "/api/v2/cv/structure") owner.StructureCalls++;
             owner.LastBody = req.Content is null ? null : await req.Content.ReadAsStringAsync(ct);
+            if (req.RequestUri?.AbsolutePath == "/api/v2/skills/cv-coach")
+            {
+                owner.CoachCalls++;
+                return new HttpResponseMessage(owner.Status) { Content = new StringContent(owner.CoachResponse ?? "{}") };
+            }
             return new HttpResponseMessage(owner.Status) { Content = new StringContent("{\"status\":\"scheduled\"}") };
         }
     }

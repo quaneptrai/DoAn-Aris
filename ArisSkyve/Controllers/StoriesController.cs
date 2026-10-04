@@ -1,10 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using ArisSkyve.Domain.Entities;
@@ -14,7 +10,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace ArisSkyve.Controllers
 {
@@ -24,22 +19,16 @@ namespace ArisSkyve.Controllers
     {
         private readonly ArisDBContext _context;
         private readonly IV7FeatureGate _featureGate;
-        private readonly IConfiguration _config;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _env;
+        private readonly IPublicMediaStore _publicMedia;
 
         public StoriesController(
             ArisDBContext context,
             IV7FeatureGate featureGate,
-            IConfiguration config,
-            IHttpClientFactory httpClientFactory,
-            Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
+            IPublicMediaStore publicMedia)
         {
-            _env = env;
             _context = context;
             _featureGate = featureGate;
-            _config = config;
-            _httpClientFactory = httpClientFactory;
+            _publicMedia = publicMedia;
         }
 
         private int CurrentUserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -145,10 +134,14 @@ namespace ArisSkyve.Controllers
 
             int userId = CurrentUserId;
             string mediaType = validation.Media.MediaType;
-            string mediaUrl = await UploadMediaAsync(media, validation.Media);
-            if (string.IsNullOrEmpty(mediaUrl))
+            string mediaUrl;
+            try
             {
-                return Json(new { success = false, message = "Tải lên tệp không thành công." });
+                mediaUrl = (await _publicMedia.UploadAsync(PublicMediaStorage.Stories, media, validation.Media, HttpContext.RequestAborted)).Url;
+            }
+            catch (PublicMediaStorageException)
+            {
+                return Json(new { success = false, message = "Google Drive could not store the upload. Please try again." });
             }
 
             var story = new Story
@@ -239,56 +232,5 @@ namespace ArisSkyve.Controllers
             return Json(new { success = true, count = viewers.Count, viewers });
         }
 
-        private async Task<string> UploadMediaAsync(IFormFile file, ValidatedPublicMedia media)
-        {
-            var aiCoreBaseUrl = _config["AiCore:BaseUrl"];
-            if (!string.IsNullOrEmpty(aiCoreBaseUrl))
-            {
-                try
-                {
-                    var client = _httpClientFactory.CreateClient();
-                    string endpoint = media.Kind == PublicMediaKind.Video ? "/upload-video" : "/upload-image";
-
-                    using var content = new MultipartFormDataContent();
-                    using var stream = file.OpenReadStream();
-                    var streamContent = new StreamContent(stream);
-                    streamContent.Headers.ContentType = new MediaTypeHeaderValue(media.ContentType);
-                    content.Add(streamContent, "file", media.CreateStorageFileName());
-
-                    var response = await client.PostAsync($"{aiCoreBaseUrl}{endpoint}", content);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var result = await response.Content.ReadFromJsonAsync<UploadResultDto>();
-                        if (PublicMediaValidator.IsSafeRemoteMediaUrl(result?.Url)) return result!.Url!;
-                    }
-                }
-                catch
-                {
-                    // Fall back to local storage if external service is unreachable
-                }
-            }
-
-            // Local fallback is deliberately outside wwwroot. PublicMediaController
-            // is the only path that can serve it with a fixed MIME type + nosniff.
-            try
-            {
-                if (!PublicMediaStorage.TryGetStorageDirectory(_env.ContentRootPath, PublicMediaStorage.Stories, out var storageDirectory))
-                {
-                    return string.Empty;
-                }
-
-                var uniqueName = await PublicMediaValidator.SaveAsync(file, media, storageDirectory, HttpContext.RequestAborted);
-                return $"/media/{PublicMediaStorage.Stories}/{uniqueName}";
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
-
-        private class UploadResultDto
-        {
-            public string? Url { get; set; }
-        }
     }
 }

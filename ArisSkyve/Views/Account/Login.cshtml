@@ -51,11 +51,11 @@ else
                 </span>
                 <span class="auth-hint" id="authEmailHint" hidden>Email chưa đúng định dạng, ví dụ: ten@congty.com</span>
             </label>
-            <p class="auth-note" id="authNote"><i data-lucide="shield-check"></i><span>Không cần mật khẩu. Aris gửi một liên kết đăng nhập dùng một lần, hết hạn sau 30 phút.</span></p>
+            <p class="auth-note" id="authNote"><i data-lucide="shield-check"></i><span>Không cần mật khẩu. Aris gửi một liên kết đăng nhập tới email này, hết hạn sau 30 phút.</span></p>
             <button class="a-btn a-btn--sunset auth-submit" type="submit" id="authSubmit">
                 <span>Gửi liên kết đăng nhập</span><i data-lucide="arrow-right"></i>
             </button>
-            <p class="auth-legal">Bằng việc tiếp tục, bạn đồng ý với <b>Điều khoản sử dụng</b> và <b>Chính sách quyền riêng tư</b> của Aris.</p>
+            <p class="auth-legal">Bằng việc tiếp tục, bạn đồng ý với <b>Điều khoản sử dụng</b> và <a href="/privacy"><b>Chính sách quyền riêng tư</b></a> của Aris.</p>
         </form>
 
         <p class="auth-switch">Chưa có tài khoản? <a asp-action="Register" asp-route-returnUrl="@returnUrl">Tạo tài khoản</a></p>

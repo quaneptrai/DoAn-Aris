@@ -182,7 +182,10 @@ public sealed class ResumeEngineController(ArisDBContext db, IHttpClientFactory 
         if (!string.Equals(previousSourceId, currentSourceId, StringComparison.Ordinal))
             await originals.DeferUnreferencedCleanupAsync(userId, previousSourceId, cancellationToken);
 
-        var aiSync = await ReindexAsync(resume.EmployeeId, resume.Id, text, resume.LastUpdatedAt);
+        // CV vẫn được lưu; chỉ gửi sang AiCore để lập chỉ mục khi người dùng đã đồng ý AI xử lý CV.
+        var aiSync = await CvAiConsent.HasConsentAsync(db, User)
+            ? await ReindexAsync(resume.EmployeeId, resume.Id, text, resume.LastUpdatedAt)
+            : "consent_required";
         return Ok(new { resumeId = resume.Id, published = previous?.Published ?? false, aiSync });
     }
 
@@ -261,7 +264,9 @@ public sealed class ResumeEngineController(ArisDBContext db, IHttpClientFactory 
             """, "text/html; charset=utf-8");
     }
 
+    // mode=template gửi CV sang OpenAI nên cần đồng ý AI; mode=layout xử lý trên parser, không dùng AI.
     [HttpPost("parse"), ValidateAntiForgeryToken, RequestSizeLimit(10 * 1024 * 1024 + 64 * 1024)]
+    [RequireCvAiConsent(onlyWhenModeIs: "template")]
     public async Task<IActionResult> Parse(IFormFile file, CancellationToken cancellationToken, [FromForm] string mode = "layout")
     {
         if (await ValidateImportMode(mode, allowTemplate: true, cancellationToken: cancellationToken) is { } invalidMode) return invalidMode;
@@ -310,23 +315,200 @@ public sealed class ResumeEngineController(ArisDBContext db, IHttpClientFactory 
     // Trợ lý CV trong Studio: gửi nội dung đang soạn (chưa cần lưu) cho AiCore /api/v2/skills/cv-coach —
     // kỹ năng nhận ra, hướng nghề hợp với CV, và kỹ năng còn thiếu cho vị trí muốn ứng tuyển.
     [HttpPost("coach"), ValidateAntiForgeryToken, RequestSizeLimit(12 * 1024 * 1024)]
+    [RequireCvAiConsent]
     public async Task<IActionResult> Coach([FromBody] CoachRequest request, CancellationToken cancellationToken)
     {
-        if (request.Data.ValueKind != JsonValueKind.Object) return BadRequest(new { error = "Thiếu nội dung CV." });
+        if (!CanonicalResumeContract.IsValid(request.Data))
+            return BadRequest(new { error = "Dữ liệu CV không đúng CanonicalResumeSchema." });
+        var target = (request.Target ?? "").Trim();
+        if (target.Length > CoachTargetMaxLength)
+            return BadRequest(new { error = $"Vị trí mục tiêu tối đa {CoachTargetMaxLength} ký tự." });
         var text = LegacyResumeConverter.ToPlainText(request.Data);
-        if (text.Length < 20) return Ok(new { status = "empty", cv_skills = Array.Empty<string>(), roles = Array.Empty<object>() });
+        if (text.Length < 20)
+            return Ok(new CoachResponse("empty", Array.Empty<string>(), Array.Empty<CoachRole>(), null, false, "indexed_skill_graph"));
         using var client = clients.CreateClient();
         client.Timeout = TimeSpan.FromSeconds(20);
         try
         {
             using var response = await client.PostAsJsonAsync($"{AiCoreBase}/api/v2/skills/cv-coach",
-                new { cv_text = text.Length > 30000 ? text[..30000] : text, target = (request.Target ?? "").Trim(), limit = 8 }, cancellationToken);
+                new { cv_text = text.Length > 30000 ? text[..30000] : text, target, limit = 8 }, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return StatusCode(502, new { error = "Trợ lý CV tạm thời không phản hồi." });
+            if (response.Content.Headers.ContentLength is > CoachResponseMaxCharacters)
+                return StatusCode(502, new { error = "Trợ lý CV trả quá nhiều dữ liệu." });
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new ContentResult { StatusCode = response.IsSuccessStatusCode ? 200 : 502, ContentType = "application/json", Content = response.IsSuccessStatusCode ? json : "{\"error\":\"Trợ lý CV tạm thời không phản hồi.\"}" };
+            if (json.Length > CoachResponseMaxCharacters || !TryNormalizeCoachResponse(json, target, out var result))
+                return StatusCode(502, new { error = "Trợ lý CV trả dữ liệu không hợp lệ." });
+            return Ok(result);
         }
         catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException && !cancellationToken.IsCancellationRequested)
         { return StatusCode(503, new { error = "Không kết nối được dịch vụ AI." }); }
+        catch (JsonException)
+        { return StatusCode(502, new { error = "Trợ lý CV trả dữ liệu không hợp lệ." }); }
     }
+
+    private static bool TryNormalizeCoachResponse(string json, string requestedTarget, out CoachResponse? result)
+    {
+        result = null;
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object ||
+            !root.TryGetProperty("status", out var status) || status.ValueKind != JsonValueKind.String ||
+            !string.Equals(status.GetString(), "success", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var cvSkills = ReadCoachStrings(root, "cv_skills", CoachMaxCvSkills, CoachMaxSkillLength);
+        var cvSkillSet = new HashSet<string>(cvSkills, StringComparer.OrdinalIgnoreCase);
+        var roles = ReadCoachRoles(root, cvSkillSet);
+        CoachTarget? target = null;
+        if (requestedTarget.Length > 0)
+        {
+            if (!TryGetObject(root, "target", out var rawTarget) || !TryReadCoachTarget(rawTarget, requestedTarget, cvSkillSet, out target))
+                return false;
+        }
+
+        result = new CoachResponse(
+            "success",
+            cvSkills,
+            roles,
+            target,
+            root.TryGetProperty("titles_indexed", out var titlesIndexed) && titlesIndexed.ValueKind == JsonValueKind.True,
+            "indexed_skill_graph");
+        return true;
+    }
+
+    private static IReadOnlyList<CoachRole> ReadCoachRoles(JsonElement root, HashSet<string> cvSkillSet)
+    {
+        if (!root.TryGetProperty("roles", out var rawRoles) || rawRoles.ValueKind != JsonValueKind.Array)
+            return Array.Empty<CoachRole>();
+        var values = new List<CoachRole>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rawRole in rawRoles.EnumerateArray())
+        {
+            if (values.Count >= CoachMaxRoles || rawRole.ValueKind != JsonValueKind.Object) break;
+            var title = ReadCoachString(rawRole, "title", CoachMaxRoleTitleLength);
+            if (title is null || !seen.Add(title)) continue;
+            var matched = ReadCoachStrings(rawRole, "matched", 5, CoachMaxSkillLength)
+                .Where(cvSkillSet.Contains).ToArray();
+            var missing = ReadCoachStrings(rawRole, "missing", 4, CoachMaxSkillLength)
+                .Where(skill => !cvSkillSet.Contains(skill)).ToArray();
+            values.Add(new CoachRole(
+                title,
+                ReadCoachInt(rawRole, "postings", 0, CoachMaxPostings),
+                ReadCoachInt(rawRole, "coverage", 0, 100),
+                matched,
+                missing));
+        }
+        return values;
+    }
+
+    private static bool TryReadCoachTarget(JsonElement rawTarget, string requestedTarget, HashSet<string> cvSkillSet, out CoachTarget? target)
+    {
+        target = null;
+        if (!TryGetObject(rawTarget, "plan", out var rawPlan)) return false;
+        var skills = new List<CoachTargetSkill>();
+        var seenSkills = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (rawTarget.TryGetProperty("skills", out var rawSkills) && rawSkills.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var rawSkill in rawSkills.EnumerateArray())
+            {
+                if (skills.Count >= CoachMaxTargetSkills || rawSkill.ValueKind != JsonValueKind.Object) break;
+                var skill = ReadCoachString(rawSkill, "skill", CoachMaxSkillLength);
+                if (skill is null || !seenSkills.Add(skill)) continue;
+                skills.Add(new CoachTargetSkill(
+                    skill,
+                    ReadCoachShare(rawSkill, "share"),
+                    ReadCoachInt(rawSkill, "postings", 0, CoachMaxPostings),
+                    cvSkillSet.Contains(skill)));
+            }
+        }
+
+        var coverage = TryGetObject(rawPlan, "coverage", out var rawCoverage)
+            ? new CoachCoverage(ReadCoachNullableInt(rawCoverage, "now", 0, 100), ReadCoachNullableInt(rawCoverage, "after_stage1", 0, 100))
+            : new CoachCoverage(null, null);
+        var steps = ReadCoachPlanSteps(rawPlan);
+        var plan = new CoachPlan(
+            coverage,
+            steps,
+            ReadCoachInt(rawPlan, "total_steps", 0, CoachMaxPostings),
+            ReadCoachStrings(rawPlan, "soft_skills", 12, CoachMaxSkillLength),
+            ReadCoachStrings(rawPlan, "matched", CoachMaxCvSkills, CoachMaxSkillLength).Where(cvSkillSet.Contains).ToArray());
+        target = new CoachTarget(
+            requestedTarget,
+            ReadCoachInt(rawTarget, "postings", 0, CoachMaxPostings),
+            skills,
+            ReadCoachStrings(rawTarget, "sample_titles", 5, CoachMaxSampleTitleLength),
+            plan);
+        return true;
+    }
+
+    private static IReadOnlyList<CoachPlanStep> ReadCoachPlanSteps(JsonElement rawPlan)
+    {
+        if (!rawPlan.TryGetProperty("steps", out var rawSteps) || rawSteps.ValueKind != JsonValueKind.Array)
+            return Array.Empty<CoachPlanStep>();
+        var values = new List<CoachPlanStep>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rawStep in rawSteps.EnumerateArray())
+        {
+            if (values.Count >= CoachMaxPlanSteps || rawStep.ValueKind != JsonValueKind.Object) break;
+            var skill = ReadCoachString(rawStep, "skill", CoachMaxSkillLength);
+            // A malformed stage must not be silently repaired into a valid one: otherwise a
+            // service response such as stage=4 becomes the trusted final stage (3).
+            if (!rawStep.TryGetProperty("stage", out var rawStage) || rawStage.ValueKind != JsonValueKind.Number ||
+                !rawStage.TryGetInt32(out var stage) || stage is < 1 or > 3 || skill is null || !seen.Add(skill)) continue;
+            values.Add(new CoachPlanStep(
+                skill,
+                stage,
+                ReadCoachString(rawStep, "stage_label", CoachMaxStageLabelLength) ?? "",
+                ReadCoachStrings(rawStep, "related_to", 6, CoachMaxSkillLength),
+                ReadCoachStrings(rawStep, "after", 6, CoachMaxSkillLength),
+                ReadCoachInt(rawStep, "active_postings", 0, CoachMaxPostings),
+                ReadCoachInt(rawStep, "opens", 0, CoachMaxPostings)));
+        }
+        return values;
+    }
+
+    private static bool TryGetObject(JsonElement source, string name, out JsonElement value)
+    {
+        if (source.TryGetProperty(name, out value) && value.ValueKind == JsonValueKind.Object) return true;
+        value = default;
+        return false;
+    }
+
+    private static string? ReadCoachString(JsonElement source, string name, int maxLength)
+    {
+        if (!source.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String) return null;
+        var text = value.GetString()?.Trim();
+        return string.IsNullOrWhiteSpace(text) || text.Length > maxLength || text.Any(char.IsControl) ? null : text;
+    }
+
+    private static IReadOnlyList<string> ReadCoachStrings(JsonElement source, string name, int maxItems, int maxLength)
+    {
+        if (!source.TryGetProperty(name, out var rawValues) || rawValues.ValueKind != JsonValueKind.Array)
+            return Array.Empty<string>();
+        var values = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rawValue in rawValues.EnumerateArray())
+        {
+            if (values.Count >= maxItems || rawValue.ValueKind != JsonValueKind.String) break;
+            var value = rawValue.GetString()?.Trim();
+            if (string.IsNullOrWhiteSpace(value) || value.Length > maxLength || value.Any(char.IsControl) || !seen.Add(value)) continue;
+            values.Add(value);
+        }
+        return values;
+    }
+
+    private static int ReadCoachInt(JsonElement source, string name, int minimum, int maximum) =>
+        source.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)
+            ? Math.Clamp(number, minimum, maximum) : 0;
+
+    private static int? ReadCoachNullableInt(JsonElement source, string name, int minimum, int maximum) =>
+        source.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)
+            ? Math.Clamp(number, minimum, maximum) : null;
+
+    private static double ReadCoachShare(JsonElement source, string name) =>
+        source.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var share) && double.IsFinite(share)
+            ? Math.Clamp(share, 0, 1) : 0;
 
     private string AiCoreBase => (configuration["AiCore:BaseUrl"] ?? "http://localhost:8001").TrimEnd('/');
 
@@ -460,7 +642,9 @@ public sealed class ResumeEngineController(ArisDBContext db, IHttpClientFactory 
         { return StatusCode(503, new { error = "Không kết nối được kho CV gốc. Hãy nhập lại PDF từ máy của bạn." }); }
     }
 
+    // Chuyển CV cũ sang mẫu Studio gọi AiCore /cv/structure (AI) nên cần đồng ý AI xử lý CV.
     [HttpPost("document/{resumeId:int}/import-template"), ValidateAntiForgeryToken]
+    [RequireCvAiConsent]
     public async Task<IActionResult> ImportTemplate(int resumeId, CancellationToken cancellationToken)
     {
         var resume = await OwnedResume(resumeId, cancellationToken);

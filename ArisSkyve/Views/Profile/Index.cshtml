@@ -863,14 +863,15 @@
             try {
                 // Qua máy chủ Aris: hồ sơ lấy theo phiên đăng nhập, không theo số ID trên trang,
                 // và khoá dịch vụ AiCore không lộ ra trình duyệt.
-                const response = await fetch('/Resume/AnalyzeCv', {
+                const send = window.arisFetchWithCvAiConsent || fetch;
+                const response = await send('/Resume/AnalyzeCv', {
                     method: 'POST',
                     body: formData
                 });
 
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
-                    throw new Error(error.detail || "Không thể phân tích CV");
+                    throw new Error(error.detail || error.error || "Không thể phân tích CV");
                 }
 
                 const result = await response.json();

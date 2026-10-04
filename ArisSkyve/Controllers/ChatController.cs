@@ -5,8 +5,6 @@ using ArisSkyve.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Security.Claims;
 
 namespace ArisSkyve.Controllers
@@ -15,16 +13,12 @@ namespace ArisSkyve.Controllers
     public class ChatController : Controller
     {
         private readonly ArisDBContext _context;
-        private readonly IConfiguration _config;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IWebHostEnvironment _env;
+        private readonly IPublicMediaStore _publicMedia;
 
-        public ChatController(ArisDBContext context, IConfiguration config, IHttpClientFactory httpClientFactory, IWebHostEnvironment env)
+        public ChatController(ArisDBContext context, IPublicMediaStore publicMedia)
         {
             _context = context;
-            _config = config;
-            _httpClientFactory = httpClientFactory;
-            _env = env;
+            _publicMedia = publicMedia;
         }
 
         private int CurrentUserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -177,8 +171,8 @@ namespace ArisSkyve.Controllers
             return Json(result);
         }
 
-        // Ảnh / video trong Tin nhắn: lưu ngay trên máy chủ Aris (wwwroot/uploads/chat) giống ảnh bài đăng,
-        // trả về URL để client gửi qua ChatHub.SendMessage (trường ImageUrl — video nhận diện theo đuôi tệp).
+        // Public chat media is uploaded directly to Google Drive. The returned HTTPS
+        // URL is then sent through ChatHub.SendMessage by the browser.
         [HttpPost]
         [RequestSizeLimit(60_000_000)]
         [RequestFormLimits(MultipartBodyLengthLimit = 60_000_000)]
@@ -193,26 +187,19 @@ namespace ArisSkyve.Controllers
                 return Json(new { success = false, message = validation.Error ?? "Chỉ hỗ trợ ảnh JPEG, PNG, WEBP, GIF hoặc video MP4, WEBM, MOV." });
             }
 
-            if (!PublicMediaStorage.TryGetStorageDirectory(_env.ContentRootPath, PublicMediaStorage.Chat, out var storageDirectory))
-            {
-                return Json(new { success = false, message = "Không thể chuẩn bị nơi lưu tệp." });
-            }
-
             try
             {
-                var name = await PublicMediaValidator.SaveAsync(file, validation.Media, storageDirectory, HttpContext.RequestAborted);
-                return Json(new { success = true, url = $"/media/{PublicMediaStorage.Chat}/{name}", kind = validation.Media.MediaType });
+                var upload = await _publicMedia.UploadAsync(PublicMediaStorage.Chat, file, validation.Media, HttpContext.RequestAborted);
+                return Json(new { success = true, url = upload.Url, kind = validation.Media.MediaType });
             }
-            catch
+            catch (PublicMediaStorageException)
             {
-                return Json(new { success = false, message = "Không thể lưu tệp tải lên." });
+                return Json(new { success = false, message = "Google Drive could not store the upload. Please try again." });
             }
         }
 
-        // Uploads a chat image to the AiCore media store (same remote storage Dashboard's
-        // post images use) and hands back its URL; the client then sends that URL through
-        // ChatHub.SendMessage separately, matching the app's existing upload-then-reference
-        // pattern for user-generated media.
+        // Backwards-compatible image-only endpoint. It uses the same Google Drive
+        // store as UploadChatMedia rather than the former AiCore/local paths.
         [HttpPost]
         [RequestSizeLimit(12_000_000)]
         [RequestFormLimits(MultipartBodyLengthLimit = 12_000_000)]
@@ -225,38 +212,15 @@ namespace ArisSkyve.Controllers
             if (!validation.IsValid || validation.Media is null)
                 return Json(new { success = false, message = validation.Error ?? "Chỉ hỗ trợ ảnh JPEG, PNG, WEBP hoặc GIF." });
 
-            var aiCoreBaseUrl = _config["AiCore:BaseUrl"];
-            var client = _httpClientFactory.CreateClient();
-
             try
             {
-                using var content = new MultipartFormDataContent();
-                using var stream = file.OpenReadStream();
-                var streamContent = new StreamContent(stream);
-                streamContent.Headers.ContentType = new MediaTypeHeaderValue(validation.Media.ContentType);
-                content.Add(streamContent, "file", validation.Media.CreateStorageFileName());
-
-                var response = await client.PostAsync($"{aiCoreBaseUrl}/upload-image", content);
-                if (!response.IsSuccessStatusCode)
-                    return Json(new { success = false, message = "Không thể tải ảnh lên." });
-
-                var result = await response.Content.ReadFromJsonAsync<AiCoreUploadResult>();
-                if (!PublicMediaValidator.IsSafeRemoteMediaUrl(result?.Url))
-                    return Json(new { success = false, message = "Không thể tải ảnh lên." });
-
-                return Json(new { success = true, url = result!.Url! });
+                var upload = await _publicMedia.UploadAsync(PublicMediaStorage.Chat, file, validation.Media, HttpContext.RequestAborted);
+                return Json(new { success = true, url = upload.Url });
             }
-            catch (Exception)
+            catch (PublicMediaStorageException)
             {
-                return Json(new { success = false, message = "Lỗi kết nối tới dịch vụ lưu trữ." });
+                return Json(new { success = false, message = "Google Drive could not store the upload. Please try again." });
             }
-        }
-
-        private class AiCoreUploadResult
-        {
-            public string? Message { get; set; }
-            public string? Filename { get; set; }
-            public string? Url { get; set; }
         }
     }
 }

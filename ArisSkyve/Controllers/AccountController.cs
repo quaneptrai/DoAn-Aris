@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.Facebook;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
@@ -231,6 +232,8 @@ namespace ArisSkyve.Controllers
                 JobSearchingStatus = user.Profile?.IsLookingForJob == true ? "Looking" : "NotLooking",
                 IsRemoteJob = user.Profile?.IsRemoteJob ?? false,
                 ShareWithRecruiters = user.Profile?.ShareWithRecruiters ?? true,
+                AcceptPrivacy = user.PrivacyAcceptedAt != null,
+                AllowCvAi = user.CvAiConsentAt != null,
                 Education = user.Profile?.Education != null ? new EducationDTO
                 {
                     School = user.Profile.Education.School,
@@ -260,12 +263,20 @@ namespace ArisSkyve.Controllers
 
             if (user == null) return NotFound();
 
+            if (!dto.AcceptPrivacy && user.PrivacyAcceptedAt == null)
+            {
+                ModelState.AddModelError(nameof(dto.AcceptPrivacy), "Bạn cần đồng ý với Chính sách quyền riêng tư để tiếp tục.");
+            }
+
             if (!ModelState.IsValid)
             {
                 ViewBag.UserId = user.Id;
                 ViewBag.Username = user.Username;
                 return View(dto);
             }
+
+            user.PrivacyAcceptedAt ??= DateTime.UtcNow;
+            if (dto.AllowCvAi) user.CvAiConsentAt ??= DateTime.UtcNow;
 
             if (user.Profile == null)
             {
@@ -354,6 +365,7 @@ namespace ArisSkyve.Controllers
         // không cần thêm bảng/migration nào.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting(AuthRateLimits.MagicLinkRequest)]
         public async Task<IActionResult> RequestMagicLink(string email, string? returnUrl = null, string returnView = "Login", string? intent = null)
         {
             returnView = returnView == "Register" ? "Register" : "Login";
@@ -372,6 +384,17 @@ namespace ArisSkyve.Controllers
             if (!TryGetMagicLinkSecret(out _))
             {
                 ViewBag.Error = "Đăng nhập bằng liên kết xác nhận đang chưa được cấu hình. Vui lòng liên hệ quản trị viên.";
+                return View(returnView);
+            }
+
+            // Mỗi địa chỉ nhận tối đa vài email đăng nhập (MagicLinkThrottle) để không ai dùng Aris spam hộp thư người khác.
+            var throttle = HttpContext.RequestServices.GetRequiredService<MagicLinkThrottle>();
+            if (!throttle.TryAcquire(email, out var retryAfter))
+            {
+                var minutes = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalMinutes));
+                ViewBag.Error = minutes >= 60
+                    ? $"Email này đã nhận nhiều liên kết đăng nhập hôm nay. Vui lòng kiểm tra hộp thư (kể cả spam) hoặc thử lại sau khoảng {(int)Math.Ceiling(minutes / 60.0)} giờ."
+                    : $"Bạn vừa yêu cầu nhiều liên kết cho email này. Vui lòng kiểm tra hộp thư (kể cả spam) hoặc thử lại sau {minutes} phút.";
                 return View(returnView);
             }
 
@@ -422,6 +445,7 @@ namespace ArisSkyve.Controllers
             return View(returnView);
         }
 
+        [EnableRateLimiting(AuthRateLimits.MagicLinkConfirm)]
         public async Task<IActionResult> ConfirmMagicLink(string token, string? returnUrl = null, string? intent = null)
         {
             var email = ValidateMagicToken(token ?? "");

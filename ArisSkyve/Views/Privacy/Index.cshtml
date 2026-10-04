@@ -1,0 +1,138 @@
+@{
+    Layout = null;
+    var signedIn = ViewBag.SignedIn == true;
+    var privacyAcceptedAt = ViewBag.PrivacyAcceptedAt as DateTime?;
+    var cvAiConsentAt = ViewBag.CvAiConsentAt as DateTime?;
+    var contactEmail = ViewBag.ContactEmail as string;
+    var notice = TempData["PrivacyNotice"] as string;
+    string Local(DateTime utc) => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.SpecifyKind(utc, DateTimeKind.Utc), "SE Asia Standard Time").ToString("dd/MM/yyyy HH:mm");
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chính sách quyền riêng tư — Aris</title>
+    <script>
+        (function () {
+            try { document.documentElement.dataset.theme = localStorage.getItem('aris-theme') || 'dark'; }
+            catch (e) { document.documentElement.dataset.theme = 'dark'; }
+        })();
+    </script>
+    <link rel="stylesheet" href="~/css/aris-line.css" asp-append-version="true" />
+    <style>
+        body { margin: 0; background: var(--bg, var(--surface-2, #0f1115)); color: var(--text, var(--text-2, #e6e6e6)); font: 15px/1.65 Inter, system-ui, sans-serif; }
+        main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+        h1 { font-size: 1.8rem; margin: 0 0 4px; }
+        h2 { font-size: 1.15rem; margin: 32px 0 8px; }
+        p, li { color: var(--text-2, #c9c9c9); }
+        a { color: var(--brand, #f97316); }
+        .meta { color: var(--text-3, #9a9a9a); font-size: .9rem; }
+        .card { margin: 24px 0; padding: 16px 18px; border: 1px solid var(--line, #2a2d33); border-radius: 12px; background: var(--surface, transparent); }
+        .card strong { color: var(--text, inherit); }
+        .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-top: 10px; }
+        button { font: inherit; cursor: pointer; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line-strong, #444); background: transparent; color: inherit; }
+        button.primary { background: var(--brand, #f97316); border-color: var(--brand, #f97316); color: #fff; }
+        .notice { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--brand-line, #f97316); background: var(--brand-soft, rgba(249,115,22,.12)); }
+        .back { display: inline-block; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+<main>
+    <a class="back" href="@(signedIn ? "/Dashboard" : "/Account/Login")">← Quay lại Aris</a>
+    <h1>Chính sách quyền riêng tư</h1>
+    <p class="meta">Cập nhật ngày 05/10/2026 · Aris đang trong giai đoạn thử nghiệm với nhóm người dùng nhỏ.</p>
+
+    @if (!string.IsNullOrEmpty(notice))
+    {
+        <p class="notice" role="status">@notice</p>
+    }
+
+    @if (signedIn)
+    {
+        <section class="card" id="consent">
+            <strong>Lựa chọn của bạn</strong>
+            <div class="row">
+                <span>Chính sách quyền riêng tư: @(privacyAcceptedAt is DateTime accepted ? $"đã đồng ý lúc {Local(accepted)}" : "chưa xác nhận")</span>
+                @if (privacyAcceptedAt == null)
+                {
+                    <form method="post" action="/privacy/accept">@Html.AntiForgeryToken()<button class="primary" type="submit">Tôi đồng ý</button></form>
+                }
+            </div>
+            <div class="row" id="cv-ai">
+                <span>AI xử lý CV: @(cvAiConsentAt is DateTime consent ? $"đang bật (từ {Local(consent)})" : "đang tắt")</span>
+                @if (cvAiConsentAt == null)
+                {
+                    <form method="post" action="/privacy/cv-ai-consent">@Html.AntiForgeryToken()<button class="primary" type="submit">Cho phép AI xử lý CV</button></form>
+                }
+                else
+                {
+                    <form method="post" action="/privacy/cv-ai-consent/revoke">@Html.AntiForgeryToken()<button type="submit">Tắt và xoá chỉ mục AI</button></form>
+                }
+            </div>
+        </section>
+    }
+
+    <h2>1. Aris thu thập những gì</h2>
+    <ul>
+        <li><b>Tài khoản:</b> email, tên hiển thị, ảnh đại diện. Nếu bạn đăng nhập bằng Google hoặc Facebook: tên, email và ảnh từ tài khoản đó.</li>
+        <li><b>Hồ sơ:</b> nơi sống, học vấn, kinh nghiệm, mục tiêu công việc bạn nhập.</li>
+        <li><b>CV:</b> file bạn tải lên (PDF, Word), nội dung đọc được từ file, các bản CV trong Resume Studio và trang portfolio công khai nếu bạn tự bật.</li>
+        <li><b>Ứng tuyển:</b> CV đã nộp, câu trả lời sàng lọc, thư giới thiệu, trạng thái hồ sơ và lịch phỏng vấn.</li>
+        <li><b>Hoạt động trên Aris:</b> bài đăng, bình luận, tin, tin nhắn và tệp gửi trong chat.</li>
+        <li><b>Kỹ thuật:</b> cookie đăng nhập (7 ngày), cookie chống giả mạo yêu cầu, và địa chỉ IP dùng tạm thời để giới hạn số lần yêu cầu đăng nhập.</li>
+    </ul>
+
+    <h2>2. Dùng để làm gì</h2>
+    <ul>
+        <li>Đăng nhập không mật khẩu và vận hành tài khoản của bạn.</li>
+        <li>Gợi ý việc làm và cho biết mức phù hợp giữa CV và vị trí.</li>
+        <li>Cho nhà tuyển dụng xem hồ sơ khi bạn bật “Cho phép nhà tuyển dụng xem hồ sơ”, và xem CV bạn đã nộp khi ứng tuyển.</li>
+        <li>Chống spam và lạm dụng.</li>
+    </ul>
+    <p>Aris không bán dữ liệu của bạn và không dùng CV để quảng cáo.</p>
+
+    <h2>3. AI và CV của bạn</h2>
+    <ul>
+        <li><b>Chỉ khi bạn cho phép</b> (nút ở đầu trang, hoặc lần đầu dùng tính năng AI): nội dung CV được gửi tới dịch vụ AI của Aris (AiCore) để nhận diện kỹ năng, chấm CV, gợi ý cách sửa và lập chỉ mục tìm kiếm việc làm. Một số bước dùng mô hình Google Gemini; chỉ mục tìm kiếm lưu trên Pinecone.</li>
+        <li><b>“Chuyển CV sang mẫu Studio”:</b> file CV được gửi tới OpenAI để đọc nội dung rồi điền vào mẫu.</li>
+        <li><b>“Giữ bố cục PDF”:</b> file được xử lý trên máy chủ phân tích CV của Aris, không dùng mô hình AI.</li>
+        <li><b>Khi bạn ứng tuyển:</b> CV đã nộp được AI của Aris chấm mức phù hợp với vị trí để nhà tuyển dụng tham khảo.</li>
+        <li><b>Tắt bất cứ lúc nào:</b> Aris ngừng gửi CV của bạn tới AI và xoá chỉ mục AI của bạn. Nếu bật lại, hãy lưu lại CV trong Resume Studio để AI lập chỉ mục lại.</li>
+    </ul>
+
+    <h2>4. Bên cung cấp dịch vụ xử lý dữ liệu</h2>
+    <ul>
+        <li>Máy chủ của nhóm phát triển Aris: cơ sở dữ liệu và file CV.</li>
+        <li>Google Drive (thư mục do nhóm phát triển Aris quản lý): ảnh, video trong bài viết, tin, ảnh đại diện, ảnh bìa và tệp gửi trong chat.</li>
+        <li>FastAPI Cloud (máy chủ đặt tại Mỹ): chạy dịch vụ phân tích CV; file chỉ được xử lý tạm thời, không lưu lại.</li>
+        <li>Google Gemini, OpenAI, Pinecone: các bước AI nêu ở mục 3.</li>
+        <li>Brevo: gửi email đăng nhập.</li>
+        <li>Google, Facebook: đăng nhập bằng tài khoản mạng xã hội khi bạn chọn.</li>
+    </ul>
+
+    <h2>5. Lưu trữ và xoá</h2>
+    <ul>
+        <li>Hồ sơ và CV được giữ đến khi bạn xoá.</li>
+        <li>File PDF gốc khi nhập “Giữ bố cục” được lưu riêng tư cùng CV. Nếu bạn không lưu CV, file tự xoá sau tối đa 7 ngày; xoá CV thì file gốc cũng bị xoá.</li>
+        <li>Chỉ mục AI bị xoá khi bạn tắt AI xử lý CV hoặc xoá CV cuối cùng.</li>
+        <li>Hiện chưa có nút tự xoá tài khoản. Bạn có thể gửi yêu cầu xoá tài khoản và toàn bộ dữ liệu qua địa chỉ liên hệ bên dưới.</li>
+    </ul>
+
+    <h2>6. Quyền của bạn</h2>
+    <p>Bạn có thể xem, sửa và xoá CV; bật hoặc tắt AI xử lý CV; tắt chia sẻ hồ sơ với nhà tuyển dụng; thu hồi portfolio công khai; và yêu cầu Aris cung cấp hoặc xoá dữ liệu của bạn.</p>
+
+    <h2>7. Liên hệ</h2>
+    <p>
+        @if (!string.IsNullOrWhiteSpace(contactEmail))
+        {
+            <text>Gửi yêu cầu về dữ liệu cá nhân tới <a href="mailto:@contactEmail">@contactEmail</a>.</text>
+        }
+        else
+        {
+            <text>Địa chỉ email hỗ trợ về dữ liệu cá nhân đang được cập nhật.</text>
+        }
+    </p>
+</main>
+</body>
+</html>

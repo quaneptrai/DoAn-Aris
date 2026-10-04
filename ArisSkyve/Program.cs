@@ -41,10 +41,22 @@ builder.Services.AddAntiforgery(options =>
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("resume-original-fetch")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-// Every IHttpClientFactory client sends the AiCore service key (AiCore:ApiKey) to AiCore:BaseUrl only.
+// Public user-generated media is stored only in the configured Google Drive folder.
+// If Drive is unavailable/misconfigured, uploads fail instead of falling back to the
+// application's local content root.
+builder.Services.AddSingleton<IPublicMediaStore, GoogleDrivePublicMediaStore>();
+// Every IHttpClientFactory client sends the AiCore service key (AiCore:ApiKey) to AiCore:BaseUrl only,
+// and the resume parser key (ResumeEngine:ParserApiKey) to ResumeEngine:ParserUrl only.
 builder.Services.AddTransient<AiCoreKeyHandler>();
-builder.Services.ConfigureHttpClientDefaults(http => http.AddHttpMessageHandler<AiCoreKeyHandler>());
+builder.Services.AddTransient<ResumeParserKeyHandler>();
+builder.Services.ConfigureHttpClientDefaults(http => http
+    .AddHttpMessageHandler<AiCoreKeyHandler>()
+    .AddHttpMessageHandler<ResumeParserKeyHandler>());
 builder.Services.AddScoped<IEmailService, EmailService>();
+// Passwordless sign-in: limit login-email requests per IP (rate limiter) and per recipient address.
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<MagicLinkThrottle>();
+builder.Services.AddRateLimiter(AuthRateLimits.Configure);
 // Private imported-PDF originals are retained only by the bounded lifecycle service;
 // the worker handles browser-abandoned uploads without relying on an unload request.
 builder.Services.AddScoped<ResumeOriginalLifecycle>();
@@ -202,7 +214,7 @@ app.UseStaticFiles(new StaticFileOptions
 // cover photos, post media under wwwroot/uploads) — those 404 without this.
 // Older records can still point at wwwroot/uploads. Never let a legacy upload
 // resolve as HTML, SVG, script, or another active/document format: new uploads
-// are stored outside wwwroot by PublicMediaStorage, while this gate keeps old
+// are now stored in Google Drive by IPublicMediaStore, while this gate keeps old
 // URLs backwards-compatible only for the binary media formats we recognize.
 app.Use(async (context, next) =>
 {
@@ -219,7 +231,7 @@ app.Use(async (context, next) =>
 
 // General wwwroot static files retain support for legacy binary media. Apply
 // nosniff even to that allowlist so browsers never reinterpret a media response
-// as active content. New uploads use PublicMediaController instead.
+// as active content. New uploads use Google Drive, not this local route.
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = context =>
@@ -249,6 +261,7 @@ if (useEphemeralE2E)
 }
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapStaticAssets();
 

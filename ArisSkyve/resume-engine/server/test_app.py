@@ -213,5 +213,31 @@ class ModelAndEndpointTests(unittest.TestCase):
             model.assert_not_called()
 
 
+class ServiceKeyTests(unittest.TestCase):
+    KEY = 'k' * 40
+
+    def setUp(self):
+        from fastapi.testclient import TestClient
+        self.client = TestClient(app.app)
+
+    def test_unconfigured_key_keeps_local_loopback_setup_working(self):
+        with patch.dict('os.environ', {'RESUME_PARSER_API_KEY': ''}):
+            self.assertEqual(self.client.get('/api/resume-engine/capabilities').status_code, 200)
+
+    def test_configured_key_rejects_missing_or_wrong_header(self):
+        with patch.dict('os.environ', {'RESUME_PARSER_API_KEY': self.KEY}):
+            self.assertEqual(self.client.get('/api/resume-engine/capabilities').status_code, 401)
+            wrong = self.client.get('/api/resume-engine/capabilities', headers={'X-Resume-Parser-Key': 'wrong'})
+            self.assertEqual(wrong.status_code, 401)
+            upload = self.client.post('/api/resume-engine/parse', data={'mode': 'layout'},
+                                      files={'file': ('cv.pdf', b'%PDF-1.4', 'application/pdf')})
+            self.assertEqual(upload.status_code, 401)
+
+    def test_configured_key_accepts_matching_header(self):
+        with patch.dict('os.environ', {'RESUME_PARSER_API_KEY': self.KEY}):
+            response = self.client.get('/api/resume-engine/capabilities', headers={'X-Resume-Parser-Key': self.KEY})
+            self.assertEqual(response.status_code, 200)
+
+
 if __name__ == '__main__':
     unittest.main()

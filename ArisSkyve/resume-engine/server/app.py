@@ -1,5 +1,6 @@
 """Local ingestion. Run: uvicorn app:app --app-dir server --host 127.0.0.1 --port 8765."""
 import base64
+import hmac
 import json
 import math
 import os
@@ -19,7 +20,7 @@ from zipfile import BadZipFile, ZipFile
 
 import pymupdf as fitz
 from docx import Document
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from jsonschema import Draft202012Validator, FormatChecker
 from lxml.etree import XMLSyntaxError
@@ -38,6 +39,21 @@ MAX_MODEL_RESPONSE = 2 * 1024 * 1024
 ALLOWED = {'.pdf', '.docx', '.txt', '.md', '.png', '.jpg', '.jpeg', '.webp'}
 PARSE_SLOTS = threading.BoundedSemaphore(2)
 CONTRACT_PATH = Path(__file__).resolve().parents[1] / 'contracts' / 'canonical-resume.schema.json'
+SERVICE_KEY_HEADER = 'x-resume-parser-key'
+
+
+# Shared service key. Unset keeps the original loopback-only setup working (local uvicorn on
+# 127.0.0.1); any deployment reachable from outside must set RESUME_PARSER_API_KEY. Aris sends
+# it as X-Resume-Parser-Key (ResumeParserKeyHandler), and the FastAPI Cloud entrypoint
+# (build-parser-deploy.py -> main.py) refuses to start without it.
+@app.middleware('http')
+async def require_service_key(request: Request, call_next):
+    expected = os.environ.get('RESUME_PARSER_API_KEY', '').strip()
+    if expected and request.url.path.startswith('/api/'):
+        supplied = request.headers.get(SERVICE_KEY_HEADER, '')
+        if not hmac.compare_digest(supplied.encode('utf-8'), expected.encode('utf-8')):
+            return JSONResponse({'detail': 'Thiếu hoặc sai khóa dịch vụ phân tích CV.'}, status_code=401)
+    return await call_next(request)
 
 
 def obj(properties):

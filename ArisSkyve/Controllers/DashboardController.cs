@@ -24,26 +24,20 @@ namespace ArisSkyve.Controllers
     public class DashboardController : Controller
     {
         public ArisDBContext _context;
-        private readonly IConfiguration _config;
-        private readonly IHttpClientFactory _httpClientFactory;
         private readonly IV7FeatureGate _featureGate;
         private readonly IHubContext<ChatHub> _chatHubContext;
-        private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _env;
+        private readonly IPublicMediaStore _publicMedia;
 
         public DashboardController(
             ArisDBContext context,
-            IConfiguration config,
-            IHttpClientFactory httpClientFactory,
             IV7FeatureGate featureGate,
             IHubContext<ChatHub> chatHubContext,
-            Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
+            IPublicMediaStore publicMedia)
         {
-            _env = env;
             _context = context;
-            _config = config;
-            _httpClientFactory = httpClientFactory;
             _featureGate = featureGate;
             _chatHubContext = chatHubContext;
+            _publicMedia = publicMedia;
         }
 
         private static string FormatTimeAgo(DateTime dt)
@@ -488,6 +482,22 @@ namespace ArisSkyve.Controllers
 
             int userId = int.Parse(userIdClaim);
 
+            // Upload every validated file before creating the post. If Drive cannot
+            // store all attachments, fail the request rather than publishing a post
+            // with silently missing media or falling back to local disk.
+            List<(PublicMediaUpload Upload, string Type)> uploadedMedia = new();
+            if (hasMedia)
+            {
+                try
+                {
+                    uploadedMedia = await UploadPostMediaAsync(validatedMedia);
+                }
+                catch (PublicMediaStorageException)
+                {
+                    return Json(new { success = false, message = "Google Drive could not store the upload. Please try again." });
+                }
+            }
+
             var post = new Post
             {
                 Content = content ?? string.Empty,
@@ -500,34 +510,30 @@ namespace ArisSkyve.Controllers
             _context.Posts.Add(post);
             await _context.SaveChangesAsync();
 
-            if (hasMedia)
+            if (uploadedMedia.Count > 0)
             {
-                var uploaded = await UploadPostMediaAsync(validatedMedia);
-                if (uploaded.Count > 0)
+                int order = 0;
+                foreach (var (upload, type) in uploadedMedia)
                 {
-                    int order = 0;
-                    foreach (var (url, type) in uploaded)
+                    var pm = new PostMedias
                     {
-                        var pm = new PostMedias
-                        {
-                            PostId = post.Id,
-                            MediaUrl = url,
-                            MediaType = type
-                        };
-                        _context.PostMedias.Add(pm);
-                        await _context.SaveChangesAsync();
+                        PostId = post.Id,
+                        MediaUrl = upload.Url,
+                        MediaType = type
+                    };
+                    _context.PostMedias.Add(pm);
+                    await _context.SaveChangesAsync();
 
-                        if (_featureGate.Enabled)
+                    if (_featureGate.Enabled)
+                    {
+                        _context.PostMediaOrders.Add(new PostMediaOrder
                         {
-                            _context.PostMediaOrders.Add(new PostMediaOrder
-                            {
-                                PostMediaId = pm.Id,
-                                SortOrder = order++
-                            });
-                        }
+                            PostMediaId = pm.Id,
+                            SortOrder = order++
+                        });
                     }
-                    if (_featureGate.Enabled) await _context.SaveChangesAsync();
                 }
+                if (_featureGate.Enabled) await _context.SaveChangesAsync();
             }
 
             if (_featureGate.Enabled)
@@ -643,66 +649,35 @@ namespace ArisSkyve.Controllers
             });
         }
 
-        private async Task<List<(string Url, string Type)>> UploadPostMediaAsync(
+        private async Task<List<(PublicMediaUpload Upload, string Type)>> UploadPostMediaAsync(
             IReadOnlyList<(IFormFile File, ValidatedPublicMedia Media)> files)
         {
-            var results = new List<(string, string)>();
-            var aiCoreBaseUrl = _config["AiCore:BaseUrl"];
-            var client = _httpClientFactory.CreateClient();
+            var results = new List<(PublicMediaUpload, string)>();
 
             foreach (var (file, media) in files)
             {
-                string endpoint = media.Kind == PublicMediaKind.Video ? "/upload-video" : "/upload-image";
-                string mediaType = media.MediaType;
-
-                if (!string.IsNullOrEmpty(aiCoreBaseUrl))
-                {
-                    try
-                    {
-                        using var content = new MultipartFormDataContent();
-                        using var stream = file.OpenReadStream();
-                        var streamContent = new StreamContent(stream);
-                        streamContent.Headers.ContentType = new MediaTypeHeaderValue(media.ContentType);
-                        content.Add(streamContent, "file", media.CreateStorageFileName());
-
-                        var response = await client.PostAsync($"{aiCoreBaseUrl}{endpoint}", content);
-                        if (response.IsSuccessStatusCode)
-                        {
-                            var result = await response.Content.ReadFromJsonAsync<AiCoreUploadResult>();
-                            if (PublicMediaValidator.IsSafeRemoteMediaUrl(result?.Url))
-                            {
-                                results.Add((result!.Url!, mediaType));
-                                continue;
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Fall back to local file storage
-                    }
-                }
-
-                // Local fallback stays outside wwwroot; PublicMediaController is
-                // the only route that exposes it with a fixed MIME type + nosniff.
                 try
                 {
-                    if (!PublicMediaStorage.TryGetStorageDirectory(_env.ContentRootPath, PublicMediaStorage.Posts, out var storageDirectory))
-                    {
-                        continue;
-                    }
-
-                    var uniqueName = await PublicMediaValidator.SaveAsync(file, media, storageDirectory, HttpContext.RequestAborted);
-                    results.Add(($"/media/{PublicMediaStorage.Posts}/{uniqueName}", mediaType));
+                    var upload = await _publicMedia.UploadAsync(PublicMediaStorage.Posts, file, media, HttpContext.RequestAborted);
+                    results.Add((upload, media.MediaType));
                 }
-                catch { /* Ignore save error */ }
+                catch
+                {
+                    await DeleteUploadedMediaAsync(results);
+                    throw;
+                }
             }
 
             return results;
         }
 
-        private class AiCoreUploadResult
+        private async Task DeleteUploadedMediaAsync(IEnumerable<(PublicMediaUpload Upload, string Type)> uploads)
         {
-            public string? Url { get; set; }
+            foreach (var (upload, _) in uploads)
+            {
+                try { await _publicMedia.DeleteAsync(upload.FileId, HttpContext.RequestAborted); }
+                catch { /* The primary upload failure is the actionable error. */ }
+            }
         }
 
         [HttpPost]

@@ -51,6 +51,8 @@ const isOcrRetry = (error: unknown) => error instanceof Error && (error as Resum
 const needsOcrReview = (data: CanonicalResume) => data.importedLayout?.ocrReviewRequired === true && data.importedLayout.ocrReviewConfirmed !== true;
 const importedEmailPattern = /[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/;
 const clampLayoutValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+// Server trả 428 cv_ai_consent_required cho API gửi CV tới AI khi người dùng chưa đồng ý (/privacy).
+const CV_AI_CONSENT_MESSAGE = 'Tính năng này gửi nội dung CV của bạn tới AI (dịch vụ AI của Aris, Google Gemini, Pinecone; chế độ chuyển sang mẫu dùng OpenAI) để đọc và chấm CV.\n\nBạn có đồng ý không? Bạn có thể tắt lại bất cứ lúc nào tại trang Chính sách quyền riêng tư (/privacy).';
 const synchronizeImportedBasics = (data: CanonicalResume, layout: ImportedLayout): CanonicalResume => {
   const elements = layout.pages.flatMap(page => page.elements);
   const explicitlyNamed = layout.nameElementId
@@ -310,9 +312,13 @@ export function Studio() {
     setNotice('Đã áp dụng đề xuất vào bản xem trước. Bấm Lưu CV để lưu thay đổi.');
   };
   const cancelProposal = () => { setProposal(null); setNotice('Đã giữ nguyên CV.'); };
-  const request = async (url: string, init?: RequestInit) => {
+  const request = async (url: string, init?: RequestInit, consentAsked = false): Promise<any> => {
     const response = await fetch(url, { credentials: 'same-origin', ...init, headers: { ...init?.headers, ...(init?.method === 'POST' ? { RequestVerificationToken: tokenRef.current } : {}) } });
     const body = await response.json().catch(() => ({}));
+    if (response.status === 428 && objectValue(body).code === 'cv_ai_consent_required' && !consentAsked && !isPublic && window.confirm(CV_AI_CONSENT_MESSAGE)) {
+      await request('/privacy/cv-ai-consent', { method: 'POST', headers: { Accept: 'application/json' } }, true);
+      return request(url, init, true);
+    }
     if (!response.ok) throw apiError(body, response.status);
     return body;
   };
@@ -401,7 +407,7 @@ export function Studio() {
         historyGroup.current = null;
         setIsDirty(latest.current !== snapshot);
         window.history.replaceState(null, '', `${window.location.pathname}?resumeId=${result.resumeId}`);
-        setNotice(result.aiSync === 'pending' ? 'CV đã lưu. AI chưa nhận được cập nhật; bấm Lưu CV để thử đồng bộ lại.' : result.aiSync === 'too_short' ? 'CV đã lưu. Nội dung còn quá ngắn để tạo gợi ý AI.' : 'Đã lưu CV. AI đã nhận nội dung mới; gợi ý việc làm sẽ cập nhật sau khi xử lý.');
+        setNotice(result.aiSync === 'consent_required' ? 'Đã lưu CV. AI chưa xử lý CV này vì bạn chưa đồng ý cho AI xử lý CV (bật tại trang /privacy).' : result.aiSync === 'pending' ? 'CV đã lưu. AI chưa nhận được cập nhật; bấm Lưu CV để thử đồng bộ lại.' : result.aiSync === 'too_short' ? 'CV đã lưu. Nội dung còn quá ngắn để tạo gợi ý AI.' : 'Đã lưu CV. AI đã nhận nội dung mới; gợi ý việc làm sẽ cập nhật sau khi xử lý.');
         clearDraft(priorId); clearDraft(result.resumeId as number);
         return result.resumeId as number;
       } catch (e) { setError(e instanceof Error ? e.message : 'Không lưu được CV.'); return null; }

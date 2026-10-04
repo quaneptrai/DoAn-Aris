@@ -8,8 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace ArisSkyve.Controllers;
 
 /// <summary>
-/// Serves newly uploaded public media from non-static storage. The allowlist
-/// here is deliberately narrower than wwwroot so uploaded .html/.svg/etc.
+/// Serves only legacy local public media while historical records are migrated.
+/// Newly uploaded media is stored directly in Google Drive. The allowlist here
+/// is deliberately narrower than wwwroot so an old uploaded .html/.svg/etc.
 /// can never be resolved as a public document.
 /// </summary>
 [AllowAnonymous]

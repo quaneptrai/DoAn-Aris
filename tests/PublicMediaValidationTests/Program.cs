@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace PublicMediaValidationTests;
 
@@ -54,8 +55,9 @@ internal static class Program
             await AcceptsGenuineFormatsAndCanonicalizesNames();
             await RejectsSpoofedMimeExtensionAndPayload();
             await EnforcesImageOnlyAndBrowserMediaPolicies();
-            await StoresOutsideWebRootAndServesWithNoSniff();
+            await LegacyLocalMediaCanBeReadUntilMigrated();
             await VerifiesPublicUploadControllersUseTheSharedGuard();
+            await GoogleDriveStoreFailsClosedWithoutConfiguration();
             VerifiesUrlAndStoredNameAllowLists();
             Console.WriteLine("PASS: public media validation, storage, and serving hardening");
             return 0;
@@ -118,7 +120,7 @@ internal static class Program
         Require(postMkv.IsValid && !chatMkv.IsValid, "MKV must stay available only for the post flow that previously supported it.");
     }
 
-    private static async Task StoresOutsideWebRootAndServesWithNoSniff()
+    private static async Task LegacyLocalMediaCanBeReadUntilMigrated()
     {
         var root = Path.Combine(Path.GetTempPath(), $"aris-public-media-test-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
@@ -154,58 +156,91 @@ internal static class Program
 
     private static async Task VerifiesPublicUploadControllersUseTheSharedGuard()
     {
-        var root = Path.Combine(Path.GetTempPath(), $"aris-public-media-controller-test-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(root);
+        await using var db = CreateContext();
+        var store = new FakePublicMediaStore();
+        var invalidPng = CreateFile("<script>alert('xss')</script>"u8.ToArray(), "payload.png", "image/png");
+
+        var dashboard = new DashboardController(db, new EnabledFeatureGate(), null!, store)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+        var dashboardResult = await dashboard.CreatePost("post", null, new List<IFormFile> { invalidPng });
+        Require(!SuccessOf(dashboardResult), "Dashboard must reject an invalid media payload before creating a post.");
+
+        var stories = new StoriesController(db, new EnabledFeatureGate(), store)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+        var storyResult = await stories.Create(CreateFile("<script>x</script>"u8.ToArray(), "payload.png", "image/png"), null, null, null);
+        Require(!SuccessOf(storyResult), "Stories must reject an invalid media payload before creating a story.");
+
+        var chat = new ChatController(db, store)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+        var chatResult = await chat.UploadChatMedia(CreateFile(ValidPng, "chat.png", "image/png"));
+        var chatPayload = JsonOf(chatResult);
+        Require(chatPayload.GetProperty("success").GetBoolean(), "Chat must accept a genuine PNG.");
+        Require(chatPayload.GetProperty("url").GetString()?.StartsWith("https://drive.google.com/", StringComparison.Ordinal) == true, "Chat must return the remote Google Drive URL.");
+        var remoteChatResult = await chat.UploadChatImage(CreateFile("<script>x</script>"u8.ToArray(), "payload.png", "image/png"));
+        Require(!SuccessOf(remoteChatResult), "Remote chat image upload must reject invalid media before contacting storage.");
+
+        db.Users.Add(new User { Id = 77, Username = "media-test", Email = "media-test@example.test", Role = "Candidate" });
+        await db.SaveChangesAsync();
+        var settings = new SettingsController(db, null!, store)
+        {
+            ControllerContext = new ControllerContext { HttpContext = AuthenticatedHttpContext(77) }
+        };
+
+        var avatarPayload = JsonOf(await settings.UpdateAvatar(CreateFile(ValidPng, "avatar.png", "image/png")));
+        Require(avatarPayload.GetProperty("success").GetBoolean(), "Avatar endpoint must accept a genuine PNG.");
+        Require(avatarPayload.GetProperty("avatarUrl").GetString()?.StartsWith("https://drive.google.com/", StringComparison.Ordinal) == true, "Avatar must return the remote Google Drive URL.");
+
+        var coverPayload = JsonOf(await settings.UpdateCoverPhoto(CreateFile(ValidJpeg, "cover.jpg", "image/jpeg")));
+        Require(coverPayload.GetProperty("success").GetBoolean(), "Cover endpoint must accept a genuine JPEG.");
+        Require(coverPayload.GetProperty("coverUrl").GetString()?.StartsWith("https://drive.google.com/", StringComparison.Ordinal) == true, "Cover must return the remote Google Drive URL.");
+
+        var authenticatedDashboard = new DashboardController(db, new EnabledFeatureGate(), null!, store)
+        {
+            ControllerContext = new ControllerContext { HttpContext = AuthenticatedHttpContext(77) }
+        };
+        Require(SuccessOf(await authenticatedDashboard.CreatePost("post", null, new List<IFormFile> { CreateFile(ValidPng, "post.png", "image/png") })),
+            "Post media must upload through the remote store before publishing the post.");
+
+        var authenticatedStories = new StoriesController(db, new EnabledFeatureGate(), store)
+        {
+            ControllerContext = new ControllerContext { HttpContext = AuthenticatedHttpContext(77) }
+        };
+        Require(SuccessOf(await authenticatedStories.Create(CreateFile(ValidPng, "story.png", "image/png"), null, null, null)),
+            "Story media must upload through the remote store before publishing the story.");
+
+        Require(store.Uploads.Select(upload => upload.Collection).OrderBy(collection => collection).SequenceEqual(new[]
+        {
+            PublicMediaStorage.Avatars,
+            PublicMediaStorage.Chat,
+            PublicMediaStorage.Covers,
+            PublicMediaStorage.Posts,
+            PublicMediaStorage.Stories
+        }), "Public upload controllers must use the injected remote store, not the local root.");
+    }
+
+    private static async Task GoogleDriveStoreFailsClosedWithoutConfiguration()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["GoogleDrive:Enabled"] = "false" })
+            .Build();
+        using var store = new GoogleDrivePublicMediaStore(configuration, NullLogger<GoogleDrivePublicMediaStore>.Instance);
+        var validation = await PublicMediaValidator.ValidateImageAsync(CreateFile(ValidPng, "drive.png", "image/png"), 5L * 1024 * 1024);
+        Require(validation.Media is not null, "A real image is required to exercise the configured media store.");
+
         try
         {
-            await using var db = CreateContext();
-            var environment = new TestWebHostEnvironment { ContentRootPath = root };
-            var config = new ConfigurationBuilder().Build();
-            var invalidPng = CreateFile("<script>alert('xss')</script>"u8.ToArray(), "payload.png", "image/png");
-
-            var dashboard = new DashboardController(db, config, null!, new EnabledFeatureGate(), null!, environment)
-            {
-                ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
-            };
-            var dashboardResult = await dashboard.CreatePost("post", null, new List<IFormFile> { invalidPng });
-            Require(!SuccessOf(dashboardResult), "Dashboard must reject an invalid media payload before creating a post.");
-
-            var stories = new StoriesController(db, new EnabledFeatureGate(), config, null!, environment)
-            {
-                ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
-            };
-            var storyResult = await stories.Create(CreateFile("<script>x</script>"u8.ToArray(), "payload.png", "image/png"), null, null, null);
-            Require(!SuccessOf(storyResult), "Stories must reject an invalid media payload before creating a story.");
-
-            var chat = new ChatController(db, config, null!, environment)
-            {
-                ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
-            };
-            var chatResult = await chat.UploadChatMedia(CreateFile(ValidPng, "chat.png", "image/png"));
-            var chatPayload = JsonOf(chatResult);
-            Require(chatPayload.GetProperty("success").GetBoolean(), "Chat must accept a genuine PNG.");
-            Require(chatPayload.GetProperty("url").GetString()?.StartsWith("/media/chat/", StringComparison.Ordinal) == true, "Chat must return the guarded /media URL.");
-            var remoteChatResult = await chat.UploadChatImage(CreateFile("<script>x</script>"u8.ToArray(), "payload.png", "image/png"));
-            Require(!SuccessOf(remoteChatResult), "Remote chat image upload must reject invalid media before contacting storage.");
-
-            db.Users.Add(new User { Id = 77, Username = "media-test", Email = "media-test@example.test", Role = "Candidate" });
-            await db.SaveChangesAsync();
-            var settings = new SettingsController(db, null!, environment)
-            {
-                ControllerContext = new ControllerContext { HttpContext = AuthenticatedHttpContext(77) }
-            };
-
-            var avatarPayload = JsonOf(await settings.UpdateAvatar(CreateFile(ValidPng, "avatar.png", "image/png")));
-            Require(avatarPayload.GetProperty("success").GetBoolean(), "Avatar endpoint must accept a genuine PNG.");
-            Require(avatarPayload.GetProperty("avatarUrl").GetString()?.StartsWith("/media/avatars/", StringComparison.Ordinal) == true, "Avatar must return a guarded /media URL.");
-
-            var coverPayload = JsonOf(await settings.UpdateCoverPhoto(CreateFile(ValidJpeg, "cover.jpg", "image/jpeg")));
-            Require(coverPayload.GetProperty("success").GetBoolean(), "Cover endpoint must accept a genuine JPEG.");
-            Require(coverPayload.GetProperty("coverUrl").GetString()?.StartsWith("/media/covers/", StringComparison.Ordinal) == true, "Cover must return a guarded /media URL.");
+            await store.UploadAsync(PublicMediaStorage.Posts, CreateFile(ValidPng, "drive.png", "image/png"), validation.Media!);
+            throw new InvalidOperationException("An unconfigured Drive store must not fall back to local disk.");
         }
-        finally
+        catch (PublicMediaStorageException)
         {
-            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+            // Expected: local disk is intentionally not a fallback.
         }
     }
 
@@ -270,5 +305,23 @@ internal static class Program
         public bool Stories => true;
         public bool Polls => true;
         public bool SavedJobs => true;
+    }
+
+    private sealed class FakePublicMediaStore : IPublicMediaStore
+    {
+        public List<(string Collection, string FileId)> Uploads { get; } = new();
+
+        public Task<PublicMediaUpload> UploadAsync(string collection, IFormFile file, ValidatedPublicMedia media, CancellationToken cancellationToken = default)
+        {
+            var fileId = $"fake{Uploads.Count + 1:D8}";
+            Uploads.Add((collection, fileId));
+            return Task.FromResult(new PublicMediaUpload($"https://drive.google.com/uc?export=view&id={fileId}", fileId));
+        }
+
+        public Task DeleteAsync(string fileId, CancellationToken cancellationToken = default)
+        {
+            Uploads.RemoveAll(upload => upload.FileId == fileId);
+            return Task.CompletedTask;
+        }
     }
 }

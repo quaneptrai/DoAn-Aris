@@ -49,9 +49,41 @@ Run the full isolated runtime smoke test with:
 node tests/runtime_e2e_local.cjs
 ```
 
+## Resume parser on FastAPI Cloud
+
+The Python parser (`ArisSkyve/resume-engine/server`) is deployed as the FastAPI Cloud app `aris-resume-parser` (`https://aris-resume-parser.fastapicloud.dev`, region us-east-1). Every `/api/*` call must carry the shared key header `X-Resume-Parser-Key`; the cloud entrypoint refuses to start without `RESUME_PARSER_API_KEY` (32+ characters).
+
+```powershell
+# 1. Build a minimal bundle OUTSIDE this git repository (default ~/.aris/parser-deploy).
+#    The FastAPI Cloud CLI honours the repo .gitignore, so a bundle under .local/ uploads nothing.
+python ArisSkyve/resume-engine/build-parser-deploy.py
+# 2. One-time setup per machine/account (already done for aris-resume-parser):
+uvx --from "fastapi[standard]" fastapi login
+uvx --from "fastapi[standard]" fastapi cloud link <app-id> --path ~/.aris/parser-deploy
+# 3. Rotate the key: generate a new value, store it in both places, then redeploy.
+#    Cloud:  fastapi cloud env set RESUME_PARSER_API_KEY --value-stdin --secret --path ~/.aris/parser-deploy
+#    Aris:   dotnet user-secrets set "ResumeEngine:ParserApiKey" "<same value>"   (or env ResumeEngine__ParserApiKey)
+# 4. Deploy:
+uvx --from "fastapi[standard]" fastapi deploy ~/.aris/parser-deploy
+```
+
+Aris sends the key automatically (`ResumeParserKeyHandler`) only to the host in `ResumeEngine:ParserUrl`. Local development keeps `ResumeEngine:ParserUrl` at `http://127.0.0.1:8765` (local parser, no key needed); production sets `ResumeEngine__ParserUrl=https://aris-resume-parser.fastapicloud.dev` plus `ResumeEngine__ParserApiKey`. `OPENAI_API_KEY` is optional on the parser: without it the "Chuyển sang mẫu Studio" mode returns an error, while layout import keeps working. OCR stays off in the cloud.
+
+## Privacy consent and sign-in limits
+
+- `/privacy` is the public privacy policy. Set `Privacy:ContactEmail` (non-secret) so the page shows a contact address for data requests.
+- New users must accept the policy in onboarding (`Users.PrivacyAcceptedAt`). AI processing of CVs is opt-in (`Users.CvAiConsentAt`). `AnalyzeCv`, Studio `coach`, `import-template` and `parse` with `mode=template` return `428 cv_ai_consent_required` until the user agrees, and Studio saves skip AI indexing (`aiSync: "consent_required"`). Revoking at `/privacy` also asks AiCore to delete the user's CV vectors.
+- Apply the EF migration `AddPrivacyAndCvAiConsent` (two nullable columns on `Users`) together with the other pending migrations.
+- Magic-link sign-in is rate limited: per IP 5 link requests and 20 confirm attempts per 15 minutes (`RateLimits:MagicLinkRequestsPerIp`, `RateLimits:MagicLinkConfirmsPerIp`), and per recipient 3 emails per 15 minutes / 10 per day (`RateLimits:MagicLinkEmailsPer15Minutes`, `RateLimits:MagicLinkEmailsPerDay`). Limits are partitioned by `RemoteIpAddress`: behind a reverse proxy, enable forwarded headers first, otherwise every user shares the proxy's IP. Counters are per process (fine for one server).
+
+```powershell
+node tests/runtime_e2e_privacy.cjs
+```
+
 ## Production release checklist
 
 1. Rotate/revoke every credential that was previously present in tracked configuration or source code: database, SMTP/API, OAuth, magic-link, social, webhook, and metering credentials.
 2. Put replacement values in the deployment secret store/environment; never commit them.
 3. Run the test suite and an isolated relational staging E2E run before deployment.
 4. Verify the deployed process uses the intended environment and database identity without logging connection strings or secret values.
+5. Point `ResumeEngine__ParserUrl`/`ResumeEngine__ParserApiKey` at the FastAPI Cloud parser and apply all pending EF migrations (including `AddPrivacyAndCvAiConsent`).

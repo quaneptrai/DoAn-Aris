@@ -288,6 +288,8 @@ namespace ArisSkyve.Controllers
         [RequestSizeLimit(20 * 1024 * 1024)]
         // newResume=true (trang "CV của tôi" › Tải CV có sẵn): file thành một CV mới, không ghi đè CV nào;
         // resumeId: thay file của đúng CV đó. Bỏ trống cả hai: hành vi cũ của trang Hồ sơ.
+        // AiCore đọc/OCR/trích xuất bằng AI và lập chỉ mục CV: cần người dùng đồng ý AI xử lý CV (428 nếu chưa).
+        [RequireCvAiConsent]
         public async Task<IActionResult> AnalyzeCv(IFormFile? file, bool newResume = false, int? resumeId = null)
         {
             if (file == null || file.Length == 0)
