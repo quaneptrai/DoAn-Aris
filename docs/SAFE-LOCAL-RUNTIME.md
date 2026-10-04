@@ -80,6 +80,17 @@ Aris sends the key automatically (`ResumeParserKeyHandler`) only to the host in 
 node tests/runtime_e2e_privacy.cjs
 ```
 
+## Deploying the web app to the IIS host (thuctap.runasp.net)
+
+`scripts/deploy-iis.ps1` publishes a committed revision from a temporary git worktree (uncommitted work is never shipped), writes production settings from the git-ignored `.local/production-settings.json` into `web.config` as environment variables, backs up the live site to `.local/deploy-backups/`, then syncs with Web Deploy (AppOffline, never deletes server-only files, skips `App_Data`) and checks `/health/live` and `/health/ready`. Credentials come from the Visual Studio publish profile saved on the machine.
+
+```powershell
+.\scripts\deploy-iis.ps1 -WhatIf   # publish + dry-run sync, no server changes
+.\scripts\deploy-iis.ps1           # back up, deploy HEAD, verify
+```
+
+`.local/production-settings.json` holds flat `"Section__Key": "value"` pairs (database, SMTP, magic-link secret, OAuth, AiCore/parser URLs and keys; add `GoogleDrive__*` once Drive is provisioned). Migrations are not applied by the script: run `dotnet ef migrations list` against production and apply pending, backward-compatible migrations before deploying code that needs them. Note: local development currently points at the same SQL Server database as production.
+
 ## Production release checklist
 
 1. Rotate/revoke every credential that was previously present in tracked configuration or source code: database, SMTP/API, OAuth, magic-link, social, webhook, and metering credentials.
