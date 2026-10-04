@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ArisSkyve.Domain.Entities;
 using ArisSkyve.Infrastructure.Data.Context;
+using ArisSkyve.Infrastructure.Presentation;
 using ArisSkyve.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -50,7 +51,7 @@ namespace ArisSkyve.ViewComponents
             {
                 Active = active,
                 UserId = userId,
-                AvatarUrl = string.IsNullOrWhiteSpace(profile?.AvatarUrl) ? "/images/default-avatar.png" : profile!.AvatarUrl!,
+                AvatarUrl = profile?.AvatarUrl,
                 Role = user.Role ?? "Employee",
                 IncludeChatWidget = includeChatWidget,
                 Theme = theme,
@@ -97,7 +98,7 @@ namespace ArisSkyve.ViewComponents
     {
         public string? Active { get; set; }
         public int UserId { get; set; }
-        public string AvatarUrl { get; set; } = "/images/default-avatar.png";
+        public string? AvatarUrl { get; set; }
         public string Role { get; set; } = "Employee";
         public bool IncludeChatWidget { get; set; } = true;
         public string Theme { get; set; } = "light";
@@ -113,16 +114,13 @@ namespace ArisSkyve.ViewComponents
         public List<(string Label, string Href)> Chips { get; set; } = new();
 
         public bool IsBusiness => Role == "Business";
-        public bool HasRealAvatar => !string.IsNullOrWhiteSpace(AvatarUrl) && AvatarUrl != "/images/default-avatar.png";
+        public bool HasRealAvatar => AvatarPresentation.HasImage(AvatarUrl);
 
         public string Initials
         {
             get
             {
-                var parts = (FullName ?? string.Empty).Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 0) return "A";
-                if (parts.Length == 1) return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpperInvariant();
-                return (parts[^2][0].ToString() + parts[^1][0]).ToUpperInvariant();
+                return AvatarPresentation.Initials(FullName);
             }
         }
 
@@ -131,9 +129,7 @@ namespace ArisSkyve.ViewComponents
         {
             get
             {
-                uint h = 0;
-                foreach (var ch in FullName ?? string.Empty) h = unchecked(h * 31 + ch);
-                return (int)(h % 6) + 1;
+                return AvatarPresentation.Tone(FullName);
             }
         }
     }

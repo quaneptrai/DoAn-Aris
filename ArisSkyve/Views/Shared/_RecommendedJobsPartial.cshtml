@@ -5,6 +5,17 @@
     var ringRadius = 22;
     var ringCircumference = 2 * Math.PI * ringRadius;
     string ScoreTier(double? s) => s.HasValue ? (s.Value >= 80 ? "high" : (s.Value >= 60 ? "mid" : "low")) : "none";
+    string Initials(string? name)
+    {
+        var words = (name ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return words.Length == 0 ? "AR" : words.Length == 1 ? words[0][..Math.Min(2, words[0].Length)].ToUpperInvariant() : string.Concat(words[0][0], words[1][0]).ToUpperInvariant();
+    }
+    int Tone(string? name)
+    {
+        uint hash = 0;
+        foreach (var character in name ?? "") hash = unchecked(hash * 31 + character);
+        return (int)(hash % 6) + 1;
+    }
     var jsonOpts = new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 }
 
@@ -72,10 +83,7 @@
         <div class="ai-recommend-card" data-rec-json="@insightJson" style="animation-delay:@(Math.Min(itemIndex++, 6) * 0.06)s">
             <div class="d-flex justify-content-between align-items-start gap-2">
                 <div class="d-flex gap-3 min-w-0">
-                    <div class="rec-logo">
-                        <img src="https://ui-avatars.com/api/?name=@Uri.EscapeDataString(item.Company ?? item.JobTitle ?? "Job")&background=random&color=fff"
-                             alt="" loading="lazy">
-                    </div>
+                    <div class="rec-logo"><span class="a-logo a-logo--44" data-tone="@Tone(item.Company ?? item.JobTitle)">@Initials(item.Company ?? item.JobTitle)</span></div>
                     <div class="min-w-0">
                         <a asp-controller="Jobs" asp-action="Details" asp-route-id="@item.Id" class="rec-title">@item.JobTitle</a>
                         <p class="rec-company">@item.Company@(string.IsNullOrWhiteSpace(item.Category) ? "" : " · " + item.Category)</p>

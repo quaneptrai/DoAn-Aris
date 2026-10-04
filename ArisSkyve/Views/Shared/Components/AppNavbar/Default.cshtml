@@ -150,13 +150,10 @@
         </a>
         <button class="a-side__me" type="button" data-action="account" aria-haspopup="menu" aria-expanded="false" aria-controls="accountPop" data-label="@Model.FullName">
             <span class="a-avatar a-avatar--36" data-tone="@Model.Tone" data-online="true">
+                @Model.Initials
                 @if (Model.HasRealAvatar)
                 {
                     <img src="@Model.AvatarUrl" alt="" onerror="this.remove();" />
-                }
-                else
-                {
-                    @Model.Initials
                 }
             </span>
             <span class="a-side__me-text">
@@ -229,13 +226,10 @@
 <div class="a-pop" id="accountPop" role="menu" aria-label="Menu tài khoản" hidden style="width: 248px; padding: 4px;">
     <div class="a-menu__label" style="display: flex; gap: 10px; align-items: center; padding: 10px;">
         <span class="a-avatar a-avatar--32" data-tone="@Model.Tone">
+            @Model.Initials
             @if (Model.HasRealAvatar)
             {
                 <img src="@Model.AvatarUrl" alt="" onerror="this.remove();" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
-            }
-            else
-            {
-                @Model.Initials
             }
         </span>
         <div style="min-width:0; overflow:hidden;">

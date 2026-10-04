@@ -16,8 +16,10 @@
     var profile = Model?.Profile;
     var business = profile as ArisSkyve.Domain.Entities.BussinessAccount;
     var isBusiness = Model?.Role == "Business";
-    var avatar = string.IsNullOrWhiteSpace(profile?.AvatarUrl) ? "/images/default-avatar.png" : profile!.AvatarUrl!;
-    var hasAvatar = avatar != "/images/default-avatar.png";
+    var avatar = profile?.AvatarUrl;
+    var hasAvatar = !string.IsNullOrWhiteSpace(avatar)
+        && !avatar.Contains("default-avatar", StringComparison.OrdinalIgnoreCase)
+        && !avatar.Contains("ui-avatars.com", StringComparison.OrdinalIgnoreCase);
     var fullName = business != null && !string.IsNullOrWhiteSpace(business.CompanyName)
         ? business.CompanyName
         : (string.IsNullOrWhiteSpace(profile?.FullName) ? (Model?.Username ?? "Bạn") : profile!.FullName);
@@ -104,7 +106,7 @@
                         <span class="st__ring">
                             @if (hasAvatar)
                             {
-                                <span class="a-avatar a-avatar--56"><img src="@avatar" alt="" onerror="this.remove()" /></span>
+                                <span class="a-avatar a-avatar--56" data-tone="@myTone">@myInitials<img src="@avatar" alt="" onerror="this.remove()" /></span>
                             }
                             else
                             {
@@ -127,7 +129,7 @@
         <section class="compose" id="composeBar" aria-label="Tạo bài viết">
             @if (hasAvatar)
             {
-                <span class="a-avatar a-avatar--40"><img src="@avatar" alt="" onerror="this.remove()" /></span>
+                <span class="a-avatar a-avatar--40" data-tone="@myTone">@myInitials<img src="@avatar" alt="" onerror="this.remove()" /></span>
             }
             else
             {
@@ -182,7 +184,7 @@
                 <a class="me-card__avatar" href="/Profile" aria-label="Hồ sơ của bạn">
                     @if (hasAvatar)
                     {
-                        <span class="a-logo a-logo--56"><img src="@avatar" alt="" onerror="this.remove()" /></span>
+                        <span class="a-logo a-logo--56" data-tone="@myTone">@myInitials<img src="@avatar" alt="" onerror="this.remove()" /></span>
                     }
                     else
                     {
@@ -303,13 +305,15 @@
                 <div class="req-list">
                     @foreach (var r in requests)
                     {
-                        var rHasAvatar = !string.IsNullOrWhiteSpace(r.AvatarUrl) && r.AvatarUrl != "/images/default-avatar.png";
+                        var rHasAvatar = !string.IsNullOrWhiteSpace(r.AvatarUrl)
+                            && !r.AvatarUrl.Contains("default-avatar", StringComparison.OrdinalIgnoreCase)
+                            && !r.AvatarUrl.Contains("ui-avatars.com", StringComparison.OrdinalIgnoreCase);
                         var rSub = string.Join(" · ", new[] { r.Subtitle, r.MutualCount > 0 ? $"{r.MutualCount} bạn chung" : null }.Where(x => !string.IsNullOrWhiteSpace(x)));
                         <div class="req" data-req="@r.RequestId">
                             <div class="req__top">
                                 @if (rHasAvatar)
                                 {
-                                    <span class="a-avatar a-avatar--44"><img src="@r.AvatarUrl" alt="" onerror="this.remove()" /></span>
+                                    <span class="a-avatar a-avatar--44" data-tone="@Tone(r.Name)">@Initials(r.Name)<img src="@r.AvatarUrl" alt="" onerror="this.remove()" /></span>
                                 }
                                 else
                                 {

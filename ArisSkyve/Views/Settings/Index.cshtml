@@ -1,7 +1,17 @@
 @model ArisSkyve.Domain.Entities.User
 @{
     var profile = Model.Profile;
-    var avatar = !string.IsNullOrWhiteSpace(profile?.AvatarUrl) ? profile.AvatarUrl : "/images/default-avatar.png";
+    var avatar = profile?.AvatarUrl;
+    var hasAvatar = !string.IsNullOrWhiteSpace(avatar)
+        && !avatar.Contains("default-avatar", StringComparison.OrdinalIgnoreCase)
+        && !avatar.Contains("ui-avatars.com", StringComparison.OrdinalIgnoreCase);
+    var nameParts = (profile?.FullName ?? Model.Username).Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    var initials = nameParts.Length == 0 ? "A" : nameParts.Length == 1
+        ? nameParts[0][..Math.Min(2, nameParts[0].Length)].ToUpperInvariant()
+        : string.Concat(nameParts[^2][0], nameParts[^1][0]).ToUpperInvariant();
+    uint avatarHash = 0;
+    foreach (var character in profile?.FullName ?? Model.Username) avatarHash = unchecked(avatarHash * 31 + character);
+    var avatarTone = (int)(avatarHash % 6) + 1;
 
     ViewData["Title"] = "Cài đặt tài khoản";
     ViewData["ActiveNav"] = "Settings";
@@ -65,7 +75,7 @@
                 <div class="settings-row">
                     <div class="d-flex align-items-center gap-4">
                         <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0;">
-                            <img id="avatarPreview" src="@avatar" alt="@Model.Username" class="rounded-circle" style="width: 80px; height: 80px; object-fit: cover; border: 2px solid var(--line); box-shadow: var(--shadow-1);" />
+                            <span class="a-avatar" data-tone="@avatarTone" style="--_s:80px; border:2px solid var(--line); box-shadow:var(--shadow-1);">@initials<img id="avatarPreview" src="@(avatar ?? string.Empty)" alt="@Model.Username" @(hasAvatar ? "" : "hidden") onerror="this.remove();" /></span>
                             <label for="avatarInput" class="position-absolute bottom-0 end-0 d-grid place-items-center rounded-circle" style="width: 28px; height: 28px; background: var(--brand); color: #fff; cursor: pointer; box-shadow: var(--shadow-2); border: 2px solid var(--surface);" title="Đổi ảnh đại diện">
                                 <i data-lucide="camera" style="width: 14px; height: 14px;"></i>
                             </label>
@@ -255,7 +265,7 @@
                         const res = await fetch("/Settings/UpdateAvatar", { method: "POST", headers: antiForgeryHeaders(), body: formData });
                         const result = await res.json();
                         if (result.success) {
-                            if (avatarPreview) avatarPreview.src = result.avatarUrl;
+                            if (avatarPreview) { avatarPreview.src = result.avatarUrl; avatarPreview.hidden = false; }
                             flashStatus(avatarStatus, "Đã cập nhật ảnh đại diện!", false);
                         } else {
                             flashStatus(avatarStatus, result.message || "Tải ảnh thất bại.", true);

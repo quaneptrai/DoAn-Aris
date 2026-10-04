@@ -13,6 +13,8 @@
 	<ItemGroup>
 		<Folder Include="Infrastructure\Data\Configuration\" />
 		<Content Remove="resume-engine\**" />
+		<!-- Historical visual experiments are source references, never public assets. -->
+		<Content Remove="wwwroot\**\*.bak" />
 		<EmbeddedResource Include="resume-engine\contracts\canonical-resume.schema.json" LogicalName="ArisSkyve.CanonicalResumeSchema" />
 	</ItemGroup>
 
