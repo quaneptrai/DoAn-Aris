@@ -23,6 +23,13 @@
   }
 
   function fix(img) {
+    // Current-user avatars are verified before their source is changed. Keep
+    // the initials visible if an unexpected later load error occurs instead of
+    // replacing the image and masking the root cause.
+    if (img && img.dataset.arisAvatarManaged === "true") {
+      img.hidden = true;
+      return;
+    }
     if (!img || img.dataset.arisFallbackApplied === "1") return;
     var src = img.currentSrc || img.src || "";
     // already on default

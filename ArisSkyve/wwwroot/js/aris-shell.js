@@ -40,6 +40,74 @@
     return `<span class="a-avatar a-avatar--${size}" data-tone="${window.toneOf(name)}"${online ? ' data-online="true"' : ''} ${extra}>${window.initials(name)}</span>`;
   };
 
+  function versionedAvatarUrl(value) {
+    const url = new URL(String(value || '').trim(), window.location.href);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      throw new Error('Unsupported avatar URL.');
+    }
+    // Google Drive URLs can be cached briefly by the browser after an upload.
+    // Keep the stored URL intact and only version the current page request.
+    url.searchParams.set('aris-avatar-v', String(Date.now()));
+    return url.href;
+  }
+
+  function preloadAvatar(url) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      let finished = false;
+      const finish = (callback) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        callback();
+      };
+      const timer = setTimeout(() => finish(() => reject(new Error('Avatar image timed out.'))), 12000);
+
+      image.decoding = 'async';
+      image.onload = () => {
+        if (!image.naturalWidth || !image.naturalHeight) {
+          finish(() => reject(new Error('Avatar image has no dimensions.')));
+          return;
+        }
+        const decoded = typeof image.decode === 'function' ? image.decode().catch(() => undefined) : Promise.resolve();
+        decoded.then(() => finish(resolve), () => finish(resolve));
+      };
+      image.onerror = () => finish(() => reject(new Error('Avatar image could not be loaded.')));
+      image.src = url;
+    });
+  }
+
+  function setAvatarSource(image, url) {
+    if (!image) return;
+    image.hidden = false;
+    image.dataset.currentUserAvatarImage = 'true';
+    image.dataset.arisAvatarManaged = 'true';
+    delete image.dataset.arisFallbackApplied;
+    image.classList.remove('aris-img-fallback');
+    image.onerror = function () { this.hidden = true; };
+    image.src = url;
+  }
+
+  // Shared by Settings, Profile, and Company. The upload is considered visually
+  // successful only after the browser has decoded the returned public image.
+  window.updateCurrentUserAvatar = async function (value, extraImages = []) {
+    const url = versionedAvatarUrl(value);
+    await preloadAvatar(url);
+
+    const targets = $$('[data-current-user-avatar]').map((container) => {
+      let image = Array.from(container.children).find((child) => child.tagName === 'IMG');
+      if (!image) {
+        image = document.createElement('img');
+        image.alt = '';
+        container.append(image);
+      }
+      return image;
+    });
+    const extras = Array.isArray(extraImages) ? extraImages : [extraImages];
+    [...targets, ...extras].forEach((image) => setAvatarSource(image, url));
+    return url;
+  };
+
   /* ---------------- Popover manager ---------------- */
   let openPop = null;
   let openPopAnchor = null;

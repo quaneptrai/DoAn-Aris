@@ -75,7 +75,7 @@
                 <div class="settings-row">
                     <div class="d-flex align-items-center gap-4">
                         <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0;">
-                            <span class="a-avatar" data-tone="@avatarTone" style="--_s:80px; border:2px solid var(--line); box-shadow:var(--shadow-1);">@initials<img id="avatarPreview" src="@(avatar ?? string.Empty)" alt="@Model.Username" @(hasAvatar ? "" : "hidden") onerror="this.remove();" /></span>
+                            <span class="a-avatar" data-tone="@avatarTone" data-current-user-avatar style="--_s:80px; border:2px solid var(--line); box-shadow:var(--shadow-1);">@initials<img id="avatarPreview" src="@(avatar ?? string.Empty)" alt="@Model.Username" data-current-user-avatar-image data-aris-avatar-managed="true" @(hasAvatar ? "" : "hidden") onerror="this.hidden=true;" /></span>
                             <label for="avatarInput" class="position-absolute bottom-0 end-0 d-grid place-items-center rounded-circle" style="width: 28px; height: 28px; background: var(--brand); color: #fff; cursor: pointer; box-shadow: var(--shadow-2); border: 2px solid var(--surface);" title="Đổi ảnh đại diện">
                                 <i data-lucide="camera" style="width: 14px; height: 14px;"></i>
                             </label>
@@ -265,8 +265,12 @@
                         const res = await fetch("/Settings/UpdateAvatar", { method: "POST", headers: antiForgeryHeaders(), body: formData });
                         const result = await res.json();
                         if (result.success) {
-                            if (avatarPreview) { avatarPreview.src = result.avatarUrl; avatarPreview.hidden = false; }
-                            flashStatus(avatarStatus, "Đã cập nhật ảnh đại diện!", false);
+                            try {
+                                await window.updateCurrentUserAvatar(result.avatarUrl);
+                                flashStatus(avatarStatus, "Đã cập nhật ảnh đại diện!", false);
+                            } catch {
+                                flashStatus(avatarStatus, "Ảnh đã lưu nhưng chưa tải được trên trình duyệt. Vui lòng thử lại.", true);
+                            }
                         } else {
                             flashStatus(avatarStatus, result.message || "Tải ảnh thất bại.", true);
                         }

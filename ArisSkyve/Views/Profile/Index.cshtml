@@ -95,9 +95,9 @@
 
         <div class="profile-main">
             <div class="profile-avatar-wrap">
-                <div class="a-avatar a-avatar--96" data-tone="@avatarTone">
+                <div class="a-avatar a-avatar--96" data-tone="@avatarTone" data-current-user-avatar>
                     @initials
-                    <img id="profileAvatarImg" src="@(avatar ?? string.Empty)" alt="@fullName" @(hasAvatar ? "" : "hidden") onerror="this.remove();" />
+                    <img id="profileAvatarImg" src="@(avatar ?? string.Empty)" alt="@fullName" data-current-user-avatar-image data-aris-avatar-managed="true" @(hasAvatar ? "" : "hidden") onerror="this.hidden=true;" />
                 </div>
                 <button type="button" class="profile-avatar-edit" onclick="document.getElementById('profileAvatarInput').click()" title="Đổi ảnh đại diện">
                     <i data-lucide="camera"></i>
@@ -685,8 +685,12 @@
                         const res = await fetch("/Settings/UpdateAvatar", { method: "POST", headers: antiForgeryHeaders(), body: formData });
                         const result = await res.json();
                         if (result.success) {
-                            if (profileAvatarImg) { profileAvatarImg.src = result.avatarUrl; profileAvatarImg.hidden = false; }
-                            if (window.showToast) window.showToast("Đã cập nhật ảnh đại diện!", "success");
+                            try {
+                                await window.updateCurrentUserAvatar(result.avatarUrl);
+                                if (window.showToast) window.showToast("Đã cập nhật ảnh đại diện!", "success");
+                            } catch {
+                                if (window.showToast) window.showToast("Ảnh đã lưu nhưng chưa tải được trên trình duyệt. Vui lòng thử lại.", "danger");
+                            }
                         } else {
                             if (window.showToast) window.showToast(result.message || "Tải ảnh thất bại.", "danger");
                         }

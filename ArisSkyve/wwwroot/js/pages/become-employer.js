@@ -319,7 +319,11 @@
                         body: fd
                     });
                     const r = await up.json();
-                    if (!r.success) M.toast('Đã tạo tài khoản, nhưng chưa tải được logo — thử lại ở Hồ sơ công ty.', { tone: 'warning' });
+                    if (!r.success) {
+                        M.toast('Đã tạo tài khoản, nhưng chưa tải được logo — thử lại ở Hồ sơ công ty.', { tone: 'warning' });
+                    } else if (window.updateCurrentUserAvatar) {
+                        await window.updateCurrentUserAvatar(r.avatarUrl);
+                    }
                 } catch {
                     M.toast('Đã tạo tài khoản, nhưng chưa tải được logo — thử lại ở Hồ sơ công ty.', { tone: 'warning' });
                 }

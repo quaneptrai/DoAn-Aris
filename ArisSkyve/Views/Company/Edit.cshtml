@@ -249,8 +249,12 @@
                         const res = await fetch("/Settings/UpdateAvatar", { method: "POST", headers: antiForgeryHeaders(), body: formData });
                         const result = await res.json();
                         if (result.success) {
-                            if (logoPreview) logoPreview.src = result.avatarUrl;
-                            if (window.showToast) window.showToast("Đã cập nhật logo thành công!", "success");
+                            try {
+                                await window.updateCurrentUserAvatar(result.avatarUrl, logoPreview);
+                                if (window.showToast) window.showToast("Đã cập nhật logo thành công!", "success");
+                            } catch {
+                                if (window.showToast) window.showToast("Ảnh đã lưu nhưng chưa tải được trên trình duyệt. Vui lòng thử lại.", "danger");
+                            }
                         } else {
                             if (window.showToast) window.showToast(result.message || "Tải logo thất bại.", "danger");
                         }
