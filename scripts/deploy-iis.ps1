@@ -31,6 +31,79 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Security
+# Web Deploy supports getCredentials=<target>, but its command-line password
+# option is visible to same-user process inspection tools. Keep the decrypted
+# publish-profile password in memory only long enough to create a session-only
+# Credential Manager entry, then invoke msdeploy with the opaque target name.
+if (-not ('ArisWebDeployCredentialStore' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+
+public static class ArisWebDeployCredentialStore
+{
+    private const uint CRED_TYPE_GENERIC = 1;
+    private const uint CRED_PERSIST_SESSION = 1;
+    private const int ERROR_NOT_FOUND = 1168;
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct CREDENTIAL
+    {
+        public uint Flags;
+        public uint Type;
+        public string TargetName;
+        public string Comment;
+        public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;
+        public uint CredentialBlobSize;
+        public IntPtr CredentialBlob;
+        public uint Persist;
+        public uint AttributeCount;
+        public IntPtr Attributes;
+        public string TargetAlias;
+        public string UserName;
+    }
+
+    [DllImport("Advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool CredWrite(ref CREDENTIAL credential, uint flags);
+
+    [DllImport("Advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool CredDelete(string target, uint type, uint flags);
+
+    public static void WriteSessionCredential(string target, string userName, string password)
+    {
+        var bytes = System.Text.Encoding.Unicode.GetBytes(password);
+        var blob = Marshal.AllocCoTaskMem(bytes.Length);
+        try
+        {
+            Marshal.Copy(bytes, 0, blob, bytes.Length);
+            var credential = new CREDENTIAL
+            {
+                Type = CRED_TYPE_GENERIC,
+                TargetName = target,
+                CredentialBlobSize = (uint)bytes.Length,
+                CredentialBlob = blob,
+                Persist = CRED_PERSIST_SESSION,
+                UserName = userName
+            };
+            if (!CredWrite(ref credential, 0)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+        finally
+        {
+            Array.Clear(bytes, 0, bytes.Length);
+            Marshal.FreeCoTaskMem(blob);
+        }
+    }
+
+    public static void DeleteSessionCredential(string target)
+    {
+        if (!CredDelete(target, CRED_TYPE_GENERIC, 0) && Marshal.GetLastWin32Error() != ERROR_NOT_FOUND)
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+    }
+}
+'@
+}
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if (-not $SettingsFile) { $SettingsFile = Join-Path $repo '.local\production-settings.json' }
 if (-not (Test-Path $SettingsFile)) { throw "Settings file not found: $SettingsFile" }
@@ -44,15 +117,26 @@ if (-not $userFile) { throw 'No saved Web Deploy profile (.pubxml.user) found; p
 [xml]$userXml = Get-Content $userFile.FullName
 [xml]$pubXml = Get-Content (Join-Path $profiles ($userFile.Name -replace '\.user$', ''))
 function Get-ProfileValue([xml]$xml, [string]$name) { ($xml.Project.PropertyGroup | Where-Object { $_.$name }).$name }
-$password = [Text.Encoding]::Unicode.GetString([Security.Cryptography.ProtectedData]::Unprotect(
-    [Convert]::FromBase64String((Get-ProfileValue $userXml 'EncryptedPassword')), $null, 'CurrentUser'))
+$passwordBytes = [Security.Cryptography.ProtectedData]::Unprotect(
+    [Convert]::FromBase64String((Get-ProfileValue $userXml 'EncryptedPassword')), $null, 'CurrentUser')
+$password = [Text.Encoding]::Unicode.GetString($passwordBytes)
 $site = Get-ProfileValue $pubXml 'DeployIisAppPath'
 $service = Get-ProfileValue $pubXml 'MSDeployServiceURL'
 $siteUrl = (Get-ProfileValue $pubXml 'SiteUrlToLaunchAfterPublish') -replace '^http://', 'https://'
-$remote = "contentPath='$site',computerName='https://$service`:8172/msdeploy.axd?site=$site',userName='$(Get-ProfileValue $pubXml 'UserName')',password='$password',authType='Basic'"
+$credentialTarget = "ArisSkyve-WebDeploy-$([Guid]::NewGuid().ToString('N'))"
+try {
+    [ArisWebDeployCredentialStore]::WriteSessionCredential($credentialTarget, (Get-ProfileValue $pubXml 'UserName'), $password)
+}
+finally {
+    [Array]::Clear($passwordBytes, 0, $passwordBytes.Length)
+    # A .NET string cannot be cleared reliably, but no child process receives
+    # it and the decoded byte buffer has been cleared.
+    $password = $null
+}
+$remote = "contentPath='$site',computerName='https://$service`:8172/msdeploy.axd?site=$site',authType='Basic',getCredentials='$credentialTarget'"
 function Invoke-MsDeploy([string[]]$arguments) {
     $previous = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-    try { & $msdeploy @arguments 2>&1 | ForEach-Object { "$_" -replace [regex]::Escape($password), '***' } | Select-Object -Last 3 }
+    try { & $msdeploy @arguments 2>&1 | Select-Object -Last 3 }
     finally { $ErrorActionPreference = $previous }
     if ($LASTEXITCODE -ne 0) { throw "msdeploy failed with exit code $LASTEXITCODE" }
 }
@@ -128,4 +212,8 @@ finally {
     git -C $repo worktree remove --force $tree 2>&1 | Out-Null
     if (Test-Path $work) { Remove-Item -LiteralPath "\\?\$work" -Recurse -Force -ErrorAction SilentlyContinue }
     git -C $repo worktree prune 2>&1 | Out-Null
+    if ($credentialTarget) {
+        try { [ArisWebDeployCredentialStore]::DeleteSessionCredential($credentialTarget) }
+        catch { Write-Warning 'Could not remove the temporary Web Deploy credential from this Windows session.' }
+    }
 }
