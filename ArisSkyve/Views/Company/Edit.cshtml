@@ -1,10 +1,10 @@
 @model ArisSkyve.Domain.Entities.BussinessAccount
 @{
     var logo = !string.IsNullOrWhiteSpace(Model.AvatarUrl) 
-        ? Model.AvatarUrl 
+        ? ArisSkyve.Infrastructure.Services.PublicMediaDeliveryUrl.ToDeliveryUrl(Model.AvatarUrl)
         : ("https://ui-avatars.com/api/?name=" + Uri.EscapeDataString(Model.CompanyName) + "&background=2F6FED&color=fff&size=128");
 
-    var cover = Model.CoverPhotoUrl;
+    var cover = ArisSkyve.Infrastructure.Services.PublicMediaDeliveryUrl.ToDeliveryUrl(Model.CoverPhotoUrl);
 
     ViewData["Title"] = "Chỉnh sửa hồ sơ công ty";
     ViewData["ActiveNav"] = "Companies";

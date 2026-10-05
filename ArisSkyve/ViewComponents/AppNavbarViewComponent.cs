@@ -115,6 +115,7 @@ namespace ArisSkyve.ViewComponents
 
         public bool IsBusiness => Role == "Business";
         public bool HasRealAvatar => AvatarPresentation.HasImage(AvatarUrl);
+        public string? DeliveryAvatarUrl => PublicMediaDeliveryUrl.ToDeliveryUrl(AvatarUrl);
 
         public string Initials
         {

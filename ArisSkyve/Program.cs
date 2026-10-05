@@ -50,8 +50,11 @@ builder.Services.AddHttpClient("resume-original-fetch")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 // Public user-generated media is stored only in the configured Google Drive folder.
 // If Drive is unavailable/misconfigured, uploads fail instead of falling back to the
-// application's local content root.
-builder.Services.AddSingleton<IPublicMediaStore, GoogleDrivePublicMediaStore>();
+// application's local content root. The same singleton also delivers verified
+// objects through /media/drive so browsers never embed Drive's cross-site /uc URL.
+builder.Services.AddSingleton<GoogleDrivePublicMediaStore>();
+builder.Services.AddSingleton<IPublicMediaStore>(sp => sp.GetRequiredService<GoogleDrivePublicMediaStore>());
+builder.Services.AddSingleton<IPublicMediaDelivery>(sp => sp.GetRequiredService<GoogleDrivePublicMediaStore>());
 // Every IHttpClientFactory client sends the AiCore service key (AiCore:ApiKey) to AiCore:BaseUrl only,
 // and the resume parser key (ResumeEngine:ParserApiKey) to ResumeEngine:ParserUrl only.
 builder.Services.AddTransient<AiCoreKeyHandler>();

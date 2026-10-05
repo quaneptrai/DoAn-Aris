@@ -1,7 +1,7 @@
 @model ArisSkyve.Domain.Entities.User
 @{
     var profile = Model.Profile;
-    var avatar = profile?.AvatarUrl;
+    var avatar = ArisSkyve.Infrastructure.Services.PublicMediaDeliveryUrl.ToDeliveryUrl(profile?.AvatarUrl);
     var hasAvatar = !string.IsNullOrWhiteSpace(avatar)
         && !avatar.Contains("default-avatar", StringComparison.OrdinalIgnoreCase)
         && !avatar.Contains("ui-avatars.com", StringComparison.OrdinalIgnoreCase);

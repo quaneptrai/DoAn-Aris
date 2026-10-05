@@ -1,6 +1,7 @@
 /**
- * When AiCore (localhost:8001) is down, remote avatars/media 404.
- * Swap broken imgs to local defaults so the UI stays usable.
+ * When a remote avatar/media source fails, keep the UI usable. Direct Google
+ * Drive /uc URLs are rewritten to this app's same-origin media endpoint first:
+ * Chrome blocks the Drive response with CORP/ORB when it is embedded here.
  */
 (function () {
   "use strict";
@@ -9,6 +10,53 @@
 
   var DEFAULT_AVATAR = "/images/default-avatar.png";
   var DEFAULT_BROKEN = "/images/default-avatar.png";
+
+  function driveProxyUrl(value) {
+    if (!value) return "";
+    try {
+      var url = new URL(value, window.location.href);
+      var host = String(url.hostname || "").toLowerCase();
+      if (url.protocol !== "https:" || (host !== "drive.google.com" && host !== "drive.usercontent.google.com")) return "";
+      var id = url.searchParams.get("id") || "";
+      if (!/^[A-Za-z0-9_-]{5,256}$/.test(id)) return "";
+      var videoMarker = /(?:^|[?&#])aris-media=video(?:[&#]|$)/i.test(url.hash || "") ? "#aris-media=video" : "";
+      return "/media/drive/" + encodeURIComponent(id) + videoMarker;
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function rewriteDriveSource(element) {
+    if (!element || !element.getAttribute) return false;
+    var original = element.getAttribute("src") || "";
+    var proxy = driveProxyUrl(original);
+    if (!proxy || original === proxy || element.dataset.arisDriveProxyApplied === "1") return false;
+
+    element.dataset.arisDriveProxyApplied = "1";
+    element.setAttribute("src", proxy);
+    if (element.tagName === "SOURCE" && element.parentElement && element.parentElement.tagName === "VIDEO") {
+      element.parentElement.load();
+    }
+    return true;
+  }
+
+  function rewriteDriveLink(element) {
+    if (!element || !element.getAttribute) return;
+    var original = element.getAttribute("href") || "";
+    var proxy = driveProxyUrl(original);
+    if (proxy) element.setAttribute("href", proxy);
+  }
+
+  function rewriteDriveSources(root) {
+    if (!root) return;
+    if (root.nodeType === 1) {
+      if (/^(IMG|VIDEO|SOURCE)$/.test(root.tagName)) rewriteDriveSource(root);
+      if (root.tagName === "A") rewriteDriveLink(root);
+    }
+    if (!root.querySelectorAll) return;
+    root.querySelectorAll("img[src], video[src], source[src]").forEach(rewriteDriveSource);
+    root.querySelectorAll("a[href]").forEach(rewriteDriveLink);
+  }
 
   function isAvatar(img) {
     if (!img) return false;
@@ -45,6 +93,14 @@
 
   function onError(e) {
     var t = e.target;
+    // This listener runs in capture phase, ahead of inline onerror handlers
+    // such as `this.remove()`. Prevent that fallback from running while the
+    // same asset is retried through /media/drive.
+    if (t && /^(IMG|VIDEO|SOURCE)$/.test(t.tagName) && rewriteDriveSource(t)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
     if (t && t.tagName === "IMG") fix(t);
   }
 
@@ -53,6 +109,7 @@
 
   // Heal already-broken remote AiCore urls on load (cached error state)
   function healExisting() {
+    rewriteDriveSources(document);
     document.querySelectorAll('img[src*="localhost:8001"], img[src*="/storage/"]').forEach(function (img) {
       if (!img.complete) return;
       // naturalWidth 0 => failed decode/load
@@ -66,4 +123,24 @@
     healExisting();
   }
   window.addEventListener("load", healExisting);
+
+  // New posts, stories, chat bubbles, and notifications are inserted after
+  // page load. Rewrite a legacy direct Drive URL before it can fall back to a
+  // broken cross-site request.
+  var observer = new MutationObserver(function (records) {
+    records.forEach(function (record) {
+      if (record.type === "attributes") {
+        if (record.attributeName === "src") rewriteDriveSource(record.target);
+        if (record.attributeName === "href") rewriteDriveLink(record.target);
+        return;
+      }
+      record.addedNodes.forEach(rewriteDriveSources);
+    });
+  });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["src", "href"]
+  });
 })();

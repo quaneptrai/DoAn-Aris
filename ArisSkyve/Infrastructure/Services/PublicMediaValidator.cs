@@ -307,6 +307,25 @@ public static class PublicMediaValidator
     }
 
     /// <summary>
+    /// Resolves a trusted storage response MIME type to the exact public-media
+    /// policy. The Drive delivery endpoint uses this rather than trusting a
+    /// remote file name or guessing a browser content type.
+    /// </summary>
+    public static bool TryGetMediaForContentType(string? contentType, out ValidatedPublicMedia? media)
+    {
+        media = null;
+        var normalized = NormalizeContentType(contentType);
+        if (!DefinitionsByContentType.TryGetValue(normalized, out var definition)) return false;
+
+        media = new ValidatedPublicMedia(
+            definition.Kind,
+            definition.ContentType,
+            definition.Extension,
+            definition.MaximumBytes);
+        return true;
+    }
+
+    /// <summary>
     /// Safe for legacy static-file gates: returns true only for an image/video
     /// extension this validator recognizes. It intentionally does not approve
     /// executable/document formats.
@@ -572,24 +591,26 @@ public static class PublicMediaStorage
     public const string Chat = "chat";
 
     public static bool IsSupportedCollection(string? collection) =>
-        string.Equals(collection, Posts, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(collection, Stories, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(collection, Avatars, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(collection, Covers, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(collection, Chat, StringComparison.OrdinalIgnoreCase);
+        TryGetCanonicalCollection(collection, out _);
+
+    public static bool TryGetCanonicalCollection(string? collection, out string canonicalCollection)
+    {
+        canonicalCollection = string.Empty;
+        if (string.Equals(collection, Posts, StringComparison.OrdinalIgnoreCase)) canonicalCollection = Posts;
+        else if (string.Equals(collection, Stories, StringComparison.OrdinalIgnoreCase)) canonicalCollection = Stories;
+        else if (string.Equals(collection, Avatars, StringComparison.OrdinalIgnoreCase)) canonicalCollection = Avatars;
+        else if (string.Equals(collection, Covers, StringComparison.OrdinalIgnoreCase)) canonicalCollection = Covers;
+        else if (string.Equals(collection, Chat, StringComparison.OrdinalIgnoreCase)) canonicalCollection = Chat;
+
+        return canonicalCollection.Length > 0;
+    }
 
     public static bool TryGetStorageDirectory(string? contentRootPath, string? collection, out string storageDirectory)
     {
         storageDirectory = string.Empty;
         if (string.IsNullOrWhiteSpace(contentRootPath)) return false;
 
-        string? safeCollection = null;
-        if (string.Equals(collection, Posts, StringComparison.OrdinalIgnoreCase)) safeCollection = Posts;
-        if (string.Equals(collection, Stories, StringComparison.OrdinalIgnoreCase)) safeCollection = Stories;
-        if (string.Equals(collection, Avatars, StringComparison.OrdinalIgnoreCase)) safeCollection = Avatars;
-        if (string.Equals(collection, Covers, StringComparison.OrdinalIgnoreCase)) safeCollection = Covers;
-        if (string.Equals(collection, Chat, StringComparison.OrdinalIgnoreCase)) safeCollection = Chat;
-        if (safeCollection is null) return false;
+        if (!TryGetCanonicalCollection(collection, out var safeCollection)) return false;
 
         storageDirectory = Path.Combine(contentRootPath, "App_Data", "public-media", safeCollection);
         return true;

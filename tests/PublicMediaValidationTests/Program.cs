@@ -56,6 +56,7 @@ internal static class Program
             await RejectsSpoofedMimeExtensionAndPayload();
             await EnforcesImageOnlyAndBrowserMediaPolicies();
             await LegacyLocalMediaCanBeReadUntilMigrated();
+            await DriveMediaIsDeliveredSameOrigin();
             await VerifiesPublicUploadControllersUseTheSharedGuard();
             await GoogleDriveStoreFailsClosedWithoutConfiguration();
             await GoogleDriveOAuthModeFailsClosedWithoutOwnerCredentials();
@@ -140,7 +141,7 @@ internal static class Program
             Require(File.ReadAllBytes(storedPath).SequenceEqual(ValidPng), "Stored bytes must match the validated upload.");
             Require(!File.Exists(Path.Combine(root, "wwwroot", "uploads", "posts", storedName)), "New media must not be written to wwwroot/uploads.");
 
-            var controller = new PublicMediaController(new TestWebHostEnvironment { ContentRootPath = root });
+            var controller = new PublicMediaController(new TestWebHostEnvironment { ContentRootPath = root }, new FakePublicMediaStore());
             controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
             var result = controller.Get(PublicMediaStorage.Posts, storedName);
             var physical = result as PhysicalFileResult ?? throw new InvalidOperationException("Expected a physical media result.");
@@ -153,6 +154,34 @@ internal static class Program
         {
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
+    }
+
+    private static async Task DriveMediaIsDeliveredSameOrigin()
+    {
+        var delivery = new FakePublicMediaStore();
+        var controller = new PublicMediaController(new TestWebHostEnvironment(), delivery)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+
+        var result = await controller.GetDrive(PublicMediaStorage.Avatars, "fake00001");
+        var file = result as FileStreamResult ?? throw new InvalidOperationException("Expected a proxied media file result.");
+        Require(file.ContentType == "image/png" && file.EnableRangeProcessing, "Drive media must retain an allowed MIME type and range support.");
+        Require(delivery.Reads.Single() == (PublicMediaStorage.Avatars, "fake00001"), "Delivery must verify the URL collection and Drive ID together.");
+        Require(controller.Response.Headers["X-Content-Type-Options"] == "nosniff", "Proxied media must return nosniff.");
+        Require(controller.Response.Headers["Cross-Origin-Resource-Policy"] == "same-origin", "Proxied media must remain same-origin.");
+        Require(controller.Response.Headers["Cache-Control"].ToString().Contains("immutable", StringComparison.Ordinal), "Immutable media URLs must be cacheable.");
+
+        Require(await controller.GetDrive("unknown", "fake00001") is NotFoundResult, "Unknown Drive media collections must be rejected before storage access.");
+        Require(await controller.GetLegacyDrive("bad") is NotFoundResult, "Malformed Drive IDs must be rejected before storage access.");
+
+        var unavailable = new FakePublicMediaStore { ThrowOnRead = true };
+        var failingController = new PublicMediaController(new TestWebHostEnvironment(), unavailable)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+        Require(await failingController.GetDrive(PublicMediaStorage.Posts, "fake00001") is StatusCodeResult { StatusCode: StatusCodes.Status503ServiceUnavailable },
+            "Upstream Drive failures must not leak details to media clients.");
     }
 
     private static async Task VerifiesPublicUploadControllersUseTheSharedGuard()
@@ -196,11 +225,11 @@ internal static class Program
 
         var avatarPayload = JsonOf(await settings.UpdateAvatar(CreateFile(ValidPng, "avatar.png", "image/png")));
         Require(avatarPayload.GetProperty("success").GetBoolean(), "Avatar endpoint must accept a genuine PNG.");
-        Require(avatarPayload.GetProperty("avatarUrl").GetString()?.StartsWith("https://drive.google.com/", StringComparison.Ordinal) == true, "Avatar must return the remote Google Drive URL.");
+        Require(avatarPayload.GetProperty("avatarUrl").GetString()?.StartsWith("/media/drive/avatars/", StringComparison.Ordinal) == true, "Avatar must return the same-origin media URL.");
 
         var coverPayload = JsonOf(await settings.UpdateCoverPhoto(CreateFile(ValidJpeg, "cover.jpg", "image/jpeg")));
         Require(coverPayload.GetProperty("success").GetBoolean(), "Cover endpoint must accept a genuine JPEG.");
-        Require(coverPayload.GetProperty("coverUrl").GetString()?.StartsWith("https://drive.google.com/", StringComparison.Ordinal) == true, "Cover must return the remote Google Drive URL.");
+        Require(coverPayload.GetProperty("coverUrl").GetString()?.StartsWith("/media/drive/covers/", StringComparison.Ordinal) == true, "Cover must return the same-origin media URL.");
 
         var authenticatedDashboard = new DashboardController(db, new EnabledFeatureGate(), null!, store)
         {
@@ -291,6 +320,10 @@ internal static class Program
         Require(PublicMediaStorage.TryGetStorageDirectory("C:\\content", PublicMediaStorage.Avatars, out _), "Avatar collection must resolve.");
         Require(PublicMediaStorage.TryGetStorageDirectory("C:\\content", PublicMediaStorage.Covers, out _), "Cover collection must resolve.");
         Require(PublicMediaStorage.TryGetStorageDirectory("C:\\content", PublicMediaStorage.Chat, out _), "Chat collection must resolve.");
+        Require(PublicMediaValidator.TryGetMediaForContentType("image/jpeg; charset=binary", out var jpeg) && jpeg?.ContentType == "image/jpeg", "Stored MIME types must resolve through the allowlist.");
+        Require(PublicMediaDeliveryUrl.Build(PublicMediaStorage.Chat, "fake00001", PublicMediaKind.Video) == "/media/drive/chat/fake00001#aris-media=video", "New media URLs must include a verified collection and preserve video type.");
+        Require(PublicMediaDeliveryUrl.ToDeliveryUrl("https://drive.google.com/uc?export=view&id=fake00001#aris-media=video") == "/media/drive/fake00001#aris-media=video", "Legacy Drive view URLs must map to the compatibility endpoint.");
+        Require(PublicMediaDeliveryUrl.ToDeliveryUrl("https://example.test/file?id=fake00001") == "https://example.test/file?id=fake00001", "Non-Drive media URLs must not be rewritten.");
     }
 
     private static IFormFile CreateFile(byte[] contents, string name, string contentType)
@@ -339,22 +372,31 @@ internal static class Program
         public bool SavedJobs => true;
     }
 
-    private sealed class FakePublicMediaStore : IPublicMediaStore
+    private sealed class FakePublicMediaStore : IPublicMediaStore, IPublicMediaDelivery
     {
         public List<(string Collection, string FileId)> Uploads { get; } = new();
+        public List<(string? Collection, string FileId)> Reads { get; } = new();
+        public bool ThrowOnRead { get; init; }
 
         public Task<PublicMediaUpload> UploadAsync(string collection, IFormFile file, ValidatedPublicMedia media, CancellationToken cancellationToken = default)
         {
             var fileId = $"fake{Uploads.Count + 1:D8}";
             Uploads.Add((collection, fileId));
-            var videoMarker = media.Kind == PublicMediaKind.Video ? "#aris-media=video" : string.Empty;
-            return Task.FromResult(new PublicMediaUpload($"https://drive.google.com/uc?export=view&id={fileId}&resourcekey=fake-key{videoMarker}", fileId));
+            return Task.FromResult(new PublicMediaUpload(PublicMediaDeliveryUrl.Build(collection, fileId, media.Kind), fileId));
         }
 
         public Task DeleteAsync(string fileId, CancellationToken cancellationToken = default)
         {
             Uploads.RemoveAll(upload => upload.FileId == fileId);
             return Task.CompletedTask;
+        }
+
+        public Task<PublicMediaDownload?> OpenReadAsync(string? expectedCollection, string fileId, CancellationToken cancellationToken = default)
+        {
+            Reads.Add((expectedCollection, fileId));
+            if (ThrowOnRead) throw new PublicMediaStorageException("Drive unavailable for test.");
+            Stream stream = new MemoryStream(ValidPng, writable: false);
+            return Task.FromResult<PublicMediaDownload?>(new PublicMediaDownload(stream, "image/png"));
         }
     }
 }

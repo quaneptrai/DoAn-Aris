@@ -34,6 +34,9 @@
     <link rel="stylesheet" href="~/css/match-insight.css" asp-append-version="true" />
     <link rel="icon" type="image/svg+xml" href="~/favicon.svg" asp-append-version="true">
     <link rel="alternate icon" href="~/favicon.ico">
+    @* This must run before body media begins loading so direct Drive URLs from
+       historical records are rerouted before an inline onerror can hide them. *@
+    <script src="~/js/aris-img-fallback.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Styles", required: false)
 </head>
@@ -128,7 +131,6 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/lib/lucide/lucide.min.js" asp-append-version="true"></script>
     <script src="~/js/aris-icons.js" asp-append-version="true"></script>
-    <script src="~/js/aris-img-fallback.js" asp-append-version="true"></script>
     <script src="~/js/aris-motion.js" asp-append-version="true"></script>
     <script src="~/js/match-insight.js" asp-append-version="true"></script>
     <script src="~/js/cv-ai-consent.js" asp-append-version="true"></script>

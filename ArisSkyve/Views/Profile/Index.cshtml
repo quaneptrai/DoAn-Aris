@@ -9,7 +9,7 @@
     var latestResume = hasResume ? profile.Resumes.OrderByDescending(r => r.LastUpdatedAt).First() : null;
 
     var fullName = !string.IsNullOrEmpty(profile?.FullName) ? profile.FullName : Model.Username;
-    var avatar = profile?.AvatarUrl;
+    var avatar = ArisSkyve.Infrastructure.Services.PublicMediaDeliveryUrl.ToDeliveryUrl(profile?.AvatarUrl);
     var hasAvatar = !string.IsNullOrWhiteSpace(avatar)
         && !avatar.Contains("default-avatar", StringComparison.OrdinalIgnoreCase)
         && !avatar.Contains("ui-avatars.com", StringComparison.OrdinalIgnoreCase);
@@ -20,7 +20,9 @@
     uint avatarHash = 0;
     foreach (var character in fullName) avatarHash = unchecked(avatarHash * 31 + character);
     var avatarTone = (int)(avatarHash % 6) + 1;
-    var cover = !string.IsNullOrEmpty(profile?.CoverPhotoUrl) ? profile.CoverPhotoUrl : "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80";
+    var cover = !string.IsNullOrEmpty(profile?.CoverPhotoUrl)
+        ? ArisSkyve.Infrastructure.Services.PublicMediaDeliveryUrl.ToDeliveryUrl(profile.CoverPhotoUrl)
+        : "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80";
     var bio = profile?.Bio ?? "Chưa có tiểu sử.";
     var location = profile?.Location ?? "Chưa cập nhật";
     var jobTitle = profile?.JobTitle ?? (Model.Role == "Business" ? "Doanh nghiệp" : "Chuyên viên");
