@@ -191,7 +191,7 @@ Check(await ctl.Publish(100, ct) is UnprocessableEntityObjectResult, "OCR layout
 layoutData["importedLayout"]!["ocrReviewConfirmed"] = true;
 await ctl.SaveDocument(new(100, Document(layoutData)), ct);
 Check(await other.ImportLayout(100, ct) is NotFoundResult, "Foreign user cannot import someone else's source");
-Check(other.Original("../secret") is NotFoundResult, "Original route rejects path traversal");
+Check(await other.Original("../secret", ct) is NotFoundResult, "Original route rejects path traversal");
 
 var cleanupData = layoutData.DeepClone();
 const string cleanupSourceId = "0123456789abcdef0123456789abcdef";
@@ -311,6 +311,23 @@ await cleanupController.DeleteResume(sharedSecond.Id);
 Check(!File.Exists(sharedFile), "Deleting the last saved reference removes that exact private original after the database commit");
 await cleanupController.DeleteResume(cleanupResume.Id);
 Check(!File.Exists(cleanupFile) && !db.Resumes.Any(x => x.Id == cleanupResume.Id), "Deleting a saved Studio CV removes only its referenced private original PDF");
+
+const string lazyMigrationSourceId = "abcdefabcdefabcdefabcdefabcdefab";
+var lazyMigrationFile = Path.Combine(cleanupFolder, lazyMigrationSourceId + ".pdf");
+await File.WriteAllBytesAsync(lazyMigrationFile, storedBytes);
+var cloudStore = new InMemoryPrivateResumeStore();
+var cloudOriginals = new ResumeOriginalLifecycle(db, cleanupEnvironment, config, cloudStore);
+Check(await cloudOriginals.HasStoredOriginalAsync(1, lazyMigrationSourceId, ct) &&
+      cloudStore.Exists(1, lazyMigrationSourceId) && File.Exists(lazyMigrationFile),
+    "An owner-triggered save migrates a valid legacy local PDF to private storage without deleting its rollback copy");
+var migratedDownload = await cloudOriginals.OpenAsync(1, lazyMigrationSourceId, ct);
+await using (migratedDownload!.Content)
+using (var migratedBytes = new MemoryStream())
+{
+    await migratedDownload.Content.CopyToAsync(migratedBytes, ct);
+    Check(migratedBytes.ToArray().SequenceEqual(storedBytes),
+        "An owner-triggered open retrieves the migrated private PDF rather than exposing a local path");
+}
 Directory.Delete(cleanupRoot, recursive: true);
 Console.WriteLine($"RESUME FLOW: {checks} checks passed (real controller + EF InMemory; no production database/model calls).");
 
@@ -353,4 +370,29 @@ sealed class WebHostEnvironmentFixture(string contentRoot) : IWebHostEnvironment
     public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
     public string ContentRootPath { get; set; } = contentRoot;
     public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+}
+
+sealed class InMemoryPrivateResumeStore : IPrivateResumeOriginalStore {
+    private readonly Dictionary<(int OwnerUserId, string SourceId), byte[]> files = new();
+
+    public bool Exists(int ownerUserId, string sourceId) => files.ContainsKey((ownerUserId, sourceId));
+    public async Task<bool> StoreAsync(int ownerUserId, string sourceId, IFormFile file, CancellationToken cancellationToken = default) {
+        if (Exists(ownerUserId, sourceId)) return false;
+        await using var source = file.OpenReadStream();
+        using var output = new MemoryStream();
+        await source.CopyToAsync(output, cancellationToken);
+        files[(ownerUserId, sourceId)] = output.ToArray();
+        return true;
+    }
+    public Task<bool> ExistsAsync(int ownerUserId, string sourceId, CancellationToken cancellationToken = default) => Task.FromResult(Exists(ownerUserId, sourceId));
+    public Task<ResumeOriginalDownload?> OpenAsync(int ownerUserId, string sourceId, CancellationToken cancellationToken = default) {
+        if (!files.TryGetValue((ownerUserId, sourceId), out var bytes)) return Task.FromResult<ResumeOriginalDownload?>(null);
+        return Task.FromResult<ResumeOriginalDownload?>(new ResumeOriginalDownload(new MemoryStream(bytes, writable: false), "application/pdf", "CV-original.pdf"));
+    }
+    public Task<bool> MarkReferencedAsync(int ownerUserId, string sourceId, CancellationToken cancellationToken = default) => Task.FromResult(Exists(ownerUserId, sourceId));
+    public Task MarkUnreferencedAsync(int ownerUserId, string sourceId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task<ResumeOriginalDeleteResult> DeleteAsync(int ownerUserId, string sourceId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(files.Remove((ownerUserId, sourceId)) ? ResumeOriginalDeleteResult.Deleted : ResumeOriginalDeleteResult.Missing);
+    public Task<IReadOnlyList<ResumeOriginalCleanupCandidate>> ListExpiredUnreferencedAsync(DateTime cutoffUtc, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ResumeOriginalCleanupCandidate>>([]);
 }

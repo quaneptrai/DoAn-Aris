@@ -58,6 +58,7 @@ internal static class Program
             await LegacyLocalMediaCanBeReadUntilMigrated();
             await VerifiesPublicUploadControllersUseTheSharedGuard();
             await GoogleDriveStoreFailsClosedWithoutConfiguration();
+            await GoogleDriveOAuthModeFailsClosedWithoutOwnerCredentials();
             VerifiesUrlAndStoredNameAllowLists();
             Console.WriteLine("PASS: public media validation, storage, and serving hardening");
             return 0;
@@ -178,10 +179,11 @@ internal static class Program
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
-        var chatResult = await chat.UploadChatMedia(CreateFile(ValidPng, "chat.png", "image/png"));
+        var chatResult = await chat.UploadChatMedia(CreateFile(ValidMp4, "chat.mp4", "video/mp4"));
         var chatPayload = JsonOf(chatResult);
-        Require(chatPayload.GetProperty("success").GetBoolean(), "Chat must accept a genuine PNG.");
-        Require(chatPayload.GetProperty("url").GetString()?.StartsWith("https://drive.google.com/", StringComparison.Ordinal) == true, "Chat must return the remote Google Drive URL.");
+        Require(chatPayload.GetProperty("success").GetBoolean(), "Chat must accept a genuine MP4 video.");
+        Require(chatPayload.GetProperty("kind").GetString() == "video", "Chat must return the validated video kind.");
+        Require(chatPayload.GetProperty("url").GetString()?.EndsWith("#aris-media=video", StringComparison.Ordinal) == true, "Chat video URLs must carry the Drive-safe video marker.");
         var remoteChatResult = await chat.UploadChatImage(CreateFile("<script>x</script>"u8.ToArray(), "payload.png", "image/png"));
         Require(!SuccessOf(remoteChatResult), "Remote chat image upload must reject invalid media before contacting storage.");
 
@@ -204,15 +206,19 @@ internal static class Program
         {
             ControllerContext = new ControllerContext { HttpContext = AuthenticatedHttpContext(77) }
         };
-        Require(SuccessOf(await authenticatedDashboard.CreatePost("post", null, new List<IFormFile> { CreateFile(ValidPng, "post.png", "image/png") })),
-            "Post media must upload through the remote store before publishing the post.");
+        Require(SuccessOf(await authenticatedDashboard.CreatePost("post", null, new List<IFormFile> { CreateFile(ValidMp4, "post.mp4", "video/mp4") })),
+            "Post video must upload through the remote store before publishing the post.");
+        var postMedia = db.PostMedias.Single();
+        Require(postMedia.MediaType == "video" && postMedia.MediaUrl.EndsWith("#aris-media=video", StringComparison.Ordinal),
+            "A post must persist both its video kind and remote Drive URL.");
 
         var authenticatedStories = new StoriesController(db, new EnabledFeatureGate(), store)
         {
             ControllerContext = new ControllerContext { HttpContext = AuthenticatedHttpContext(77) }
         };
-        Require(SuccessOf(await authenticatedStories.Create(CreateFile(ValidPng, "story.png", "image/png"), null, null, null)),
-            "Story media must upload through the remote store before publishing the story.");
+        var storyPayload = JsonOf(await authenticatedStories.Create(CreateFile(ValidMp4, "story.mp4", "video/mp4"), null, null, null));
+        Require(storyPayload.GetProperty("success").GetBoolean(), "Story video must upload through the remote store before publishing the story.");
+        Require(storyPayload.GetProperty("story").GetProperty("mediaType").GetString() == "video", "Story API must retain the video kind.");
 
         Require(store.Uploads.Select(upload => upload.Collection).OrderBy(collection => collection).SequenceEqual(new[]
         {
@@ -241,6 +247,32 @@ internal static class Program
         catch (PublicMediaStorageException)
         {
             // Expected: local disk is intentionally not a fallback.
+        }
+    }
+
+    private static async Task GoogleDriveOAuthModeFailsClosedWithoutOwnerCredentials()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["GoogleDrive:Enabled"] = "true",
+                ["GoogleDrive:FolderId"] = "personal-drive-folder",
+                ["GoogleDrive:AuthMode"] = "OAuthRefreshToken",
+                ["GoogleDrive:MakeFilesPublic"] = "true"
+            })
+            .Build();
+        using var store = new GoogleDrivePublicMediaStore(configuration, NullLogger<GoogleDrivePublicMediaStore>.Instance);
+        var validation = await PublicMediaValidator.ValidateImageAsync(CreateFile(ValidPng, "drive.png", "image/png"), 5L * 1024 * 1024);
+        Require(validation.Media is not null, "A real image is required to exercise OAuth Drive configuration.");
+
+        try
+        {
+            await store.UploadAsync(PublicMediaStorage.Posts, CreateFile(ValidPng, "drive.png", "image/png"), validation.Media!);
+            throw new InvalidOperationException("An incomplete OAuth Drive configuration must not fall back to local disk.");
+        }
+        catch (PublicMediaStorageException)
+        {
+            // Expected: owner OAuth credentials must be complete before any upload.
         }
     }
 
@@ -315,7 +347,8 @@ internal static class Program
         {
             var fileId = $"fake{Uploads.Count + 1:D8}";
             Uploads.Add((collection, fileId));
-            return Task.FromResult(new PublicMediaUpload($"https://drive.google.com/uc?export=view&id={fileId}", fileId));
+            var videoMarker = media.Kind == PublicMediaKind.Video ? "#aris-media=video" : string.Empty;
+            return Task.FromResult(new PublicMediaUpload($"https://drive.google.com/uc?export=view&id={fileId}&resourcekey=fake-key{videoMarker}", fileId));
         }
 
         public Task DeleteAsync(string fileId, CancellationToken cancellationToken = default)

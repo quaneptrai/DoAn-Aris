@@ -114,7 +114,10 @@
         return isNaN(d.getTime()) ? new Date() : d;
     }
 
-    const isVideoUrl = (u) => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(String(u || ''));
+    // Google Drive direct-view URLs omit the source extension. New Drive video
+    // uploads carry a client-only fragment set by the server; keep extension
+    // detection for legacy/local media already stored in Message.ImageUrl.
+    const isVideoUrl = (u) => /(?:\.(?:mp4|webm|mov|m4v)(?:\?|#|$)|[?#&]aris-media=video(?:[&#]|$))/i.test(String(u || ''));
 
     function snippetOf(m) {
         if (!m) return '';

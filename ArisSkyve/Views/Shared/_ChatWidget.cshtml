@@ -203,14 +203,19 @@
             return div.innerHTML;
         }
 
+        // ---- Hiển thị kiểu Zalo / Messenger (27/09/2026) ----
+        const isVid = (u) => /(?:\.(?:mp4|webm|mov|m4v)(?:\?|#|$)|[?#&]aris-media=video(?:[&#]|$))/i.test(String(u || ""));
+        const videoSrc = (u) => {
+            const url = String(u || "");
+            return url.includes("#") ? url : `${url}#t=0.1`;
+        };
+
         function replySnippet(m) {
             if (!m) return "";
             if (m.content) return m.content.length > 50 ? m.content.slice(0, 50) + "…" : m.content;
-            return m.imageUrl ? (/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(m.imageUrl) ? "🎬 Video" : "📷 Ảnh đính kèm") : "";
+            return m.imageUrl ? (isVid(m.imageUrl) ? "🎬 Video" : "📷 Ảnh đính kèm") : "";
         }
 
-        // ---- Hiển thị kiểu Zalo / Messenger (27/09/2026) ----
-        const isVid = (u) => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(String(u || ""));
         const nameOf = (o) => (o && (o.displayName || o.username)) || "";
         const HIDE_KEY = "aris-chat-hidden-" + myUserId;
         const hiddenSet = () => { try { return new Set(JSON.parse(localStorage.getItem(HIDE_KEY) || "[]")); } catch (e) { return new Set(); } };
@@ -469,7 +474,7 @@
             } else {
                 const media = m.imageUrl
                     ? (isVid(m.imageUrl)
-                        ? `<video class="widget-msg-img" src="${escapeHtml(m.imageUrl)}#t=0.1" controls playsinline preload="metadata"></video>`
+                        ? `<video class="widget-msg-img" src="${escapeHtml(videoSrc(m.imageUrl))}" controls playsinline preload="metadata"></video>`
                         : `<a href="${escapeHtml(m.imageUrl)}" target="_blank" rel="noopener"><img class="widget-msg-img" src="${escapeHtml(m.imageUrl)}" alt="Ảnh"></a>`)
                     : "";
                 const text = m.content ? `<span class="widget-msg-text">${escapeHtml(m.content)}</span>` : "";

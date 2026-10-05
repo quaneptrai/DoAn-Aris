@@ -1,10 +1,7 @@
-using System.Text;
-using System.Text.Json;
 using Google;
-using Google.Apis.Auth.OAuth2;
+using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Drive.v3;
 using Google.Apis.Drive.v3.Data;
-using Google.Apis.Services;
 using Google.Apis.Upload;
 using Microsoft.AspNetCore.Http;
 using DriveFile = Google.Apis.Drive.v3.Data.File;
@@ -46,8 +43,15 @@ public sealed class GoogleDrivePublicStorageOptions
 {
     public bool Enabled { get; init; }
     public string? FolderId { get; init; }
+    /// <summary>Private parent used only for imported Resume Studio PDFs.</summary>
+    public string? PrivateResumeOriginalsFolderId { get; init; }
+    /// <summary>ServiceAccount for Workspace Shared Drives; OAuthRefreshToken for a personal My Drive owner.</summary>
+    public string AuthMode { get; init; } = "ServiceAccount";
     public string? ServiceAccountJson { get; init; }
     public string? ServiceAccountJsonBase64 { get; init; }
+    public string? OAuthClientId { get; init; }
+    public string? OAuthClientSecret { get; init; }
+    public string? OAuthRefreshToken { get; init; }
     public bool UseSharedDrive { get; init; }
     public bool MakeFilesPublic { get; init; } = true;
     public string? PublicUrlTemplate { get; init; }
@@ -55,10 +59,10 @@ public sealed class GoogleDrivePublicStorageOptions
 
 /// <summary>
 /// Stores validated public media in a Google Drive folder.  The configured
-/// folder must be writable by the service account and should remain private;
-/// each completed file receives its own link-only <c>anyone:reader</c>
-/// permission.  This prevents an incomplete upload from being publicly listed
-/// through a shared parent folder.
+/// folder must be writable by the configured Drive owner and should remain
+/// private; each completed file receives its own link-only
+/// <c>anyone:reader</c> permission. This prevents an incomplete upload from
+/// being publicly listed through a shared parent folder.
 /// </summary>
 public sealed class GoogleDrivePublicMediaStore : IPublicMediaStore, IDisposable
 {
@@ -107,7 +111,7 @@ public sealed class GoogleDrivePublicMediaStore : IPublicMediaStore, IDisposable
 
             await using var source = file.OpenReadStream();
             var create = service.Files.Create(metadata, source, media.ContentType);
-            create.Fields = "id";
+            create.Fields = "id,resourceKey";
             create.SupportsAllDrives = _options.UseSharedDrive;
             create.ChunkSize = UploadChunkSize;
             var progress = await create.UploadAsync(cancellationToken).ConfigureAwait(false);
@@ -125,7 +129,17 @@ public sealed class GoogleDrivePublicMediaStore : IPublicMediaStore, IDisposable
             permission.SupportsAllDrives = _options.UseSharedDrive;
             await permission.ExecuteAsync(cancellationToken).ConfigureAwait(false);
 
-            return new PublicMediaUpload(BuildPublicUrl(fileId), fileId);
+            // Link-shared Drive files can require a resource key for visitors who
+            // have never opened the file. Fetch it after creating the public
+            // permission so every generated public URL can carry it when Drive
+            // supplies one.
+            var resourceKey = create.ResponseBody?.ResourceKey;
+            var readMetadata = service.Files.Get(fileId);
+            readMetadata.Fields = "resourceKey";
+            readMetadata.SupportsAllDrives = _options.UseSharedDrive;
+            resourceKey = (await readMetadata.ExecuteAsync(cancellationToken).ConfigureAwait(false)).ResourceKey ?? resourceKey;
+
+            return new PublicMediaUpload(BuildPublicUrl(fileId, resourceKey, media.Kind), fileId);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -136,6 +150,12 @@ public sealed class GoogleDrivePublicMediaStore : IPublicMediaStore, IDisposable
         {
             await DeleteIncompleteUploadAsync(service, fileId).ConfigureAwait(false);
             throw;
+        }
+        catch (TokenResponseException exception)
+        {
+            await DeleteIncompleteUploadAsync(service, fileId).ConfigureAwait(false);
+            _logger.LogWarning(exception, "Google Drive owner authorization is no longer valid for public media collection {Collection}.", collection);
+            throw new PublicMediaStorageException("Google Drive authorization has expired or was revoked. Re-authorize the Drive owner and update the refresh token.", exception);
         }
         catch (GoogleApiException exception)
         {
@@ -159,7 +179,7 @@ public sealed class GoogleDrivePublicMediaStore : IPublicMediaStore, IDisposable
 
     public async Task DeleteAsync(string fileId, CancellationToken cancellationToken = default)
     {
-        if (!IsSafeDriveId(fileId))
+        if (!GoogleDriveOwnerServiceFactory.IsSafeDriveId(fileId))
             throw new ArgumentException("Invalid Google Drive file ID.", nameof(fileId));
 
         try
@@ -171,6 +191,11 @@ public sealed class GoogleDrivePublicMediaStore : IPublicMediaStore, IDisposable
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (TokenResponseException exception)
+        {
+            _logger.LogWarning(exception, "Google Drive owner authorization is no longer valid while deleting public media object {FileId}.", fileId);
+            throw new PublicMediaStorageException("Google Drive authorization has expired or was revoked. Re-authorize the Drive owner and update the refresh token.", exception);
         }
         catch (GoogleApiException exception)
         {
@@ -188,87 +213,22 @@ public sealed class GoogleDrivePublicMediaStore : IPublicMediaStore, IDisposable
     {
         if (!_options.Enabled)
             throw new PublicMediaStorageException("Google Drive public media storage is disabled.");
-        if (!IsSafeDriveId(_options.FolderId))
+        if (!GoogleDriveOwnerServiceFactory.IsSafeDriveId(_options.FolderId))
             throw new PublicMediaStorageException("Google Drive FolderId is missing or invalid.");
         if (!_options.MakeFilesPublic)
             throw new PublicMediaStorageException("Google Drive public media storage must grant public read access.");
 
-        var credentialJson = ReadCredentialJson();
-        if (string.IsNullOrWhiteSpace(credentialJson))
-            throw new PublicMediaStorageException("Google Drive service-account credentials are not configured.");
-
         try
         {
-            ValidateServiceAccountCredentialJson(credentialJson);
-            // Parse only a service-account credential rather than accepting any
-            // arbitrary Google credential JSON from configuration.
-            var credential = CredentialFactory.FromJson<ServiceAccountCredential>(credentialJson)
-                .ToGoogleCredential()
-                .CreateScoped(DriveService.Scope.Drive);
-            return new DriveService(new BaseClientService.Initializer
-            {
-                HttpClientInitializer = credential,
-                ApplicationName = "ArisSkyve public media storage"
-            });
+            return GoogleDriveOwnerServiceFactory.Create(_options, "ArisSkyve public media storage");
         }
-        catch (PublicMediaStorageException)
+        catch (GoogleDriveOwnerConfigurationException exception)
         {
-            throw;
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or ArgumentException or FormatException or JsonException or System.Security.Cryptography.CryptographicException)
-        {
-            throw new PublicMediaStorageException("Google Drive service-account credentials are invalid.", exception);
+            throw new PublicMediaStorageException(exception.Message, exception);
         }
     }
 
-    private string? ReadCredentialJson()
-    {
-        if (!string.IsNullOrWhiteSpace(_options.ServiceAccountJson))
-            return _options.ServiceAccountJson.Trim();
-        if (string.IsNullOrWhiteSpace(_options.ServiceAccountJsonBase64))
-            return null;
-
-        try
-        {
-            return Encoding.UTF8.GetString(Convert.FromBase64String(_options.ServiceAccountJsonBase64.Trim()));
-        }
-        catch (FormatException exception)
-        {
-            throw new PublicMediaStorageException("Google Drive base64 credentials are invalid.", exception);
-        }
-    }
-
-    private static void ValidateServiceAccountCredentialJson(string credentialJson)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(credentialJson);
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object ||
-                !root.TryGetProperty("type", out var type) || type.GetString() != "service_account" ||
-                !root.TryGetProperty("client_email", out var email) || string.IsNullOrWhiteSpace(email.GetString()) ||
-                !root.TryGetProperty("private_key", out var privateKey) || string.IsNullOrWhiteSpace(privateKey.GetString()))
-            {
-                throw new PublicMediaStorageException("Google Drive credentials must be a complete service-account key.");
-            }
-
-            // Standard service-account keys use this token endpoint. Rejecting a
-            // caller-controlled endpoint avoids turning a secret-store typo into
-            // a credential-bearing outbound request to an arbitrary host.
-            if (root.TryGetProperty("token_uri", out var tokenUri) &&
-                (tokenUri.ValueKind != JsonValueKind.String ||
-                 !string.Equals(tokenUri.GetString(), "https://oauth2.googleapis.com/token", StringComparison.Ordinal)))
-            {
-                throw new PublicMediaStorageException("Google Drive credentials specify an unsupported token endpoint.");
-            }
-        }
-        catch (JsonException exception)
-        {
-            throw new PublicMediaStorageException("Google Drive service-account credentials are not valid JSON.", exception);
-        }
-    }
-
-    private string BuildPublicUrl(string fileId)
+    private string BuildPublicUrl(string fileId, string? resourceKey, PublicMediaKind kind)
     {
         var template = string.IsNullOrWhiteSpace(_options.PublicUrlTemplate)
             ? DefaultPublicUrlTemplate
@@ -277,9 +237,40 @@ public sealed class GoogleDrivePublicMediaStore : IPublicMediaStore, IDisposable
             throw new PublicMediaStorageException("Google Drive PublicUrlTemplate must contain {fileId}.");
 
         var url = template.Replace("{fileId}", Uri.EscapeDataString(fileId), StringComparison.Ordinal);
+        if (template.Contains("{resourceKey}", StringComparison.Ordinal))
+        {
+            url = url.Replace("{resourceKey}", Uri.EscapeDataString(resourceKey ?? string.Empty), StringComparison.Ordinal);
+        }
         if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed) || !string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
             throw new PublicMediaStorageException("Google Drive PublicUrlTemplate must produce an HTTPS URL.");
-        return url;
+
+        // Drive's link-sharing security update can require this key for visitors
+        // who have no prior access. Preserve custom URL templates as-is unless
+        // they explicitly opt into the {resourceKey} placeholder.
+        if (!string.IsNullOrWhiteSpace(resourceKey) &&
+            !template.Contains("{resourceKey}", StringComparison.Ordinal) &&
+            string.Equals(parsed.Host, "drive.google.com", StringComparison.OrdinalIgnoreCase) &&
+            !parsed.Query.Contains("resourcekey=", StringComparison.OrdinalIgnoreCase))
+        {
+            url = AppendQueryParameter(url, "resourcekey", resourceKey);
+        }
+
+        // Google Drive's direct-view URL does not retain a file extension. Chat's
+        // legacy Message model stores only one URL, so preserve the validated
+        // media kind in a client-only URI fragment. It is never sent to Drive and
+        // lets all chat surfaces render an uploaded video as <video>, not <img>.
+        return kind == PublicMediaKind.Video
+            ? $"{url}{(url.Contains("#", StringComparison.Ordinal) ? "&" : "#")}aris-media=video"
+            : url;
+    }
+
+    private static string AppendQueryParameter(string url, string name, string value)
+    {
+        var fragmentIndex = url.IndexOf('#');
+        var fragment = fragmentIndex >= 0 ? url[fragmentIndex..] : string.Empty;
+        var withoutFragment = fragmentIndex >= 0 ? url[..fragmentIndex] : url;
+        var separator = withoutFragment.Contains("?", StringComparison.Ordinal) ? "&" : "?";
+        return $"{withoutFragment}{separator}{Uri.EscapeDataString(name)}={Uri.EscapeDataString(value)}{fragment}";
     }
 
     private async Task DeleteIncompleteUploadAsync(DriveService service, string? fileId)
@@ -299,7 +290,4 @@ public sealed class GoogleDrivePublicMediaStore : IPublicMediaStore, IDisposable
         }
     }
 
-    private static bool IsSafeDriveId(string? value) =>
-        !string.IsNullOrWhiteSpace(value) && value.Length is >= 5 and <= 256 &&
-        value.All(character => char.IsLetterOrDigit(character) || character is '-' or '_');
 }

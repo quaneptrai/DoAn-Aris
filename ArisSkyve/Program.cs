@@ -64,8 +64,10 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<MagicLinkThrottle>();
 builder.Services.AddRateLimiter(AuthRateLimits.Configure);
-// Private imported-PDF originals are retained only by the bounded lifecycle service;
-// the worker handles browser-abandoned uploads without relying on an unload request.
+// Imported Studio PDFs use a distinct private Google Drive folder and server-only
+// SQL mapping; the worker handles browser-abandoned uploads without relying on an
+// unload request. No runtime fallback writes them below the application root.
+builder.Services.AddScoped<IPrivateResumeOriginalStore, GoogleDrivePrivateResumeStore>();
 builder.Services.AddScoped<ResumeOriginalLifecycle>();
 if (!disableE2EBackgroundServices)
 {

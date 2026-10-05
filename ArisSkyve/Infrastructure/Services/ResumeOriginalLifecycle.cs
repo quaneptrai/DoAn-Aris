@@ -3,13 +3,15 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using ArisSkyve.Infrastructure.Data.Context;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArisSkyve.Infrastructure.Services;
 
-// The private PDF used by an imported-layout document intentionally lives outside
-// wwwroot.  Keep all file-system operations in one place so every caller applies
-// the same owner, source-id, containment, and reference checks.
+// The private PDF used by an imported-layout document is backed by the configured
+// private Drive store in the application. The filesystem implementation remains
+// only as a direct-construction compatibility path for isolated legacy tests.
+// Keep all owner, source-id, and reference checks in one lifecycle authority.
 public enum ResumeOriginalDeleteResult
 {
     Deleted,
@@ -23,17 +25,24 @@ public sealed class ResumeOriginalLifecycle
 {
     public const int DefaultRetentionHours = 7 * 24;
     public const int MinimumRetentionHours = 24;
+    private const long MaximumOriginalBytes = 10L * 1024 * 1024;
     private const string EngineVersion = "aris-resume/v1";
     private static readonly Regex SourceIdPattern = new(@"\A[a-f0-9]{32}\z", RegexOptions.CultureInvariant);
     private static readonly Regex TemporaryFilePattern = new(@"\A[a-f0-9]{32}\.pdf\.[a-f0-9]{32}\.uploading\z", RegexOptions.CultureInvariant);
 
     private readonly ArisDBContext _db;
     private readonly IWebHostEnvironment _environment;
+    private readonly IPrivateResumeOriginalStore? _privateStore;
 
-    public ResumeOriginalLifecycle(ArisDBContext db, IWebHostEnvironment environment, IConfiguration configuration)
+    public ResumeOriginalLifecycle(
+        ArisDBContext db,
+        IWebHostEnvironment environment,
+        IConfiguration configuration,
+        IPrivateResumeOriginalStore? privateStore = null)
     {
         _db = db;
         _environment = environment;
+        _privateStore = privateStore;
         var configured = configuration.GetValue<int?>("ResumeEngine:OriginalRetentionHours") ?? DefaultRetentionHours;
         // An accidental zero/negative setting must never turn an abandoned upload
         // into an immediate deletion. Larger values only retain data for longer.
@@ -42,7 +51,64 @@ public sealed class ResumeOriginalLifecycle
 
     public int RetentionHours { get; }
 
+    /// <summary>True for the application runtime, where source IDs require a private Drive mapping.</summary>
+    public bool RequiresCloudMapping => _privateStore is not null;
+
     public static bool IsValidSourceId(string? sourceId) => sourceId is not null && SourceIdPattern.IsMatch(sourceId);
+
+    public async Task<bool> HasStoredOriginalAsync(int userId, string? sourceId, CancellationToken cancellationToken)
+    {
+        if (userId <= 0 || !IsValidSourceId(sourceId)) return false;
+        if (_privateStore is not null)
+        {
+            if (await _privateStore.ExistsAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false)) return true;
+            // A release can leave historical, owner-scoped PDFs in the protected
+            // App_Data store. Migrate only when that owner deliberately saves or
+            // opens their document; do not scan or upload other users' files.
+            return await MigrateLegacyOriginalAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false);
+        }
+
+        return TryGetPath(userId, sourceId, out var path) &&
+               System.IO.File.Exists(path) &&
+               !HasReparsePoint(path);
+    }
+
+    public async Task<ResumeOriginalDownload?> OpenAsync(int userId, string? sourceId, CancellationToken cancellationToken)
+    {
+        if (userId <= 0 || !IsValidSourceId(sourceId)) return null;
+        if (_privateStore is not null)
+        {
+            // Do not recreate a mapped file when Drive reports it missing: the
+            // mapping is the authoritative locator and that condition deserves
+            // operator attention. Only an absent mapping may be a legacy local
+            // original eligible for owner-triggered migration.
+            if (await _privateStore.ExistsAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false))
+                return await _privateStore.OpenAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false);
+
+            if (!await MigrateLegacyOriginalAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false)) return null;
+            return await _privateStore.OpenAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false);
+        }
+        if (!TryGetPath(userId, sourceId, out var path) || !System.IO.File.Exists(path) || HasReparsePoint(path)) return null;
+
+        try
+        {
+            var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+            return new ResumeOriginalDownload(stream, "application/pdf", "CV-original.pdf");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    public async Task MarkReferencedAsync(int userId, string? sourceId, CancellationToken cancellationToken)
+    {
+        if (_privateStore is null || userId <= 0 || !IsValidSourceId(sourceId)) return;
+        if (!await _privateStore.ExistsAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false) &&
+            !await MigrateLegacyOriginalAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false))
+            return;
+        await _privateStore.MarkReferencedAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false);
+    }
 
     // Extract only a source ID from a schema-valid stored Studio document. A malformed
     // blob never grants authority to remove a file.
@@ -127,6 +193,8 @@ public sealed class ResumeOriginalLifecycle
     // owner-scoped file path and cleans a partial file if copying fails.
     public async Task<bool> StoreAsync(int userId, string sourceId, IFormFile file, CancellationToken cancellationToken)
     {
+        if (_privateStore is not null)
+            return await _privateStore.StoreAsync(userId, sourceId, file, cancellationToken).ConfigureAwait(false);
         if (!TryGetPath(userId, sourceId, out var path)) return false;
         var folder = Path.GetDirectoryName(path);
         if (string.IsNullOrWhiteSpace(folder)) return false;
@@ -165,10 +233,74 @@ public sealed class ResumeOriginalLifecycle
         }
     }
 
+    // This is intentionally lazy and owner-triggered. It gives an existing
+    // saved imported-layout CV a safe path across the Drive release without
+    // bulk-reading or externally uploading every historical App_Data file at
+    // startup. The original is retained locally as a rollback copy; only the
+    // private Drive mapping is added after the store verifies the upload.
+    private async Task<bool> MigrateLegacyOriginalAsync(int userId, string sourceId, CancellationToken cancellationToken)
+    {
+        if (_privateStore is null ||
+            !TryGetPath(userId, sourceId, out var path) ||
+            !System.IO.File.Exists(path) ||
+            HasReparsePoint(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            var info = new FileInfo(path);
+            if (info.Length <= 0 || info.Length > MaximumOriginalBytes) return false;
+
+            await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+            var header = new byte[5];
+            if (await stream.ReadAsync(header.AsMemory(), cancellationToken).ConfigureAwait(false) != header.Length ||
+                !header.AsSpan().SequenceEqual("%PDF-"u8))
+            {
+                return false;
+            }
+            stream.Position = 0;
+
+            var form = new FormFile(stream, 0, info.Length, "file", sourceId + ".pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+            if (await _privateStore.StoreAsync(userId, sourceId, form, cancellationToken).ConfigureAwait(false)) return true;
+
+            // Another tab can win the DB uniqueness race after this request
+            // uploaded its candidate. The store cleans its own candidate; the
+            // newly-created mapping is valid for this caller.
+            return await _privateStore.ExistsAsync(userId, sourceId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
     // Explicit discard is allowed only for an unsaved candidate. The reference query
     // runs immediately before the exact-file removal.
     public async Task<ResumeOriginalDeleteResult> DeleteIfUnreferencedAsync(int userId, string? sourceId, CancellationToken cancellationToken)
     {
+        if (_privateStore is not null)
+        {
+            if (userId <= 0 || !IsValidSourceId(sourceId)) return ResumeOriginalDeleteResult.Invalid;
+            if (await IsReferencedAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false)) return ResumeOriginalDeleteResult.Referenced;
+            try
+            {
+                return await _privateStore.DeleteAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false);
+            }
+            catch (PrivateResumeOriginalStorageException)
+            {
+                return ResumeOriginalDeleteResult.Failed;
+            }
+        }
         if (!TryGetPath(userId, sourceId, out var path)) return ResumeOriginalDeleteResult.Invalid;
         if (await IsReferencedAsync(userId, sourceId!, cancellationToken)) return ResumeOriginalDeleteResult.Referenced;
         return TryDeleteExact(path);
@@ -179,6 +311,19 @@ public sealed class ResumeOriginalLifecycle
     // begins a fresh retention window only after the DB commit proved it is unreferenced.
     public async Task DeferUnreferencedCleanupAsync(int userId, string? sourceId, CancellationToken cancellationToken)
     {
+        if (_privateStore is not null)
+        {
+            if (userId <= 0 || !IsValidSourceId(sourceId) || await IsReferencedAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false)) return;
+            try
+            {
+                await _privateStore.MarkUnreferencedAsync(userId, sourceId!, cancellationToken).ConfigureAwait(false);
+            }
+            catch (PrivateResumeOriginalStorageException)
+            {
+                // The persisted CV save is authoritative; retention maintenance is best effort.
+            }
+            return;
+        }
         if (!TryGetPath(userId, sourceId, out var path)) return;
         if (await IsReferencedAsync(userId, sourceId!, cancellationToken)) return;
 
@@ -197,6 +342,8 @@ public sealed class ResumeOriginalLifecycle
     // non-recursive, and rechecks references for each file immediately before deletion.
     public async Task<int> CleanupExpiredUnreferencedAsync(int userId, CancellationToken cancellationToken)
     {
+        if (_privateStore is not null)
+            return await CleanupCloudExpiredUnreferencedAsync(userId, cancellationToken).ConfigureAwait(false);
         if (!TryGetOwnerFolder(userId, out var folder) || !Directory.Exists(folder) || HasReparsePoint(folder)) return 0;
         var cutoff = DateTime.UtcNow.AddHours(-RetentionHours);
         var removed = 0;
@@ -236,6 +383,8 @@ public sealed class ResumeOriginalLifecycle
     // real user ID. It never recursively sweeps arbitrary content-root paths.
     public async Task<int> CleanupAllExpiredUnreferencedAsync(CancellationToken cancellationToken)
     {
+        if (_privateStore is not null)
+            return await CleanupCloudExpiredUnreferencedAsync(null, cancellationToken).ConfigureAwait(false);
         if (!TryGetOriginalsRoot(out var originalsRoot) || !Directory.Exists(originalsRoot) || HasReparsePoint(originalsRoot)) return 0;
 
         List<int> userIds;
@@ -254,6 +403,40 @@ public sealed class ResumeOriginalLifecycle
             cancellationToken.ThrowIfCancellationRequested();
             removed += await CleanupExpiredUnreferencedAsync(userId, cancellationToken);
         }
+        return removed;
+    }
+
+    private async Task<int> CleanupCloudExpiredUnreferencedAsync(int? onlyUserId, CancellationToken cancellationToken)
+    {
+        var cutoff = DateTime.UtcNow.AddHours(-RetentionHours);
+        var removed = 0;
+        var candidates = await _privateStore!.ListExpiredUnreferencedAsync(cutoff, cancellationToken).ConfigureAwait(false);
+        foreach (var candidate in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (onlyUserId.HasValue && candidate.OwnerUserId != onlyUserId.Value) continue;
+            if (candidate.OwnerUserId <= 0 || !IsValidSourceId(candidate.SourceId)) continue;
+
+            if (await IsReferencedAsync(candidate.OwnerUserId, candidate.SourceId, cancellationToken).ConfigureAwait(false))
+            {
+                // A DB save may have succeeded just as a retention update failed.
+                // Restore the referenced state rather than scanning that object forever.
+                await _privateStore.MarkReferencedAsync(candidate.OwnerUserId, candidate.SourceId, cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            try
+            {
+                var result = await _privateStore.DeleteAsync(candidate.OwnerUserId, candidate.SourceId, cancellationToken).ConfigureAwait(false);
+                if (result is ResumeOriginalDeleteResult.Deleted or ResumeOriginalDeleteResult.Missing)
+                    removed++;
+            }
+            catch (PrivateResumeOriginalStorageException)
+            {
+                // A later worker pass retries a Drive/network failure.
+            }
+        }
+
         return removed;
     }
 

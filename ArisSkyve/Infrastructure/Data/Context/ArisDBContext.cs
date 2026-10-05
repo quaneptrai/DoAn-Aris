@@ -15,6 +15,7 @@ namespace ArisSkyve.Infrastructure.Data.Context
         public DbSet<PostMedias> PostMedias { get; set; }
         public DbSet<JobPosting> JobPostings { get; set; }
         public DbSet<Resume> Resumes { get; set; }
+        public DbSet<ResumeOriginal> ResumeOriginals { get; set; }
         public DbSet<Skills> Skills { get; set; }
         public DbSet<Experiences> Experiences { get; set; }
         public DbSet<ContactMethod> ContactMethods { get; set; }
@@ -120,6 +121,29 @@ namespace ArisSkyve.Infrastructure.Data.Context
                 .Property(r => r.Label)
                 .IsRequired()
                 .HasDefaultValue("CV của tôi");
+            // Imported-layout PDFs live in a separate private Drive folder. This
+            // table contains only the opaque server-side Drive locator; the
+            // canonical Studio JSON keeps its existing source ID, never a Drive URL.
+            modelBuilder.Entity<ResumeOriginal>(original =>
+            {
+                original.Property(value => value.SourceId)
+                    .HasMaxLength(32)
+                    .IsRequired();
+                original.Property(value => value.DriveFileId)
+                    .HasMaxLength(256)
+                    .IsRequired();
+                original.Property(value => value.RowVersion)
+                    .IsRowVersion();
+                original.HasIndex(value => value.SourceId)
+                    .IsUnique();
+                original.HasIndex(value => value.DriveFileId)
+                    .IsUnique();
+                original.HasIndex(value => new { value.UnreferencedAtUtc, value.Id });
+                original.HasOne(value => value.Owner)
+                    .WithMany()
+                    .HasForeignKey(value => value.OwnerUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
             // .IsRequired() has no effect here despite the C# non-null default: TPH keeps
             // subclass-only columns nullable at the DB level since base EmployesAccount
             // rows never populate them — GetRejectionTemplates() null-checks accordingly.

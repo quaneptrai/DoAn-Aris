@@ -1156,6 +1156,54 @@ namespace ArisSkyve.Migrations
                     b.ToTable("Resumes");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.ResumeOriginal", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DriveFileId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("OwnerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SourceId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime?>("UnreferencedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DriveFileId")
+                        .IsUnique();
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("SourceId")
+                        .IsUnique();
+
+                    b.HasIndex("UnreferencedAtUtc", "Id");
+
+                    b.ToTable("ResumeOriginals");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.SavedJob", b =>
                 {
                     b.Property<int>("UserId")
@@ -2029,6 +2077,17 @@ namespace ArisSkyve.Migrations
                         .IsRequired();
 
                     b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.ResumeOriginal", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("ArisSkyve.Domain.Entities.SavedJob", b =>

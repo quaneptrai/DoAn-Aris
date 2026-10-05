@@ -675,7 +675,9 @@ namespace ArisSkyve.Controllers
         {
             foreach (var (upload, _) in uploads)
             {
-                try { await _publicMedia.DeleteAsync(upload.FileId, HttpContext.RequestAborted); }
+                // This is compensating cleanup after an upload failure. The request
+                // may already be cancelled, so never reuse RequestAborted here.
+                try { await _publicMedia.DeleteAsync(upload.FileId, CancellationToken.None); }
                 catch { /* The primary upload failure is the actionable error. */ }
             }
         }

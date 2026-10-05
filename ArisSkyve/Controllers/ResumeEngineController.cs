@@ -164,6 +164,14 @@ public sealed class ResumeEngineController(ArisDBContext db, IHttpClientFactory 
         var data = SynchronizeImportedBasics(request.Data);
         var previousSourceId = previous is null ? null : ResumeOriginalLifecycle.TryGetSourceId(previous.Data);
         var currentSourceId = ResumeOriginalLifecycle.TryGetSourceId(data);
+        // A cloud-backed imported layout is valid only when the server has the
+        // matching private Drive mapping for this owner. Source IDs are opaque
+        // browser values, never authority to attach an arbitrary Drive object.
+        if (currentSourceId is not null && originals.RequiresCloudMapping &&
+            !await originals.HasStoredOriginalAsync(userId, currentSourceId, cancellationToken))
+        {
+            return UnprocessableEntity(new { error = "Không tìm thấy file PDF gốc riêng tư tương ứng. Hãy nhập lại file trước khi lưu." });
+        }
         var basics = data.GetProperty("basics");
         resume.Name = basics.GetProperty("name").GetString()!;
         resume.Email = basics.GetProperty("email").GetString()!;
@@ -174,6 +182,19 @@ public sealed class ResumeEngineController(ArisDBContext db, IHttpClientFactory 
         resume.ExtractedFullText = text.Length > 30000 ? text[..30000] : text;
         resume.SearchVectorContent = text.Length > 4000 ? text[..4000] : text;
         await db.SaveChangesAsync(cancellationToken);
+
+        if (currentSourceId is not null)
+        {
+            try
+            {
+                await originals.MarkReferencedAsync(userId, currentSourceId, cancellationToken);
+            }
+            catch (PrivateResumeOriginalStorageException)
+            {
+                // The SQL CV save is authoritative. The cleanup worker rechecks
+                // references before deletion and will repair this state later.
+            }
+        }
 
         // Do not eagerly delete a replaced source here. A stale Studio tab may still
         // hold a valid document pointing at it. Once this DB commit proves no saved
@@ -298,7 +319,7 @@ public sealed class ResumeEngineController(ArisDBContext db, IHttpClientFactory 
                     var payload = System.Text.Json.Nodes.JsonNode.Parse(json)!;
                     payload["data"]!["importedLayout"]!["sourceId"] = sourceId;
                     if (!await originals.StoreAsync(userId, sourceId, file, cancellationToken))
-                        return StatusCode(500, new { error = "Chưa thể lưu an toàn file PDF gốc. File chưa được nhập vào Studio." });
+                        return StatusCode(503, new { error = "Chưa thể lưu an toàn file PDF gốc trên kho riêng tư. File chưa được nhập vào Studio." });
                     json = payload.ToJsonString();
                 }
             }
@@ -310,6 +331,8 @@ public sealed class ResumeEngineController(ArisDBContext db, IHttpClientFactory 
         { return StatusCode(503, new { error = "Dịch vụ phân tích CV chưa chạy." }); }
         catch (JsonException)
         { return StatusCode(502, new { error = "Dịch vụ phân tích trả dữ liệu không hợp lệ." }); }
+        catch (PrivateResumeOriginalStorageException)
+        { return StatusCode(503, new { error = "Kho lưu file PDF riêng tư hiện chưa sẵn sàng. Hãy thử lại sau." }); }
     }
 
     // Trợ lý CV trong Studio: gửi nội dung đang soạn (chưa cần lưu) cho AiCore /api/v2/skills/cv-coach —
@@ -559,13 +582,24 @@ public sealed class ResumeEngineController(ArisDBContext db, IHttpClientFactory 
     }
 
     [HttpGet("original/{sourceId}")]
-    public IActionResult Original(string sourceId)
+    public async Task<IActionResult> Original(string sourceId, CancellationToken cancellationToken)
     {
         if (!ResumeOriginalLifecycle.IsValidSourceId(sourceId) ||
-            !int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) || userId <= 0 ||
-            !originals.TryGetPath(userId, sourceId, out var path))
+            !int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) || userId <= 0)
             return NotFound();
-        return System.IO.File.Exists(path) ? PhysicalFile(path, "application/pdf", "CV-original.pdf") : NotFound();
+
+        try
+        {
+            var original = await originals.OpenAsync(userId, sourceId, cancellationToken);
+            if (original is null) return NotFound();
+            var result = File(original.Content, original.ContentType, original.DownloadName);
+            result.EnableRangeProcessing = true;
+            return result;
+        }
+        catch (PrivateResumeOriginalStorageException)
+        {
+            return StatusCode(503, new { error = "Chưa thể mở file PDF gốc từ kho riêng tư." });
+        }
     }
 
     // Parsing must retain an original long enough for the owner to compare it in
@@ -582,7 +616,7 @@ public sealed class ResumeEngineController(ArisDBContext db, IHttpClientFactory 
         {
             ResumeOriginalDeleteResult.Deleted or ResumeOriginalDeleteResult.Missing => NoContent(),
             ResumeOriginalDeleteResult.Referenced => Conflict(new { error = "File gốc đang được một CV đã lưu sử dụng nên không thể bỏ." }),
-            ResumeOriginalDeleteResult.Failed => StatusCode(409, new { error = "Chưa thể xóa file gốc cục bộ." }),
+            ResumeOriginalDeleteResult.Failed => StatusCode(409, new { error = "Chưa thể xóa file PDF gốc khỏi kho riêng tư." }),
             _ => NotFound()
         };
     }
