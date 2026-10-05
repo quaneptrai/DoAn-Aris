@@ -1,0 +1,121 @@
+@model ArisSkyve.Application.DTOs.CompanyRankingViewModel
+@using ArisSkyve.Infrastructure.Presentation
+@using ArisSkyve.Infrastructure.Services
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Xếp hạng công ty";
+    ViewData["ActiveNav"] = "Companies";
+    var labels = new Dictionary<string, string>
+    {
+        ["overall"] = "Tổng hợp",
+        ["views"] = "Lượt xem hồ sơ",
+        ["followers"] = "Người theo dõi",
+        ["applications"] = "Đơn ứng tuyển"
+    };
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/company-ranking.css" asp-append-version="true" />
+}
+
+<main class="cr-page" aria-labelledby="crTitle">
+    <nav class="cr-crumb" aria-label="Đường dẫn">
+        <a asp-controller="Company" asp-action="Index">Khám phá công ty</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Xếp hạng</span>
+    </nav>
+
+    <header class="cr-head">
+        <div>
+            <h1 id="crTitle">Xếp hạng công ty</h1>
+            <p>So sánh mức độ quan tâm từ các lượt xem hồ sơ, người theo dõi và đơn ứng tuyển đã gửi.</p>
+        </div>
+        <a class="a-btn a-btn--secondary" asp-controller="Company" asp-action="Index">Khám phá công ty</a>
+    </header>
+
+    <form class="cr-filters" method="get" asp-action="Ranking" aria-label="Lọc bảng xếp hạng">
+        <label>
+            <span>Xếp hạng theo</span>
+            <select name="sortBy" id="crSortBy" class="a-select">
+                <option value="overall" selected="@(Model.SortBy == "overall")">Tổng hợp</option>
+                <option value="views" selected="@(Model.SortBy == "views")">Lượt xem hồ sơ</option>
+                <option value="followers" selected="@(Model.SortBy == "followers")" disabled="@(!Model.FollowerMetricAvailable)">Người theo dõi</option>
+                <option value="applications" selected="@(Model.SortBy == "applications")">Đơn ứng tuyển</option>
+            </select>
+        </label>
+        <label>
+            <span>Lĩnh vực</span>
+            <select name="industry" id="crIndustry" class="a-select">
+                <option value="">Tất cả lĩnh vực</option>
+                @foreach (var item in Model.Industries)
+                {
+                    <option value="@item" selected="@(Model.Industry == item)">@item</option>
+                }
+            </select>
+        </label>
+        <button class="a-btn a-btn--ink" type="submit"><i data-lucide="list-filter"></i>Lọc</button>
+    </form>
+
+    @if (!Model.FollowerMetricAvailable)
+    {
+        <p class="cr-notice" role="status">Số người theo dõi hiện chưa khả dụng vì tính năng theo dõi công ty đang tắt.</p>
+    }
+
+    <section class="cr-results" aria-labelledby="crResultsTitle">
+        <h2 id="crResultsTitle">@labels[Model.SortBy]</h2>
+        @if (Model.Companies.Count == 0)
+        {
+            <div class="cr-empty" role="status">
+                <i data-lucide="building-2" aria-hidden="true"></i>
+                <h3>Chưa có công ty phù hợp</h3>
+                <p>Thử bỏ bộ lọc lĩnh vực hoặc quay lại sau khi có thêm hồ sơ công ty.</p>
+            </div>
+        }
+        else
+        {
+            <ol class="cr-list" aria-label="Tối đa 50 công ty, xếp theo @labels[Model.SortBy]">
+                @for (var i = 0; i < Model.Companies.Count; i++)
+                {
+                    var company = Model.Companies[i];
+                    var avatar = AvatarPresentation.HasImage(company.AvatarUrl)
+                        ? PublicMediaDeliveryUrl.ToDeliveryUrl(company.AvatarUrl)
+                        : null;
+                    <li class="cr-row">
+                        <span class="cr-rank" aria-label="Hạng @(i + 1)">@(i + 1)</span>
+                        <a class="cr-company" href="/Company/Details/@company.CompanyId">
+                            <span class="a-logo a-logo--48" data-tone="@AvatarPresentation.Tone(company.CompanyName)" aria-hidden="true">
+                                @AvatarPresentation.Initials(company.CompanyName, "AR")
+                                @if (avatar != null)
+                                {
+                                    <img src="@avatar" alt="" loading="lazy" onerror="this.remove()" />
+                                }
+                            </span>
+                            <span class="cr-company__text">
+                                <span class="cr-company__name">@company.CompanyName@if (company.IsVerified)
+                                    {
+                                        <i data-lucide="badge-check" class="fx-verified" aria-label="Đã xác minh"></i>
+                                    }</span>
+                                <span class="cr-company__industry">@(string.IsNullOrWhiteSpace(company.Industry) ? "Chưa cập nhật lĩnh vực" : company.Industry)</span>
+                            </span>
+                        </a>
+                        <dl class="cr-metrics">
+                            <div><dt>Lượt xem hồ sơ</dt><dd>@company.ProfileViewCount</dd></div>
+                            @if (Model.FollowerMetricAvailable)
+                            {
+                                <div><dt>Người theo dõi</dt><dd>@company.FollowerCount</dd></div>
+                            }
+                            <div><dt>Đơn ứng tuyển</dt><dd>@company.ApplicationCount</dd></div>
+                        </dl>
+                    </li>
+                }
+            </ol>
+            <p class="cr-limit">Đang hiển thị tối đa 50 công ty phù hợp với bộ lọc.</p>
+        }
+    </section>
+
+    <details class="cr-method">
+        <summary>Cách tính thứ hạng tổng hợp</summary>
+        <p>Tổng hợp sắp theo số đơn ứng tuyển chưa rút giảm dần, sau đó lượt xem hồ sơ, rồi số người theo dõi. Nếu vẫn bằng nhau, xếp theo tên công ty rồi mã hồ sơ để kết quả ổn định. Đơn đã rút không được tính; mỗi lần mở trang công ty của người xem khác được tính một lượt, lượt của chủ tài khoản bị bỏ qua.</p>
+        <p>Lượt xem hồ sơ chỉ được ghi nhận từ lúc tính năng được bật; hệ thống không ước đoán hay tạo bù lượt xem cũ. Số người theo dõi chỉ hiện khi tính năng theo dõi công ty khả dụng.</p>
+    </details>
+</main>

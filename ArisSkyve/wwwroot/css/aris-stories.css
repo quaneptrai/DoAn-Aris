@@ -120,13 +120,21 @@
 .story__head .a-btn { color: #FFFFFF; }
 .story__head .a-btn:hover { background: rgb(255 255 255 / .12) !important; color: #FFFFFF !important; }
 .story__head .a-btn:first-of-type { margin-left: auto; }
+.story__head .story__hzoom { color: #FFFFFF; display: inline-grid; place-items: center; }
+.story__head .story__hzoom:hover { background: rgb(255 255 255 / .2) !important; color: #FFFFFF !important; }
 .story__tap { position: absolute; inset: 70px 0 84px; z-index: 1; display: grid; grid-template-columns: 1fr 2fr; }
+.story__tap--image { grid-template-columns: 1fr 3fr 1fr; }
 .story__tap button { border: 0; background: none; cursor: pointer; }
+.story__tap .story__zoom { display: grid; place-items: center; color: #FFFFFF; }
+.story__zoom-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; background: rgb(0 0 0 / .65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgb(255 255 255 / .25); font: 600 var(--fs-13)/1 var(--font); color: #FFFFFF; box-shadow: 0 4px 16px rgb(0 0 0 / .4); transition: transform var(--d-2) var(--e-spring), background var(--d-2); }
+.story__tap .story__zoom:hover .story__zoom-badge { transform: scale(1.08); background: rgb(0 0 0 / .85); border-color: #FFFFFF; }
+.story__zoom-badge svg { width: 16px; height: 16px; }
 .story__caption { position: absolute; left: 24px; right: 24px; top: 58%; z-index: 1; font: 600 var(--fs-22)/1.35 var(--font); text-align: center; text-shadow: 0 2px 12px rgb(0 0 0 / .5); pointer-events: none; }
 .story__sticker { position: absolute; left: 50%; bottom: 112px; z-index: 2; display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; background: #FFFFFF; color: #1C1B18; font: 600 var(--fs-14)/1 var(--font); box-shadow: 0 6px 20px rgb(0 0 0 / .3); translate: -50% 0; text-decoration: none; }
 .story__sticker:hover { text-decoration: none; }
 .story__sticker svg { width: 16px; height: 16px; color: #2F6FED; }
 .story__foot { position: absolute; inset: auto 0 0; z-index: 2; display: grid; gap: 10px; padding: 12px; transition: opacity var(--d-2) var(--e-out); }
+@media (hover: none) { .story__tap .story__zoom svg { opacity: .62; } }
 .story__reply { display: flex; align-items: center; gap: 6px; }
 .story__input { flex: 1; min-width: 0; height: 44px; padding: 0 18px; border: 1px solid rgb(255 255 255 / .55); border-radius: var(--r-full); background: transparent; color: #FFFFFF; font: 400 var(--fs-14)/1 var(--font); outline: none; }
 .story__input::placeholder { color: rgb(255 255 255 / .8); }

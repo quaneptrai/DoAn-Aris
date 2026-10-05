@@ -33,6 +33,15 @@ else
             <div class="auth-alert" role="alert"><i data-lucide="alert-circle"></i><span>@error</span></div>
         }
 
+        <div class="auth-agreement">
+            <input type="checkbox" id="authAcceptTerms" required checked="@(ViewBag.AcceptTerms is bool accepted && accepted ? "checked" : null)" aria-describedby="authAgreementError" />
+            <div class="auth-agreement__copy">
+                <label for="authAcceptTerms">Tôi đồng ý với <b>Điều khoản sử dụng</b> và <a href="/privacy">Chính sách quyền riêng tư</a> của Aris.</label>
+                <p class="auth-legal">Sự đồng ý này không bật quyền xử lý CV bằng AI.</p>
+            </div>
+            <span class="auth-agreement__error" id="authAgreementError" role="alert" aria-live="polite" hidden>Vui lòng đồng ý với điều khoản và chính sách quyền riêng tư để tiếp tục.</span>
+        </div>
+
         @await Html.PartialAsync("_AuthSocial", (string?)null)
 
         <div class="auth-sep"><span>hoặc tiếp tục với email</span></div>
@@ -40,6 +49,7 @@ else
         <form asp-action="RequestMagicLink" method="post" class="auth-form" id="authForm" novalidate>
             <input type="hidden" name="returnView" value="Login" />
             <input type="hidden" name="returnUrl" value="@returnUrl" />
+            <input type="hidden" name="AcceptTerms" value="false" data-auth-terms-value />
             <label class="auth-field" for="authEmail">
                 <span class="auth-field__row">
                     <span class="a-label">Email</span>
@@ -47,15 +57,13 @@ else
                 </span>
                 <span class="auth-input">
                     <i data-lucide="mail"></i>
-                    <input type="email" name="email" id="authEmail" placeholder="ten@congty.com" value="@submittedEmail" autocomplete="email" inputmode="email" required autofocus aria-describedby="authEmailHint authNote" />
+                    <input type="email" name="email" id="authEmail" placeholder="ten@congty.com" value="@submittedEmail" autocomplete="email" inputmode="email" required autofocus aria-describedby="authEmailHint" />
                 </span>
                 <span class="auth-hint" id="authEmailHint" hidden>Email chưa đúng định dạng, ví dụ: ten@congty.com</span>
             </label>
-            <p class="auth-note" id="authNote"><i data-lucide="shield-check"></i><span>Không cần mật khẩu. Aris gửi một liên kết đăng nhập tới email này, hết hạn sau 30 phút.</span></p>
             <button class="a-btn a-btn--sunset auth-submit" type="submit" id="authSubmit">
                 <span>Gửi liên kết đăng nhập</span><i data-lucide="arrow-right"></i>
             </button>
-            <p class="auth-legal">Bằng việc tiếp tục, bạn đồng ý với <b>Điều khoản sử dụng</b> và <a href="/privacy"><b>Chính sách quyền riêng tư</b></a> của Aris.</p>
         </form>
 
         <p class="auth-switch">Chưa có tài khoản? <a asp-action="Register" asp-route-returnUrl="@returnUrl">Tạo tài khoản</a></p>

@@ -120,10 +120,20 @@ var authentication = builder.Services.AddAuthentication(options =>
     options.SlidingExpiration = true;
 });
 
+authentication.AddCookie("Aris.External", options =>
+{
+    options.Cookie.Name = "aris.external";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+    options.SlidingExpiration = false;
+});
+
 if (!string.IsNullOrWhiteSpace(google["ClientId"]) && !string.IsNullOrWhiteSpace(google["ClientSecret"]))
 {
     authentication.AddGoogle(options =>
     {
+        options.SignInScheme = "Aris.External";
         options.ClientId = google["ClientId"]!;
         options.ClientSecret = google["ClientSecret"]!;
         options.CallbackPath = "/signin-google";
@@ -134,6 +144,7 @@ if (!string.IsNullOrWhiteSpace(facebook["ClientId"]) && !string.IsNullOrWhiteSpa
 {
     authentication.AddFacebook(options =>
     {
+        options.SignInScheme = "Aris.External";
         options.AppId = facebook["ClientId"]!;
         options.AppSecret = facebook["ClientSecret"]!;
         options.CallbackPath = "/signin-facebook";

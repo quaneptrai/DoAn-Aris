@@ -144,6 +144,19 @@ window.ArisStories = (function () {
         };
         viewer.addEventListener('pointerup', release);
         viewer.addEventListener('pointercancel', release);
+        viewer.addEventListener('dblclick', (e) => {
+            if (!sv) return;
+            const u = sv.list[sv.ui];
+            const it = u && u.items[sv.ii];
+            if (it && it.mediaType === 'image' && typeof window.openLightbox === 'function') {
+                e.preventDefault();
+                setPaused(true);
+                window.openLightbox([{ src: it.mediaUrl, alt: it.caption || `Tin của ${u.name}`, caption: it.caption || '' }]);
+            }
+        });
+        document.addEventListener('lightbox:close', () => {
+            if (sv && sv.paused) setPaused(false);
+        });
         viewer.addEventListener('submit', onReply);
         return viewer;
     }
@@ -186,11 +199,16 @@ window.ArisStories = (function () {
                 ${face(u.name, u.avatar, 32, u.isOrg)}
                 <span class="story__name">${esc(u.name)}</span><span class="story__time">${timeAgo(minsSince(it.createdAt))}</span>
                 <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" data-sv="pause" aria-label="${sv.paused ? 'Tiếp tục' : 'Tạm dừng'}"><i data-lucide="${sv.paused ? 'play' : 'pause'}"></i></button>
+                ${it.mediaType === 'image' ? '<button class="a-btn a-btn--ghost a-btn--icon a-btn--sm story__hzoom" type="button" data-sv="zoom" aria-label="Phóng to ảnh (Zoom)"><i data-lucide="zoom-in"></i></button>' : ''}
                 ${it.mediaType === 'video' ? `<button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" data-sv="mute" aria-label="${sv.muted ? 'Bật tiếng' : 'Tắt tiếng'}"><i data-lucide="${sv.muted ? 'volume-x' : 'volume-2'}"></i></button>` : ''}
                 <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm story__hclose" type="button" data-sv="close" aria-label="Đóng"><i data-lucide="x"></i></button>
               </div>
             </div>
-            <div class="story__tap"><button type="button" data-sv="prev" aria-label="Tin trước"></button><button type="button" data-sv="next" aria-label="Tin sau"></button></div>
+            <div class="story__tap${it.mediaType === 'image' ? ' story__tap--image' : ''}">
+              <button type="button" data-sv="prev" aria-label="Tin trước"></button>
+              ${it.mediaType === 'image' ? '<button class="story__zoom" type="button" data-sv="zoom" aria-label="Phóng to ảnh (Zoom)"><span class="story__zoom-badge"><i data-lucide="zoom-in"></i><span>Phóng to</span></span></button>' : ''}
+              <button type="button" data-sv="next" aria-label="Tin sau"></button>
+            </div>
             ${it.caption ? `<div class="story__caption">${esc(it.caption)}</div>` : ''}
             ${link ? `<a class="story__sticker" href="${esc(link.url)}"${link.internal ? '' : ' target="_blank" rel="noopener"'}><i data-lucide="${link.internal ? 'building-2' : 'link'}"></i>${esc(link.label || 'Xem liên kết')}</a>` : ''}
             <div class="story__foot">
@@ -313,6 +331,15 @@ window.ArisStories = (function () {
         if (a === 'close') close();
         else if (a === 'next') { if (!viewer._held) step1(1); }
         else if (a === 'prev') { if (!viewer._held) step1(-1); }
+        else if (a === 'zoom') {
+            const u = sv.list[sv.ui];
+            const it = u.items[sv.ii];
+            if (it.mediaType === 'image' && typeof window.openLightbox === 'function') {
+                e.preventDefault();
+                setPaused(true);
+                window.openLightbox([{ src: it.mediaUrl, alt: it.caption || `Tin của ${u.name}`, caption: it.caption || '' }]);
+            }
+        }
         else if (a === 'pause') setPaused(!sv.paused);
         else if (a === 'mute') {
             sv.muted = !sv.muted;

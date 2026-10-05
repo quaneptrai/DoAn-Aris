@@ -13,15 +13,11 @@
         foreach (var ch in name ?? "") h = unchecked(h * 31 + ch);
         return (int)(h % 6) + 1;
     }
-    bool HasImg(string? url) => !string.IsNullOrWhiteSpace(url) && !url.Contains("default-avatar.png");
-    string Ago(DateTime utc)
-    {
-        var d = (int)Math.Max(0, (DateTime.UtcNow - utc).TotalDays);
-        return d == 0 ? "Hôm nay" : d == 1 ? "Hôm qua" : d < 30 ? $"{d} ngày trước" : utc.ToLocalTime().ToString("dd/MM");
-    }
-
-    // "Bức tường" phía sau tiêu đề: tin tuyển dụng + công ty thật, chia 3 cột chạy lệch nhịp.
-    // Mỗi cột lặp lại chính nó để cuộn liền mạch (translateY -50%).
+    bool HasImg(string? url) => ArisSkyve.Infrastructure.Presentation.AvatarPresentation.HasImage(url);
+    string? AvatarSrc(string? url) => HasImg(url)
+        ? ArisSkyve.Infrastructure.Services.PublicMediaDeliveryUrl.ToDeliveryUrl(url)
+        : null;
+    // Logo và tin việc làm từ dữ liệu công ty đã lưu, trình bày thành bố cục tĩnh phía sau tiêu đề.
     var tiles = new List<object>();
     tiles.AddRange(Model.Jobs.Cast<object>());
     for (var i = 0; i < Model.TopCompanies.Count; i++) tiles.Insert(Math.Min(tiles.Count, i * 3 + 1), Model.TopCompanies[i]);
@@ -33,7 +29,6 @@
             for (var k = 0; k < perCol; k++)
                 columns[c].Add(tiles[(c * 2 + k) % tiles.Count]);
     }
-    var latest = Model.Jobs.FirstOrDefault();
 }
 
 @if (tiles.Count > 0)
@@ -41,7 +36,7 @@
     <div class="auth-wall" aria-hidden="true">
         @for (var c = 0; c < 3; c++)
         {
-            <div class="auth-wall__col" style="--dur:@(46 + c * 9)s; --delay:-@(c * 7)s">
+            <div class="auth-wall__col">
                 @for (var rep = 0; rep < 2; rep++)
                 {
                     foreach (var t in columns[c])
@@ -50,9 +45,9 @@
                         {
                             <div class="auth-tile">
                                 <div class="auth-tile__top">
-                                    <span class="a-logo a-logo--32" data-tone="@Tone(j.Company)">@OrgInitials(j.Company)@if (HasImg(j.AvatarUrl))
+                                    <span class="a-logo a-logo--32" data-tone="@Tone(j.Company)">@OrgInitials(j.Company)@if (AvatarSrc(j.AvatarUrl) is string jobAvatar)
                                         {
-                                            <img src="@j.AvatarUrl" alt="" loading="lazy" onerror="this.remove()" />
+                                            <img src="@jobAvatar" alt="" loading="lazy" onerror="this.remove()" />
                                         }</span>
                                     <span class="auth-tile__co">@j.Company</span>
                                 </div>
@@ -69,9 +64,9 @@
                         else if (t is ArisSkyve.ViewComponents.AuthShowcaseCompany co)
                         {
                             <div class="auth-tile auth-tile--co">
-                                <span class="fx-ring fx-ring--sq"><span class="a-logo a-logo--44" data-tone="@Tone(co.Name)">@OrgInitials(co.Name)@if (HasImg(co.AvatarUrl))
+                                <span class="fx-ring fx-ring--sq"><span class="a-logo a-logo--44" data-tone="@Tone(co.Name)">@OrgInitials(co.Name)@if (AvatarSrc(co.AvatarUrl) is string companyAvatar)
                                     {
-                                        <img src="@co.AvatarUrl" alt="" loading="lazy" onerror="this.remove()" />
+                                        <img src="@companyAvatar" alt="" loading="lazy" onerror="this.remove()" />
                                     }</span></span>
                                 <div>
                                     <div class="auth-tile__title">@co.Name</div>
@@ -87,30 +82,6 @@
 }
 
 <div class="auth-art__body">
-    @if (Model.HasData && Model.OpenJobs > 0)
-    {
-        <span class="auth-pill"><span class="fx-live" aria-hidden="true"></span><b class="a-num">@Model.OpenJobs</b>&nbsp;vị trí đang tuyển</span>
-    }
-    <h2 class="auth-art__title">Thấy tận mắt nơi làm việc, rồi hãy nộp CV.</h2>
+    <h2 class="auth-art__title">Khởi đầu đúng nơi. Đi xa cùng Aris.</h2>
     <p class="auth-art__lead">Công ty trên Aris đăng ảnh văn phòng, đội ngũ và những buổi làm việc thật ngay cạnh tin tuyển dụng. Bạn nộp CV, theo dõi từng bước và nhắn với người tuyển dụng — ở cùng một chỗ.</p>
-    @if (Model.HasData && Model.Companies > 0)
-    {
-        <p class="auth-art__count"><b class="a-num">@Model.Companies</b> doanh nghiệp · <b class="a-num">@Model.Members</b> thành viên đang dùng Aris</p>
-    }
 </div>
-
-@if (latest != null)
-{
-    <a class="auth-latest" href="/Jobs/Details/@latest.Id">
-        <span class="fx-ring fx-ring--sq"><span class="a-logo a-logo--44" data-tone="@Tone(latest.Company)">@OrgInitials(latest.Company)@if (HasImg(latest.AvatarUrl))
-            {
-                <img src="@latest.AvatarUrl" alt="" loading="lazy" onerror="this.remove()" />
-            }</span></span>
-        <span class="auth-latest__text">
-            <span class="auth-latest__kicker">Mới đăng · @Ago(latest.CreatedAt)</span>
-            <span class="auth-latest__title">@latest.Title</span>
-            <span class="auth-latest__sub">@latest.Company@(string.IsNullOrWhiteSpace(latest.City) ? "" : " · " + latest.City)@(string.IsNullOrWhiteSpace(latest.Salary) ? "" : " · " + latest.Salary)</span>
-        </span>
-        <span class="auth-latest__go" aria-hidden="true"><i data-lucide="arrow-right"></i></span>
-    </a>
-}

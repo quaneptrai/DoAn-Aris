@@ -1,4 +1,6 @@
 @model IEnumerable<ArisSkyve.Domain.Entities.JobPosting>
+@using ArisSkyve.Infrastructure.Presentation
+@using ArisSkyve.Infrastructure.Services
 @{
     // Cùng công thức với window.toneOf() / orgInitials() trong aris-shell.js (GetHashCode() đổi mỗi lần chạy app)
     int Tone(string? name)
@@ -14,7 +16,6 @@
         if (words.Length > 1) return (words[0][0].ToString() + words[1][0]).ToUpperInvariant();
         return words[0].Substring(0, Math.Min(2, words[0].Length)).ToUpperInvariant();
     }
-    bool HasImg(string? url) => !string.IsNullOrWhiteSpace(url) && !url.Contains("default-avatar.png") && !url.Contains("ui-avatars.com");
 }
 
 @if (Model != null)
@@ -23,7 +24,7 @@
     {
         var isNew = job.CreatedAt >= DateTime.UtcNow.AddDays(-3);
         var companyName = job.BusinessAccount?.CompanyName ?? (string.IsNullOrWhiteSpace(job.Company) ? "Doanh nghiệp" : job.Company);
-        var avatarUrl = HasImg(job.BusinessAccount?.AvatarUrl) ? job.BusinessAccount!.AvatarUrl : null;
+        var avatarUrl = AvatarPresentation.ResolveCompanyAvatar(job.BusinessAccount?.AvatarUrl);
         var location = job.Locations?.FirstOrDefault()?.City ?? job.Locations?.FirstOrDefault()?.Address ?? "Toàn quốc";
         var workMode = string.IsNullOrWhiteSpace(job.WorkTime) ? "Toàn thời gian" : job.WorkTime;
         var salary = string.IsNullOrWhiteSpace(job.Salary) ? "Thoả thuận" : job.Salary;

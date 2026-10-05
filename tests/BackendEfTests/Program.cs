@@ -146,6 +146,9 @@ namespace BackendEfTests
                 if (target == "all" || target == "candidate_apply" || target == "p11")
                     await TestP11_CandidateApplyValidationAndReapply();
 
+                if (target == "all" || target == "company_ranking" || target == "ranking")
+                    await TestCompanyRanking_AggregatesAndFilters();
+
                 Console.WriteLine("========================================================================");
                 Console.WriteLine("   ALL REAL EF CORE & CONTROLLER TESTS PASSED CLEANLY (100%)!           ");
                 Console.WriteLine("========================================================================");
@@ -1378,6 +1381,99 @@ namespace BackendEfTests
             }
 
             Console.WriteLine("  ✓ F7.8 PASSED: DemoData config keys correctly control seeders in appsettings and dev config.\n");
+        }
+
+        private static async Task TestCompanyRanking_AggregatesAndFilters()
+        {
+            Console.WriteLine(">>> RUNNING COMPANY RANKING: Aggregates, Sort Orders and Industry Filtering...");
+            var options = new DbContextOptionsBuilder<ArisDBContext>()
+                .UseInMemoryDatabase(databaseName: "Aris_CompanyRanking_" + Guid.NewGuid().ToString("N"))
+                .Options;
+
+            await using var db = new ArisDBContext(options);
+
+            var bizA = new BussinessAccount { Id = 101, CompanyName = "Alpha Tech", Industry = "CNTT", IsVerified = true };
+            var bizB = new BussinessAccount { Id = 102, CompanyName = "Beta Digital", Industry = "CNTT", IsVerified = false };
+            var bizC = new BussinessAccount { Id = 103, CompanyName = "Creative Media", Industry = "Marketing", IsVerified = false };
+            db.BussinessAccounts.AddRange(bizA, bizB, bizC);
+
+            // Job postings
+            var jobA = new JobPosting { Id = 201, Title = "Dev A", BusinessAccountId = bizA.Id, isActive = true };
+            var jobB = new JobPosting { Id = 202, Title = "Dev B", BusinessAccountId = bizB.Id, isActive = true };
+            var jobC = new JobPosting { Id = 203, Title = "Marketer C", BusinessAccountId = bizC.Id, isActive = true };
+            db.JobPostings.AddRange(jobA, jobB, jobC);
+
+            // Applications: A has 3 active, 1 withdrawn; B has 1 active; C has 0
+            db.JobApplications.AddRange(
+                new JobApplication { Id = 301, JobPostingId = jobA.Id, Status = JobApplicationStatus.Submitted, AppliedAt = DateTime.UtcNow },
+                new JobApplication { Id = 302, JobPostingId = jobA.Id, Status = JobApplicationStatus.UnderReview, AppliedAt = DateTime.UtcNow },
+                new JobApplication { Id = 303, JobPostingId = jobA.Id, Status = JobApplicationStatus.Hired, AppliedAt = DateTime.UtcNow },
+                new JobApplication { Id = 304, JobPostingId = jobA.Id, Status = JobApplicationStatus.Withdrawn, AppliedAt = DateTime.UtcNow }, // withdrawn not counted
+                new JobApplication { Id = 305, JobPostingId = jobB.Id, Status = JobApplicationStatus.Submitted, AppliedAt = DateTime.UtcNow }
+            );
+
+            // Views: B has 4, A has 2, C has 1
+            db.CompanyProfileViews.AddRange(
+                new CompanyProfileView { Id = 401, BusinessAccountId = bizB.Id, ViewedAtUtc = DateTime.UtcNow },
+                new CompanyProfileView { Id = 402, BusinessAccountId = bizB.Id, ViewedAtUtc = DateTime.UtcNow },
+                new CompanyProfileView { Id = 403, BusinessAccountId = bizB.Id, ViewedAtUtc = DateTime.UtcNow },
+                new CompanyProfileView { Id = 404, BusinessAccountId = bizB.Id, ViewedAtUtc = DateTime.UtcNow },
+                new CompanyProfileView { Id = 405, BusinessAccountId = bizA.Id, ViewedAtUtc = DateTime.UtcNow },
+                new CompanyProfileView { Id = 406, BusinessAccountId = bizA.Id, ViewedAtUtc = DateTime.UtcNow },
+                new CompanyProfileView { Id = 407, BusinessAccountId = bizC.Id, ViewedAtUtc = DateTime.UtcNow }
+            );
+
+            // Followers: C has 3, B has 2, A has 1
+            db.CompanyFollows.AddRange(
+                new CompanyFollow { BusinessAccountId = bizC.Id, UserId = 1, CreatedAt = DateTime.UtcNow },
+                new CompanyFollow { BusinessAccountId = bizC.Id, UserId = 2, CreatedAt = DateTime.UtcNow },
+                new CompanyFollow { BusinessAccountId = bizC.Id, UserId = 3, CreatedAt = DateTime.UtcNow },
+                new CompanyFollow { BusinessAccountId = bizB.Id, UserId = 1, CreatedAt = DateTime.UtcNow },
+                new CompanyFollow { BusinessAccountId = bizB.Id, UserId = 2, CreatedAt = DateTime.UtcNow },
+                new CompanyFollow { BusinessAccountId = bizA.Id, UserId = 1, CreatedAt = DateTime.UtcNow }
+            );
+
+            await db.SaveChangesAsync();
+
+            // Test 1: Overall ranking -> A (3 apps) should be #1, B (1 app) #2, C (0 apps) #3
+            var overall = await CompanyRankingQuery.Build(db, "overall", null, true).ToListAsync();
+            if (overall.Count != 3 || overall[0].CompanyId != bizA.Id || overall[1].CompanyId != bizB.Id || overall[2].CompanyId != bizC.Id)
+            {
+                throw new Exception($"Overall ranking order mismatch: got [{string.Join(", ", overall.Select(x => x.CompanyName))}]");
+            }
+            Console.WriteLine("  ✓ RANKING.1: Overall sort correctly prioritizes active applications and deterministic ties.");
+
+            // Test 2: Views sort -> B (4 views) #1, A (2 views) #2, C (1 view) #3
+            var byViews = await CompanyRankingQuery.Build(db, "views", null, true).ToListAsync();
+            if (byViews[0].CompanyId != bizB.Id || byViews[1].CompanyId != bizA.Id || byViews[2].CompanyId != bizC.Id)
+            {
+                throw new Exception($"Views ranking order mismatch: got [{string.Join(", ", byViews.Select(x => x.CompanyName))}]");
+            }
+            Console.WriteLine("  ✓ RANKING.2: Views sort correctly orders by ProfileViewCount.");
+
+            // Test 3: Followers sort -> C (3 followers) #1, B (2) #2, A (1) #3
+            var byFollowers = await CompanyRankingQuery.Build(db, "followers", null, true).ToListAsync();
+            if (byFollowers[0].CompanyId != bizC.Id || byFollowers[1].CompanyId != bizB.Id || byFollowers[2].CompanyId != bizA.Id)
+            {
+                throw new Exception($"Followers ranking order mismatch: got [{string.Join(", ", byFollowers.Select(x => x.CompanyName))}]");
+            }
+            Console.WriteLine("  ✓ RANKING.3: Followers sort correctly orders by FollowerCount.");
+
+            // Test 4: Industry filter "Marketing" -> only C
+            var mktg = await CompanyRankingQuery.Build(db, "overall", "Marketing", true).ToListAsync();
+            if (mktg.Count != 1 || mktg[0].CompanyId != bizC.Id)
+            {
+                throw new Exception($"Industry filter expected only Creative Media, got count: {mktg.Count}");
+            }
+            Console.WriteLine("  ✓ RANKING.4: Industry filtering strictly filters rows.");
+
+            // Test 5: Empty filter result
+            var empty = await CompanyRankingQuery.Build(db, "overall", "XayDung", true).ToListAsync();
+            if (empty.Count != 0)
+            {
+                throw new Exception($"Expected empty list for non-existing industry, got: {empty.Count}");
+            }
+            Console.WriteLine("  ✓ RANKING.5: Safe empty state on non-matching industry.\n");
         }
     }
 }

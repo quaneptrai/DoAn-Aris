@@ -59,6 +59,11 @@ namespace ArisSkyve.Controllers
         }
 
         private const string IntentCookie = "aris_intent";
+        public const string ExternalAuthenticationScheme = "Aris.External";
+        private const string TermsAcceptedProperty = "aris:terms-accepted";
+        private const string AuthReturnViewProperty = "aris:return-view";
+        private const string AuthReturnUrlProperty = "aris:return-url";
+        private const string AuthIntentProperty = "aris:intent";
 
         private static string? NormalizeIntent(string? intent) =>
             string.Equals(intent, "business", StringComparison.OrdinalIgnoreCase) ? "business"
@@ -93,6 +98,32 @@ namespace ArisSkyve.Controllers
                 IsEssential = true,
                 MaxAge = TimeSpan.FromMinutes(30)
             });
+        }
+
+        private static string NormalizeReturnView(string? returnView) =>
+            string.Equals(returnView, "Register", StringComparison.Ordinal) ? "Register" : "Login";
+
+        private IActionResult AuthFormError(string? returnView, string? returnUrl, string? intent, string error)
+        {
+            returnView = NormalizeReturnView(returnView);
+            ViewBag.ReturnUrl = returnUrl;
+            ViewBag.Intent = NormalizeIntent(intent) ?? "candidate";
+            ViewBag.AcceptTerms = false;
+            ViewBag.Error = error;
+            return View(returnView);
+        }
+
+        private static bool HasAcceptedTerms(AuthenticationProperties? properties) =>
+            properties?.Items.TryGetValue(TermsAcceptedProperty, out var value) == true && value == "true";
+
+        private static string? GetAuthProperty(AuthenticationProperties? properties, string key) =>
+            properties != null && properties.Items.TryGetValue(key, out var value) ? value : null;
+
+        private async Task RecordPrivacyAcceptanceAsync(User user)
+        {
+            if (user.PrivacyAcceptedAt != null) return;
+            user.PrivacyAcceptedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
         }
 
         public IActionResult Login(string? returnUrl = null)
@@ -366,12 +397,19 @@ namespace ArisSkyve.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [EnableRateLimiting(AuthRateLimits.MagicLinkRequest)]
-        public async Task<IActionResult> RequestMagicLink(string email, string? returnUrl = null, string returnView = "Login", string? intent = null)
+        public async Task<IActionResult> RequestMagicLink(string email, string? returnUrl = null, string returnView = "Login", string? intent = null, bool acceptTerms = false)
         {
-            returnView = returnView == "Register" ? "Register" : "Login";
+            returnView = NormalizeReturnView(returnView);
             intent = NormalizeIntent(intent);
             ViewBag.ReturnUrl = returnUrl;
             ViewBag.Intent = intent ?? "candidate";
+            ViewBag.AcceptTerms = acceptTerms;
+
+            if (!acceptTerms)
+            {
+                ViewBag.Error = "Vui lòng đồng ý với điều khoản và chính sách quyền riêng tư để tiếp tục.";
+                return View(returnView);
+            }
 
             if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
             {
@@ -398,7 +436,7 @@ namespace ArisSkyve.Controllers
                 return View(returnView);
             }
 
-            var token = GenerateMagicToken(email);
+            var token = GenerateMagicToken(email, privacyAccepted: true);
             var confirmUrl = Url.Action("ConfirmMagicLink", "Account", new { token, returnUrl, intent }, Request.Scheme);
 
             bool sendSuccess = false;
@@ -448,16 +486,18 @@ namespace ArisSkyve.Controllers
         [EnableRateLimiting(AuthRateLimits.MagicLinkConfirm)]
         public async Task<IActionResult> ConfirmMagicLink(string token, string? returnUrl = null, string? intent = null)
         {
-            var email = ValidateMagicToken(token ?? "");
-            if (email == null)
+            var tokenData = ValidateMagicToken(token ?? "");
+            if (tokenData == null)
             {
                 ViewBag.Error = "Liên kết đăng nhập không hợp lệ hoặc đã hết hạn (hiệu lực 30 phút). Nhập email để nhận liên kết mới.";
                 ViewBag.ReturnUrl = returnUrl;
                 return View("Login");
             }
 
-            var isNew = !await _context.Users.AnyAsync(u => u.Email == email);
-            var user = await EnsureUserAsync(email);
+            var isNew = !await _context.Users.AnyAsync(u => u.Email == tokenData.Email);
+            var user = await EnsureUserAsync(tokenData.Email);
+            if (tokenData.PrivacyAccepted)
+                await RecordPrivacyAcceptanceAsync(user);
             await SignInUserAsync(user);
 
             if (isNew)
@@ -472,13 +512,13 @@ namespace ArisSkyve.Controllers
             return RedirectToAction("Index", "Dashboard");
         }
 
-        private string GenerateMagicToken(string email)
+        private string GenerateMagicToken(string email, bool privacyAccepted)
         {
             if (!TryGetMagicLinkSecret(out var secret))
                 throw new InvalidOperationException("Auth:MagicLinkSecret must be configured before issuing magic links.");
 
             var expiresAtUnix = DateTimeOffset.UtcNow.AddMinutes(30).ToUnixTimeSeconds();
-            var payloadBytes = Encoding.UTF8.GetBytes($"{email}|{expiresAtUnix}");
+            var payloadBytes = Encoding.UTF8.GetBytes($"{email}|{expiresAtUnix}|{(privacyAccepted ? "1" : "0")}");
 
             using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
             var signature = hmac.ComputeHash(payloadBytes);
@@ -486,7 +526,9 @@ namespace ArisSkyve.Controllers
             return $"{WebEncoders.Base64UrlEncode(payloadBytes)}.{WebEncoders.Base64UrlEncode(signature)}";
         }
 
-        private string? ValidateMagicToken(string token)
+        private sealed record MagicTokenData(string Email, bool PrivacyAccepted);
+
+        private MagicTokenData? ValidateMagicToken(string token)
         {
             var parts = token.Split('.');
             if (parts.Length != 2) return null;
@@ -510,11 +552,11 @@ namespace ArisSkyve.Controllers
             if (!CryptographicOperations.FixedTimeEquals(signature, expectedSignature)) return null;
 
             var payloadParts = Encoding.UTF8.GetString(payloadBytes).Split('|');
-            if (payloadParts.Length != 2) return null;
+            if (payloadParts.Length != 3 || payloadParts[2] != "1") return null;
             if (!long.TryParse(payloadParts[1], out var expiresAtUnix)) return null;
             if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expiresAtUnix) return null;
 
-            return payloadParts[0];
+            return new MagicTokenData(payloadParts[0], true);
         }
 
         private async Task SignInUserAsync(User user)
@@ -585,8 +627,12 @@ namespace ArisSkyve.Controllers
 
             return Json(new { success = true, message = "Đã đăng xuất khỏi tất cả thiết bị." });
         }
-        public IActionResult GoogleLogin(string? intent = null)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult GoogleLogin(bool acceptTerms, string? intent = null, string? returnView = null, string? returnUrl = null)
         {
+            if (!acceptTerms)
+                return AuthFormError(returnView, returnUrl, intent, "Vui lòng đồng ý với điều khoản và chính sách quyền riêng tư để tiếp tục.");
             if (!HasExternalLoginConfiguration("Google")) return NotFound();
 
             RememberIntent(intent);
@@ -596,6 +642,10 @@ namespace ArisSkyve.Controllers
             {
                 RedirectUri = redirectUrl
             };
+            properties.Items[TermsAcceptedProperty] = "true";
+            properties.Items[AuthReturnViewProperty] = NormalizeReturnView(returnView);
+            properties.Items[AuthReturnUrlProperty] = returnUrl ?? string.Empty;
+            properties.Items[AuthIntentProperty] = NormalizeIntent(intent) ?? string.Empty;
 
             return Challenge(properties, GoogleDefaults.AuthenticationScheme);
         }
@@ -603,11 +653,18 @@ namespace ArisSkyve.Controllers
         {
             if (!HasExternalLoginConfiguration("Google")) return NotFound();
 
-            var result = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
+            var result = await HttpContext.AuthenticateAsync(ExternalAuthenticationScheme);
+            var properties = result.Properties;
+            await HttpContext.SignOutAsync(ExternalAuthenticationScheme);
+            var returnView = GetAuthProperty(properties, AuthReturnViewProperty);
+            var returnUrl = GetAuthProperty(properties, AuthReturnUrlProperty);
+            var intent = GetAuthProperty(properties, AuthIntentProperty);
+            if (!HasAcceptedTerms(properties))
+                return AuthFormError(returnView, returnUrl, intent, "Phiên đăng nhập chưa ghi nhận việc đồng ý với điều khoản và chính sách quyền riêng tư. Vui lòng thử lại.");
+
             if (!result.Succeeded || result.Principal == null)
             {
-                ViewBag.Error = "Đăng nhập Google không thành công hoặc đã bị hủy.";
-                return View("Login");
+                return AuthFormError(returnView, returnUrl, intent, "Đăng nhập Google không thành công hoặc đã bị hủy.");
             }
 
             var email = result.Principal.FindFirst(ClaimTypes.Email)?.Value;
@@ -615,8 +672,7 @@ namespace ArisSkyve.Controllers
 
             if (string.IsNullOrWhiteSpace(email))
             {
-                ViewBag.Error = "Không tìm thấy địa chỉ email từ tài khoản Google của bạn.";
-                return View("Login");
+                return AuthFormError(returnView, returnUrl, intent, "Không tìm thấy địa chỉ email từ tài khoản Google của bạn.");
             }
 
             var user = await _context.Users
@@ -630,6 +686,7 @@ namespace ArisSkyve.Controllers
                     Email = email,
                     Username = await GenerateUniqueUsernameAsync(name),
                     ShowActiveStatus = true,
+                    PrivacyAcceptedAt = DateTime.UtcNow,
                     Profile = new EmployesAccount
                     {
                         FullName = name,
@@ -646,15 +703,21 @@ namespace ArisSkyve.Controllers
 
             if (user.Profile == null)
             {
+                await RecordPrivacyAcceptanceAsync(user);
                 await SignInUserAsync(user);
                 return RedirectToAction("NewUserInfor");
             }
 
+            await RecordPrivacyAcceptanceAsync(user);
             await SignInUserAsync(user);
             return RedirectToAction("Index", "Dashboard");
         }
-        public IActionResult FacebookLogin(string? intent = null)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult FacebookLogin(bool acceptTerms, string? intent = null, string? returnView = null, string? returnUrl = null)
         {
+            if (!acceptTerms)
+                return AuthFormError(returnView, returnUrl, intent, "Vui lòng đồng ý với điều khoản và chính sách quyền riêng tư để tiếp tục.");
             if (!HasExternalLoginConfiguration("Facebook")) return NotFound();
 
             RememberIntent(intent);
@@ -664,6 +727,10 @@ namespace ArisSkyve.Controllers
             {
                 RedirectUri = redirectUrl
             };
+            properties.Items[TermsAcceptedProperty] = "true";
+            properties.Items[AuthReturnViewProperty] = NormalizeReturnView(returnView);
+            properties.Items[AuthReturnUrlProperty] = returnUrl ?? string.Empty;
+            properties.Items[AuthIntentProperty] = NormalizeIntent(intent) ?? string.Empty;
 
             return Challenge(properties, FacebookDefaults.AuthenticationScheme);
         }
@@ -671,11 +738,18 @@ namespace ArisSkyve.Controllers
         {
             if (!HasExternalLoginConfiguration("Facebook")) return NotFound();
 
-            var result = await HttpContext.AuthenticateAsync(FacebookDefaults.AuthenticationScheme);
+            var result = await HttpContext.AuthenticateAsync(ExternalAuthenticationScheme);
+            var properties = result.Properties;
+            await HttpContext.SignOutAsync(ExternalAuthenticationScheme);
+            var returnView = GetAuthProperty(properties, AuthReturnViewProperty);
+            var returnUrl = GetAuthProperty(properties, AuthReturnUrlProperty);
+            var intent = GetAuthProperty(properties, AuthIntentProperty);
+            if (!HasAcceptedTerms(properties))
+                return AuthFormError(returnView, returnUrl, intent, "Phiên đăng nhập chưa ghi nhận việc đồng ý với điều khoản và chính sách quyền riêng tư. Vui lòng thử lại.");
+
             if (!result.Succeeded || result.Principal == null)
             {
-                ViewBag.Error = "Đăng nhập Facebook không thành công hoặc đã bị hủy.";
-                return View("Login");
+                return AuthFormError(returnView, returnUrl, intent, "Đăng nhập Facebook không thành công hoặc đã bị hủy.");
             }
 
             var email = result.Principal.FindFirst(ClaimTypes.Email)?.Value;
@@ -683,8 +757,7 @@ namespace ArisSkyve.Controllers
 
             if (string.IsNullOrWhiteSpace(email))
             {
-                ViewBag.Error = "Không tìm thấy địa chỉ email từ tài khoản Facebook của bạn.";
-                return View("Login");
+                return AuthFormError(returnView, returnUrl, intent, "Không tìm thấy địa chỉ email từ tài khoản Facebook của bạn.");
             }
 
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Email == email);
@@ -696,6 +769,7 @@ namespace ArisSkyve.Controllers
                     Email = email,
                     Username = await GenerateUniqueUsernameAsync(name),
                     ShowActiveStatus = true,
+                    PrivacyAcceptedAt = DateTime.UtcNow,
                     Profile = new EmployesAccount
                     {
                         FullName = name,
@@ -711,10 +785,12 @@ namespace ArisSkyve.Controllers
             }
             if (user.Profile == null)
             {
+                await RecordPrivacyAcceptanceAsync(user);
                 await SignInUserAsync(user);
                 return RedirectToAction("NewUserInfor");
             }
 
+            await RecordPrivacyAcceptanceAsync(user);
             await SignInUserAsync(user);
             return RedirectToAction("Index", "Dashboard");
         }

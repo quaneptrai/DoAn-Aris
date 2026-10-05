@@ -234,10 +234,45 @@ namespace ArisSkyve.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> Ranking(string? sortBy = "overall", string? industry = null)
+        {
+            var allowedSorts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "overall", "views", "followers", "applications" };
+            sortBy = allowedSorts.Contains(sortBy ?? string.Empty) ? sortBy!.ToLowerInvariant() : "overall";
+            industry = string.IsNullOrWhiteSpace(industry) || industry.Trim().Length > 120
+                ? null
+                : industry.Trim();
+
+            var industries = await _context.BussinessAccounts.AsNoTracking()
+                .Where(company => company.Industry != null && company.Industry.Trim() != "")
+                .Select(company => company.Industry!)
+                .Distinct()
+                .OrderBy(value => value)
+                .Take(40)
+                .ToListAsync();
+
+            var followersAvailable = _featureGate.Enabled;
+            if (!followersAvailable && sortBy == "followers") sortBy = "overall";
+            var model = new CompanyRankingViewModel
+            {
+                SortBy = sortBy,
+                Industry = industry,
+                Industries = industries,
+                FollowerMetricAvailable = followersAvailable,
+                Companies = await CompanyRankingQuery
+                    .Build(_context, sortBy, industry, followersAvailable)
+                    .ToListAsync()
+            };
+
+            return View(model);
+        }
+
+        [HttpGet]
         public async Task<IActionResult> Details(int id)
         {
             var company = await _context.BussinessAccounts.FirstOrDefaultAsync(b => b.Id == id);
             if (company == null) return NotFound();
+            var viewerUserId = CurrentUserId;
 
             // Tin đã hết hạn vẫn hiển thị ở đây (và tìm được qua Search) — chỉ ẩn khỏi
             // trang chủ Jobs/Index, không xoá và không giấu khỏi trang công ty.
@@ -253,14 +288,14 @@ namespace ArisSkyve.Controllers
                 Company = company,
                 Jobs = jobs,
                 OpenJobCount = jobs.Count(j => j.isActive),
-                IsOwner = company.UserId == CurrentUserId,
+                IsOwner = company.UserId == viewerUserId,
                 FollowEnabled = _featureGate.Enabled
             };
 
             if (_featureGate.Enabled)
             {
                 model.FollowerCount = await _context.CompanyFollows.CountAsync(cf => cf.BusinessAccountId == id);
-                model.IsFollowing = await _context.CompanyFollows.AnyAsync(cf => cf.BusinessAccountId == id && cf.UserId == CurrentUserId);
+                model.IsFollowing = await _context.CompanyFollows.AnyAsync(cf => cf.BusinessAccountId == id && cf.UserId == viewerUserId);
             }
 
             // "Khoảnh khắc": ảnh / video trong các bài công khai do chính công ty đăng
@@ -282,6 +317,16 @@ namespace ArisSkyve.Controllers
                 }))
                 .Take(9)
                 .ToList();
+
+            if (company.UserId != viewerUserId)
+            {
+                _context.CompanyProfileViews.Add(new CompanyProfileView
+                {
+                    BusinessAccountId = company.Id,
+                    ViewedAtUtc = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+            }
 
             return View(model);
         }

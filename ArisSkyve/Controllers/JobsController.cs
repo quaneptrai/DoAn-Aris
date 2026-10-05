@@ -1,6 +1,9 @@
 using ArisSkyve.Application.DTOs;
 using ArisSkyve.Domain.Entities;
 using ArisSkyve.Infrastructure.Data.Context;
+using ArisSkyve.Infrastructure.Presentation;
+using ArisSkyve.Infrastructure.Services;
+using ArisSkyve.Infrastructure.Services.Recruitment;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,9 +19,6 @@ using Microsoft.Extensions.Logging;
 
 namespace ArisSkyve.Controllers
 {
-
-    using ArisSkyve.Infrastructure.Services;
-
     [Authorize]
     public class JobsController : Controller
     {
@@ -311,6 +311,7 @@ namespace ArisSkyve.Controllers
                 ViewBag.CompanyOpenJobs = await _context.JobPostings.CountAsync(j => j.BusinessAccountId == job.BusinessAccountId && j.isActive);
                 ViewBag.CompanyJobs = await _context.JobPostings
                     .Include(j => j.Locations)
+                    .Include(j => j.BusinessAccount)
                     .Where(j => j.BusinessAccountId == job.BusinessAccountId && j.isActive && j.Id != id)
                     .OrderByDescending(j => j.CreatedAt)
                     .Take(4)
@@ -429,6 +430,7 @@ namespace ArisSkyve.Controllers
                     allSavedJobsInDb = savedJobIds.Count > 0
                         ? await _context.JobPostings
                             .Include(j => j.Locations)
+                            .Include(j => j.BusinessAccount)
                             .Where(j => savedJobIds.Contains(j.Id))
                             .ToListAsync()
                         : new List<JobPosting>();
@@ -460,6 +462,7 @@ namespace ArisSkyve.Controllers
                                 PostingId = job.Id,
                                 JobTitle = job.Title,
                                 Company = job.Company,
+                                AvatarUrl = AvatarPresentation.ResolveCompanyAvatar(job.BusinessAccount?.AvatarUrl),
                                 Category = job.Category,
                                 Score = rec.Score ?? payload?.Score ?? (rec.MatchScore > 0 ? rec.MatchScore : null),
                                 Reason = !string.IsNullOrWhiteSpace(rec.Reason) ? rec.Reason : (payload?.Reason ?? string.Empty),
@@ -640,13 +643,13 @@ namespace ArisSkyve.Controllers
                                     JobPosting? jobInDb = null;
                                     if (rec.PostingId.HasValue && rec.PostingId.Value > 0)
                                     {
-                                        jobInDb = await _context.JobPostings.Include(j => j.Locations).FirstOrDefaultAsync(j => j.Id == rec.PostingId.Value);
+                                        jobInDb = await _context.JobPostings.Include(j => j.Locations).Include(j => j.BusinessAccount).FirstOrDefaultAsync(j => j.Id == rec.PostingId.Value);
                                     }
 
                                     // 2. Dự phòng bằng OriginalUrl duy nhất nếu PostingId không có
                                     if (jobInDb == null && !string.IsNullOrWhiteSpace(rec.OriginalUrl))
                                     {
-                                        jobInDb = await _context.JobPostings.Include(j => j.Locations).FirstOrDefaultAsync(j => j.OriginalUrl == rec.OriginalUrl);
+                                        jobInDb = await _context.JobPostings.Include(j => j.Locations).Include(j => j.BusinessAccount).FirstOrDefaultAsync(j => j.OriginalUrl == rec.OriginalUrl);
                                     }
 
                                     // KHÔNG match theo Title để tránh nối nhầm việc giữa các công ty khác nhau!
@@ -657,6 +660,7 @@ namespace ArisSkyve.Controllers
                                         rec.PostingId = jobInDb.Id;
                                         rec.JobTitle = jobInDb.Title;
                                         rec.Company = jobInDb.Company;
+                                        rec.AvatarUrl = AvatarPresentation.ResolveCompanyAvatar(jobInDb.BusinessAccount?.AvatarUrl);
                                         rec.Category = jobInDb.Category;
                                         newJobIds.Add(jobInDb.Id);
                                         validRecommendations.Add(rec);

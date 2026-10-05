@@ -27,6 +27,11 @@ namespace ArisSkyve.Application.DTOs
         [JsonPropertyName("company")]
         public string Company { get; set; } = string.Empty;
 
+        // Set only after matching the AI result to a persisted JobPosting.
+        // The recommender cannot assign or invent a company logo.
+        [JsonIgnore]
+        public string? AvatarUrl { get; set; }
+
         // Not part of AiCore's response — filled in server-side from the matched
         // local JobPosting.Category once we resolve rec.Id, so the Jobs page can
         // suggest/highlight a category filter pill without a separate taxonomy.

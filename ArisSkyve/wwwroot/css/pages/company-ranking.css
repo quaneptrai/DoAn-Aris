@@ -1,0 +1,45 @@
+.cr-page { width: min(100%, 1040px); margin: 0 auto; padding: 24px clamp(16px, 3vw, 32px) 48px; }
+.cr-crumb { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; color: var(--text-3); font-size: var(--fs-13); }
+.cr-crumb a { color: var(--text-2); }
+.cr-head { display: flex; justify-content: space-between; align-items: start; gap: 20px; margin-bottom: 22px; }
+.cr-head h1 { margin: 0 0 8px; color: var(--text); font: 800 clamp(26px, 4vw, 36px)/1.15 var(--font-display); letter-spacing: -.03em; }
+.cr-head p { max-width: 64ch; margin: 0; color: var(--text-3); line-height: 1.55; }
+.cr-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.cr-filters label { display: grid; gap: 6px; min-width: min(100%, 220px); color: var(--text-2); font: 600 var(--fs-12)/1.2 var(--font); }
+.cr-filters select { min-width: 220px; }
+.cr-notice { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--text-2); font-size: var(--fs-13); }
+.cr-results { overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.cr-results > h2 { margin: 0; padding: 18px 20px; border-bottom: 1px solid var(--line); color: var(--text); font: 700 var(--fs-18)/1.25 var(--font-display); }
+.cr-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.cr-row { display: grid; grid-template-columns: 42px minmax(220px, 1fr) minmax(330px, auto); align-items: center; gap: 16px; min-width: 0; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.cr-row:last-child { border-bottom: 0; }
+.cr-rank { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 50%; color: var(--text-2); font: 700 var(--fs-14)/1 var(--font-display); }
+.cr-company { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--text); }
+.cr-company:hover { color: var(--brand-text); text-decoration: none; }
+.cr-company__text { display: grid; gap: 4px; min-width: 0; }
+.cr-company__name { display: flex; align-items: center; gap: 6px; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.cr-company__industry { overflow: hidden; color: var(--text-3); font-size: var(--fs-12); text-overflow: ellipsis; white-space: nowrap; }
+.cr-metrics { display: grid; grid-template-columns: repeat(3, minmax(90px, 1fr)); gap: 8px; margin: 0; }
+.cr-metrics > div { display: grid; gap: 4px; min-width: 0; }
+.cr-metrics dt { color: var(--text-3); font-size: var(--fs-11); line-height: 1.3; }
+.cr-metrics dd { margin: 0; color: var(--text); font: 700 var(--fs-15)/1.2 var(--font-display); font-variant-numeric: tabular-nums; }
+.cr-limit { margin: 0; padding: 12px 20px; border-top: 1px solid var(--line); color: var(--text-3); font-size: var(--fs-12); }
+.cr-empty { display: grid; justify-items: center; gap: 8px; padding: 42px 20px; text-align: center; }
+.cr-empty > svg { width: 28px; height: 28px; color: var(--text-3); }
+.cr-empty h3 { margin: 0; color: var(--text); font: 700 var(--fs-16)/1.3 var(--font-display); }
+.cr-empty p { margin: 0; color: var(--text-3); font-size: var(--fs-13); }
+.cr-method { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; color: var(--text-2); background: var(--surface); }
+.cr-method summary { cursor: pointer; color: var(--text); font-weight: 700; }
+.cr-method p { margin: 10px 0 0; font-size: var(--fs-13); line-height: 1.55; }
+@media (max-width: 760px) {
+  .cr-head { flex-direction: column; align-items: stretch; }
+  .cr-head > .a-btn { align-self: start; }
+  .cr-filters { align-items: stretch; }
+  .cr-filters label, .cr-filters select, .cr-filters > button { width: 100%; }
+  .cr-row { grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .cr-metrics { grid-column: 2; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 430px) {
+  .cr-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px; }
+  .cr-metrics > div:last-child { grid-column: 1 / -1; }
+}

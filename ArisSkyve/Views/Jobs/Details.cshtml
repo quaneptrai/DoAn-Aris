@@ -1,4 +1,6 @@
 @using Newtonsoft.Json
+@using ArisSkyve.Infrastructure.Presentation
+@using ArisSkyve.Infrastructure.Services
 @model ArisSkyve.Domain.Entities.JobPosting
 
 @{
@@ -34,14 +36,13 @@
         if (words.Length > 1) return (words[0][0].ToString() + words[1][0]).ToUpperInvariant();
         return words[0].Substring(0, Math.Min(2, words[0].Length)).ToUpperInvariant();
     }
-    bool HasImg(string? url) => !string.IsNullOrWhiteSpace(url) && !url.Contains("default-avatar.png") && !url.Contains("ui-avatars.com");
     string Ago(DateTime utc)
     {
         var d = (int)Math.Max(0, (DateTime.UtcNow - utc).TotalDays);
         return d == 0 ? "hôm nay" : d == 1 ? "hôm qua" : $"{d} ngày trước";
     }
 
-    var companyLogo = HasImg(biz?.AvatarUrl) ? biz!.AvatarUrl : null;
+    var companyLogo = AvatarPresentation.ResolveCompanyAvatar(biz?.AvatarUrl);
     var resList = ParseList(Model.Responsibilities);
     var reqList = ParseList(Model.Requirements);
     var benList = ParseList(Model.Benefits);
@@ -104,7 +105,10 @@
                     }
                     else
                     {
-                        <span class="jd-head__logo"><span class="a-logo a-logo--56" data-tone="@tone">@initials</span></span>
+                        <span class="jd-head__logo"><span class="a-logo a-logo--56" data-tone="@tone">@initials@if (companyLogo != null)
+                            {
+                                <img src="@companyLogo" alt="" onerror="this.remove()" />
+                            }</span></span>
                     }
                     <div class="jd-head__text">
                         <div class="jd-company">
@@ -381,10 +385,13 @@
                     @foreach (var j in similarJobs)
                     {
                         var jc = j.BusinessAccount?.CompanyName ?? (string.IsNullOrWhiteSpace(j.Company) ? "Doanh nghiệp" : j.Company);
+                        var relatedLogo = AvatarPresentation.HasImage(j.BusinessAccount?.AvatarUrl)
+                            ? PublicMediaDeliveryUrl.ToDeliveryUrl(j.BusinessAccount!.AvatarUrl)
+                            : null;
                         <a class="jd-mini jd-mini--co" href="/Jobs/Details/@j.Id">
-                            <span class="a-logo a-logo--36" data-tone="@Tone(jc)">@OrgInitials(jc)@if (HasImg(j.BusinessAccount?.AvatarUrl))
+                            <span class="a-logo a-logo--36" data-tone="@Tone(jc)">@OrgInitials(jc)@if (relatedLogo != null)
                                 {
-                                    <img src="@j.BusinessAccount!.AvatarUrl" alt="" loading="lazy" onerror="this.remove()" />
+                                    <img src="@relatedLogo" alt="" loading="lazy" onerror="this.remove()" />
                                 }</span>
                             <span>
                                 <span class="jd-mini__title">@j.Title</span>

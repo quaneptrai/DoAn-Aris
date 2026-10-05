@@ -1,5 +1,7 @@
 @model List<ArisSkyve.Application.DTOs.JobRecommendationDTO>
 @using ArisSkyve.Infrastructure.Services.Recruitment
+@using ArisSkyve.Infrastructure.Presentation
+@using ArisSkyve.Infrastructure.Services
 
 @{
     var ringRadius = 22;
@@ -47,6 +49,7 @@
         var score = hasScore ? Math.Clamp(item.Score!.Value, 0, 100) : 0;
         var offset = ringCircumference * (1 - score / 100.0);
         var tier = ScoreTier(item.Score);
+        var logo = AvatarPresentation.ResolveCompanyAvatar(item.AvatarUrl);
         var matched = item.MatchedSkills ?? new List<string>();
         var missing = item.MissingSkills ?? new List<string>();
         // Một dòng ngắn ở thẻ ngoài; chi tiết (khớp/thiếu, trích dẫn, sửa CV, nên học gì) nằm trong ngăn "Vì sao?".
@@ -83,7 +86,7 @@
         <div class="ai-recommend-card" data-rec-json="@insightJson" style="animation-delay:@(Math.Min(itemIndex++, 6) * 0.06)s">
             <div class="d-flex justify-content-between align-items-start gap-2">
                 <div class="d-flex gap-3 min-w-0">
-                    <div class="rec-logo"><span class="a-logo a-logo--44" data-tone="@Tone(item.Company ?? item.JobTitle)">@Initials(item.Company ?? item.JobTitle)</span></div>
+                    <div class="rec-logo"><span class="a-logo a-logo--44" data-tone="@Tone(item.Company ?? item.JobTitle)" aria-hidden="true">@Initials(item.Company ?? item.JobTitle)@if (logo != null) { <img src="@logo" alt="" loading="lazy" onerror="this.remove()" /> }</span></div>
                     <div class="min-w-0">
                         <a asp-controller="Jobs" asp-action="Details" asp-route-id="@item.Id" class="rec-title">@item.JobTitle</a>
                         <p class="rec-company">@item.Company@(string.IsNullOrWhiteSpace(item.Category) ? "" : " · " + item.Category)</p>

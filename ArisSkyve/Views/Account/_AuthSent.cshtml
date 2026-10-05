@@ -60,6 +60,10 @@
         <input type="hidden" name="returnUrl" value="@returnUrl" />
         <input type="hidden" name="returnView" value="@returnView" />
         <input type="hidden" name="intent" value="@intent" />
+        <div class="auth-agreement auth-agreement--resend">
+            <input type="checkbox" id="resendAcceptTerms" name="AcceptTerms" value="true" required />
+            <label for="resendAcceptTerms">Tôi vẫn đồng ý với Điều khoản sử dụng và <a href="/privacy">Chính sách quyền riêng tư</a> của Aris.</label>
+        </div>
         <span>Chưa nhận được email?</span>
         <button type="submit" class="auth-link" id="resendBtn" disabled data-wait="45">
             <i data-lucide="refresh-cw"></i><span id="resendText">Gửi lại sau 45 giây</span>

@@ -1370,6 +1370,27 @@ namespace ArisSkyve.Migrations
                     b.ToTable("StoryViews");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.CompanyProfileView", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BusinessAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ViewedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessAccountId", "ViewedAtUtc");
+
+                    b.ToTable("CompanyProfileViews");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.Tags", b =>
                 {
                     b.Property<int>("Id")
@@ -2178,6 +2199,17 @@ namespace ArisSkyve.Migrations
                     b.Navigation("Story");
 
                     b.Navigation("Viewer");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.CompanyProfileView", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.BussinessAccount", "BusinessAccount")
+                        .WithMany()
+                        .HasForeignKey("BusinessAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessAccount");
                 });
 
             modelBuilder.Entity("ArisSkyve.Domain.Entities.UserSessionVersion", b =>

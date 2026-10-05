@@ -88,6 +88,27 @@ namespace ArisSkyve.Application.DTOs
         public int PostCount { get; set; }
     }
 
+    public sealed class CompanyRankingRowViewModel
+    {
+        public int CompanyId { get; set; }
+        public string CompanyName { get; set; } = string.Empty;
+        public string? Industry { get; set; }
+        public string? AvatarUrl { get; set; }
+        public bool IsVerified { get; set; }
+        public int ProfileViewCount { get; set; }
+        public int FollowerCount { get; set; }
+        public int ApplicationCount { get; set; }
+    }
+
+    public sealed class CompanyRankingViewModel
+    {
+        public string SortBy { get; set; } = "overall";
+        public string? Industry { get; set; }
+        public bool FollowerMetricAvailable { get; set; }
+        public List<string> Industries { get; set; } = new();
+        public List<CompanyRankingRowViewModel> Companies { get; set; } = new();
+    }
+
     public class CompanyMomentItem
     {
         public int PostId { get; set; }

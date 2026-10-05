@@ -1,4 +1,5 @@
 using ArisSkyve.Infrastructure.Data.Context;
+using ArisSkyve.Infrastructure.Presentation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,8 +7,7 @@ namespace ArisSkyve.ViewComponents
 {
     /// <summary>
     /// Cột giới thiệu bên trái trang Đăng nhập / Đăng ký (bản "Aris Night", 27/09/2026).
-    /// Chỉ dùng dữ liệu thật: tin tuyển dụng mới nhất chạy thành "bức tường" phía sau tiêu đề,
-    /// thẻ "Mới đăng" là tin gần nhất. DB không phản hồi thì vẫn vẽ trang, chỉ ẩn phần số liệu.
+    /// Dùng công ty và tin tuyển dụng thật làm nền tĩnh; DB không phản hồi thì trang auth vẫn hiển thị.
     /// </summary>
     public class AuthShowcaseViewComponent : ViewComponent
     {
@@ -23,42 +23,57 @@ namespace ArisSkyve.ViewComponents
             var model = new AuthShowcaseViewModel();
             try
             {
-                model.Companies = await _context.BussinessAccounts.AsNoTracking().CountAsync();
-                model.OpenJobs = await _context.JobPostings.AsNoTracking().CountAsync(j => j.isActive);
-                model.Members = await _context.Users.AsNoTracking().CountAsync();
-                model.TopCompanies = await _context.BussinessAccounts.AsNoTracking()
-                    .Select(b => new AuthShowcaseCompany
+                var companies = await _context.BussinessAccounts.AsNoTracking()
+                    .Select(b => new
                     {
+                        b.Id,
                         Name = b.CompanyName,
-                        AvatarUrl = b.AvatarUrl,
-                        Industry = b.Industry,
+                        b.AvatarUrl,
+                        b.Industry,
                         Jobs = _context.JobPostings.Count(j => j.BusinessAccountId == b.Id && j.isActive)
                     })
                     .OrderByDescending(c => c.Jobs)
                     .ThenBy(c => c.Name)
                     .Take(6)
                     .ToListAsync();
-                model.Jobs = await _context.JobPostings.AsNoTracking()
+
+                model.TopCompanies = companies.Select(b => new AuthShowcaseCompany
+                {
+                    Name = b.Name,
+                    AvatarUrl = AvatarPresentation.ResolveCompanyAvatar(b.AvatarUrl),
+                    Industry = b.Industry,
+                    Jobs = b.Jobs
+                }).ToList();
+
+                var rawJobs = await _context.JobPostings.AsNoTracking()
                     .Where(j => j.isActive)
                     .OrderByDescending(j => j.CreatedAt)
                     .Take(12)
-                    .Select(j => new AuthShowcaseJob
+                    .Select(j => new
                     {
-                        Id = j.Id,
-                        Title = j.Title,
+                        j.Id,
+                        j.Title,
                         Company = j.BusinessAccount != null ? j.BusinessAccount.CompanyName : j.Company,
-                        AvatarUrl = j.BusinessAccount != null ? j.BusinessAccount.AvatarUrl : null,
-                        Salary = j.Salary,
-                        WorkTime = j.WorkTime,
-                        City = j.Locations.Select(l => l.City).FirstOrDefault(),
-                        CreatedAt = j.CreatedAt
+                        BizAvatar = j.BusinessAccount != null ? j.BusinessAccount.AvatarUrl : null,
+                        j.Salary,
+                        City = j.Locations.Select(l => l.City).FirstOrDefault()
                     })
                     .ToListAsync();
-                model.HasData = true;
+
+                model.Jobs = rawJobs.Select(j => new AuthShowcaseJob
+                {
+                    Id = j.Id,
+                    Title = j.Title,
+                    Company = j.Company,
+                    AvatarUrl = AvatarPresentation.ResolveCompanyAvatar(j.BizAvatar),
+                    Salary = j.Salary,
+                    City = j.City
+                }).ToList();
             }
             catch
             {
-                model.HasData = false;
+                model.TopCompanies.Clear();
+                model.Jobs.Clear();
             }
             return View(model);
         }
@@ -66,10 +81,6 @@ namespace ArisSkyve.ViewComponents
 
     public class AuthShowcaseViewModel
     {
-        public bool HasData { get; set; }
-        public int Companies { get; set; }
-        public int OpenJobs { get; set; }
-        public int Members { get; set; }
         public List<AuthShowcaseCompany> TopCompanies { get; set; } = new();
         public List<AuthShowcaseJob> Jobs { get; set; } = new();
     }
@@ -89,8 +100,6 @@ namespace ArisSkyve.ViewComponents
         public string? Company { get; set; }
         public string? AvatarUrl { get; set; }
         public string? Salary { get; set; }
-        public string? WorkTime { get; set; }
         public string? City { get; set; }
-        public DateTime CreatedAt { get; set; }
     }
 }

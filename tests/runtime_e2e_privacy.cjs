@@ -296,11 +296,11 @@ async function formToken(client, relativeUrl) {
     return match[1];
 }
 
-async function requestMagicLink(client, token, email) {
+async function requestMagicLink(client, token, email, { acceptTerms = true, returnView = 'Login', intent = 'candidate' } = {}) {
     return client.request('/Account/RequestMagicLink', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ email, returnView: 'Login', __RequestVerificationToken: token })
+        body: new URLSearchParams({ email, returnView, intent, AcceptTerms: String(acceptTerms), __RequestVerificationToken: token })
     });
 }
 
@@ -337,8 +337,9 @@ async function main() {
         Smtp__Host: '',
         Smtp__User: '',
         Smtp__Password: '',
-        Smtp__ApiKey: '',
+        Smtp__ApiKey: 'dummy-smtp-key-for-test',
         Smtp__FromEmail: '',
+        RateLimits__MagicLinkRequestsPerIp: '7',
         NO_PROXY: '127.0.0.1,localhost',
         no_proxy: '127.0.0.1,localhost'
     };
@@ -423,11 +424,35 @@ async function main() {
     console.log('PASS: onboarding requires and records privacy-policy acceptance');
 
     const anonymous = new CookieJar(baseUrl);
+    const registerToken = await formToken(anonymous, '/Account/Register');
+    const rejectedRegister = await expectPage(await requestMagicLink(anonymous, registerToken, `unchecked-register-${runId}@local.test`, { acceptTerms: false, returnView: 'Register' }), 200, 'register without terms acceptance');
+    assert(rejectedRegister.includes('Vui lòng đồng ý với điều khoản') && !rejectedRegister.includes('id="sentTitle"'), 'register must reject unchecked terms before creating a magic link');
+    assert(!/<input[^>]*id="authAcceptTerms"[^>]*checked(?:\s|=|>)/.test(rejectedRegister), 'the agreement checkbox must remain unchecked after rejection');
+
     const loginToken = await formToken(anonymous, '/Account/Login');
+    const rejectedLogin = await expectPage(await requestMagicLink(anonymous, loginToken, `unchecked-login-${runId}@local.test`, { acceptTerms: false }), 200, 'login without terms acceptance');
+    assert(rejectedLogin.includes('Vui lòng đồng ý với điều khoản') && !rejectedLogin.includes('id="sentTitle"'), 'login must reject unchecked terms before creating a magic link');
+
+    const rejectedSocial = await expectPage(await anonymous.request('/Account/GoogleLogin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ acceptTerms: 'false', returnView: 'Login', __RequestVerificationToken: loginToken })
+    }), 200, 'social login without terms acceptance');
+    assert(rejectedSocial.includes('Vui lòng đồng ý với điều khoản'), 'social login must reject unchecked terms before challenging a provider');
+    assert(rejectedSocial.includes('name="__RequestVerificationToken"'), 'social forms must retain antiforgery tokens');
+
     const target = `limit-${runId}@local.test`;
+    let magicConfirmPath = null;
     for (let i = 1; i <= 3; i++) {
         const page = await expectPage(await requestMagicLink(anonymous, loginToken, target), 200, `magic link ${i}`);
         assert(page.includes('id="sentTitle"'), `magic link ${i} must be accepted`);
+        if (i === 1) {
+            assert(page.includes('Chưa gửi được email'), 'checked consent must succeed in Development without a configured mail provider');
+            const match = page.match(/href="([^"]*\/Account\/ConfirmMagicLink[^"]*)"/);
+            assert(match, 'Development must expose its signed confirmation URL for local verification');
+            const confirmation = new URL(match[1], baseUrl);
+            magicConfirmPath = confirmation.pathname + confirmation.search;
+        }
     }
     const throttled = await expectPage(await requestMagicLink(anonymous, loginToken, target), 200, 'magic link 4 (same recipient)');
     assert(throttled.includes('Bạn vừa yêu cầu nhiều liên kết cho email này'), 'fourth link to one recipient within 15 minutes must be refused');
@@ -437,14 +462,24 @@ async function main() {
     const ipLimited = await requestMagicLink(anonymous, loginToken, `third-${runId}@local.test`);
     const ipLimitedBody = await expectPage(ipLimited, 429, 'magic link 6 (IP limit)');
     assert(ipLimited.headers.get('retry-after') && ipLimitedBody.includes('Thử lại sau ít phút'), '429 must carry Retry-After and a readable page');
-    console.log('PASS: magic-link requests are limited to 5 per IP per 15 minutes with a readable 429');
-    let confirmLimited = 0;
-    for (let i = 0; i < 21; i++) {
+    console.log('PASS: magic-link requests are limited to 7 per IP in this consent regression run with a readable 429');
+    assert(magicConfirmPath, 'checked magic-link request must yield a local confirmation URL');
+    const confirmed = await anonymous.request(magicConfirmPath);
+    assert.strictEqual(confirmed.status, 302, 'checked magic link must confirm and sign in in isolated Development');
+    await confirmed.text();
+    const confirmedPolicy = await expectPage(await anonymous.request('/privacy'), 200, 'magic-link privacy state');
+    assert(confirmedPolicy.includes('đã đồng ý lúc'), 'magic-link consent must be recorded on the account');
+    assert(confirmedPolicy.includes('AI xử lý CV: đang tắt'), 'terms acceptance must not grant optional CV-AI consent');
+    console.log('PASS: checked magic link succeeds without email delivery and records privacy acceptance only');
+
+    for (let i = 0; i < 19; i++) {
         const response = await anonymous.request('/Account/ConfirmMagicLink?token=invalid');
-        if (response.status === 429) confirmLimited++;
+        assert.notStrictEqual(response.status, 429, `confirm attempt ${i + 2} of 20 must remain allowed`);
         await response.text();
     }
-    assert.strictEqual(confirmLimited, 1, 'the 21st confirm-link request within 15 minutes must be rate limited');
+    const confirmLimited = await anonymous.request('/Account/ConfirmMagicLink?token=invalid');
+    assert.strictEqual(confirmLimited.status, 429, 'the 21st confirm-link request including the successful confirmation must be rate limited');
+    await confirmLimited.text();
     console.log('PASS: confirm-link attempts are limited to 20 per IP per 15 minutes');
 
     console.log('PRIVACY + SIGN-IN LIMITS E2E PASSED');

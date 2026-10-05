@@ -12,7 +12,6 @@
         .Select(i => (Label: i, Href: "/Company?industry=" + Uri.EscapeDataString(i)))
         .ToList();
 
-    var totalOpen = companies.Sum(c => c.OpenJobCount);
     var featured = companies
         .OrderByDescending(c => c.FollowerCount * 3 + c.OpenJobCount * 2 + (c.IsVerified ? 3 : 0) + (string.IsNullOrWhiteSpace(c.CoverPhotoUrl) ? 0 : 2))
         .ThenBy(c => c.CompanyName)
@@ -47,8 +46,6 @@
         return utc.ToLocalTime().ToString("dd/MM/yyyy");
     }
     var myCompanyId = Model.ViewerCompanyId;
-    var hiringCount = companies.Count(c => c.OpenJobCount > 0);
-    var verifiedCount = companies.Count(c => c.IsVerified);
     var spot = featured.FirstOrDefault();
     // Ảnh cho thẻ nổi bật: ảnh bìa công ty, hoặc ảnh thật đầu tiên trong bài công ty đăng
     var spotPhoto = spot == null ? null : (HasImg(spot.CoverPhotoUrl) ? spot.CoverPhotoUrl
@@ -94,21 +91,8 @@
     <!-- 2. Tìm kiếm & lọc -->
     <section class="fx-card cx-hero" aria-labelledby="cxTitle">
         <div class="cx-hero__art" aria-hidden="true"></div>
-        @if (hiringCount > 0)
-        {
-            <span class="cx-hero__kicker"><span class="fx-live" aria-hidden="true"></span><b class="a-num">@hiringCount</b>&nbsp;công ty đang tuyển</span>
-        }
         <h1 class="cx-hero__title" id="cxTitle">Công ty đang tuyển trên Aris</h1>
         <p class="cx-hero__sub">Xem họ làm gì, văn phòng trông ra sao và đang cần ai — trước khi gửi CV.</p>
-
-        <dl class="cx-stats">
-            <div><dt>Doanh nghiệp</dt><dd class="a-num">@companies.Count</dd></div>
-            <div><dt>Vị trí đang mở</dt><dd class="a-num">@totalOpen</dd></div>
-            @if (verifiedCount > 0)
-            {
-                <div><dt>Đã xác minh</dt><dd class="a-num">@verifiedCount</dd></div>
-            }
-        </dl>
 
         <form class="cx-search" role="search" id="cxSearch" autocomplete="off">
             <i data-lucide="search"></i>
@@ -176,10 +160,6 @@
                 </a>
                 <div class="cx-spot__body">
                     <div class="cx-spot__badges">
-                        @if (spot.OpenJobCount > 0)
-                        {
-                            <span class="cx-pill cx-pill--hot"><span class="fx-live" aria-hidden="true"></span>Đang tuyển @spot.OpenJobCount vị trí</span>
-                        }
                         @if (!string.IsNullOrWhiteSpace(spot.Industry))
                         {
                             <span class="cx-pill">@spot.Industry</span>
@@ -236,6 +216,7 @@
                 <h2 class="cx-sec__title" id="cxAllTitle">Tất cả công ty</h2>
                 <p class="cx-sec__sub" id="cxCount" aria-live="polite">Đang hiển thị <b class="a-num">@companies.Count</b> công ty</p>
             </div>
+            <a class="a-btn a-btn--secondary a-btn--sm" asp-controller="Company" asp-action="Ranking"><i data-lucide="trophy"></i>Bảng xếp hạng</a>
         </header>
 
         @if (!companies.Any())

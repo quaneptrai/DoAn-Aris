@@ -156,7 +156,32 @@
   }, true);
 
   /* ---------------- Lightbox (Xem ảnh) ---------------- */
-  const LB = { el: null, items: [], i: 0, caption: '', opener: null };
+  const LB = { el: null, items: [], i: 0, caption: '', opener: null, scale: 1, x: 0, y: 0, pointers: new Map(), gesture: null };
+
+  const lbImg = () => $('.a-lightbox__img', LB.el);
+  const lbVisible = (t) => t && t.isConnected && t.getBoundingClientRect().height > 0;
+  const lbClamp = (value, max) => Math.max(-max, Math.min(max, value));
+
+  function lbSetZoom(scale, x = LB.x, y = LB.y) {
+    const img = lbImg();
+    LB.scale = Math.max(1, Math.min(4, scale));
+    const maxX = Math.max(0, (img.clientWidth * LB.scale - img.clientWidth) / 2 + 12);
+    const maxY = Math.max(0, (img.clientHeight * LB.scale - img.clientHeight) / 2 + 12);
+    LB.x = LB.scale === 1 ? 0 : lbClamp(x, maxX);
+    LB.y = LB.scale === 1 ? 0 : lbClamp(y, maxY);
+    img.style.transform = `translate3d(${LB.x}px, ${LB.y}px, 0) scale(${LB.scale})`;
+    img.classList.toggle('is-zoomed', LB.scale > 1);
+    const percent = Math.round(LB.scale * 100);
+    $('.a-lightbox__zoom-reset', LB.el).textContent = `${percent}%`;
+    $('.a-lightbox__zoom-reset', LB.el).setAttribute('aria-label', `Phóng to ${percent} phần trăm; nhấn để đặt lại`);
+  }
+
+  function lbZoomTo(scale, clientX = window.innerWidth / 2, clientY = window.innerHeight / 2) {
+    const next = Math.max(1, Math.min(4, scale));
+    const localX = (clientX - window.innerWidth / 2 - LB.x) / LB.scale;
+    const localY = (clientY - window.innerHeight / 2 - LB.y) / LB.scale;
+    lbSetZoom(next, clientX - window.innerWidth / 2 - localX * next, clientY - window.innerHeight / 2 - localY * next);
+  }
 
   function lbBuild() {
     if (LB.el) return LB.el;
@@ -172,6 +197,11 @@
       <button class="a-btn a-btn--ghost a-btn--icon a-lightbox__btn a-lightbox__close" type="button" data-lb-close aria-label="Đóng (Esc)"><i data-lucide="x"></i></button>
       <button class="a-btn a-btn--ghost a-btn--icon a-lightbox__btn a-lightbox__prev" type="button" data-lb-step="-1" aria-label="Ảnh trước (←)"><i data-lucide="chevron-left"></i></button>
       <button class="a-btn a-btn--ghost a-btn--icon a-lightbox__btn a-lightbox__next" type="button" data-lb-step="1" aria-label="Ảnh sau (→)"><i data-lucide="chevron-right"></i></button>
+      <div class="a-lightbox__zoom" aria-label="Điều khiển thu phóng">
+        <button class="a-btn a-btn--ghost a-btn--icon a-lightbox__btn" type="button" data-lb-zoom="out" aria-label="Thu nhỏ"><i data-lucide="zoom-out"></i></button>
+        <button class="a-btn a-btn--ghost a-lightbox__btn a-lightbox__zoom-reset" type="button" data-lb-zoom="reset" aria-label="Đặt lại mức phóng to">100%</button>
+        <button class="a-btn a-btn--ghost a-btn--icon a-lightbox__btn" type="button" data-lb-zoom="in" aria-label="Phóng to"><i data-lucide="zoom-in"></i></button>
+      </div>
       <div class="a-lightbox__foot"><span class="a-lightbox__count a-num"></span><span class="a-lightbox__caption"></span></div>`;
     document.body.append(el);
     window.renderIcons();
@@ -182,21 +212,73 @@
       }
       const s = e.target.closest('[data-lb-step]');
       if (s) lbStep(+s.dataset.lbStep);
+      const z = e.target.closest('[data-lb-zoom]');
+      if (z) {
+        if (z.dataset.lbZoom === 'reset') lbSetZoom(1, 0, 0);
+        else lbZoomTo(LB.scale + (z.dataset.lbZoom === 'in' ? 0.5 : -0.5));
+      }
     });
-    let sx = null;
-    el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') sx = e.clientX; });
+    el.addEventListener('wheel', (e) => {
+      if (!e.target.closest('.a-lightbox__img')) return;
+      e.preventDefault();
+      lbZoomTo(LB.scale + (e.deltaY < 0 ? 0.25 : -0.25), e.clientX, e.clientY);
+    }, { passive: false });
+    el.addEventListener('pointerdown', (e) => {
+      const img = e.target.closest('.a-lightbox__img');
+      if (!img || e.button > 0) return;
+      img.setPointerCapture?.(e.pointerId);
+      LB.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (LB.pointers.size === 1) {
+        LB.gesture = { mode: 'single', startX: e.clientX, startY: e.clientY, x: LB.x, y: LB.y, scale: LB.scale, moved: false };
+      } else if (LB.pointers.size === 2) {
+        const [a, b] = [...LB.pointers.values()];
+        const midX = (a.x + b.x) / 2;
+        const midY = (a.y + b.y) / 2;
+        const distance = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        LB.gesture = {
+          mode: 'pinch', scale: LB.scale, x: LB.x, y: LB.y, distance,
+          midX, midY,
+          localX: (midX - window.innerWidth / 2 - LB.x) / LB.scale,
+          localY: (midY - window.innerHeight / 2 - LB.y) / LB.scale
+        };
+      }
+      e.preventDefault();
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!LB.pointers.has(e.pointerId) || !LB.gesture) return;
+      LB.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const g = LB.gesture;
+      if (LB.pointers.size >= 2 && g.mode === 'pinch') {
+        const [a, b] = [...LB.pointers.values()];
+        const midX = (a.x + b.x) / 2;
+        const midY = (a.y + b.y) / 2;
+        const scale = Math.max(1, Math.min(4, g.scale * Math.hypot(a.x - b.x, a.y - b.y) / g.distance));
+        lbSetZoom(scale, midX - window.innerWidth / 2 - g.localX * scale, midY - window.innerHeight / 2 - g.localY * scale);
+        g.moved = true;
+      } else if (LB.pointers.size === 1 && g.mode === 'single') {
+        const dx = e.clientX - g.startX;
+        const dy = e.clientY - g.startY;
+        if (g.scale > 1) {
+          lbSetZoom(g.scale, g.x + dx, g.y + dy);
+          g.moved ||= Math.abs(dx) + Math.abs(dy) > 3;
+        }
+      }
+      e.preventDefault();
+    });
     el.addEventListener('pointerup', (e) => {
-      if (sx === null) return;
-      const dx = e.clientX - sx;
-      sx = null;
-      if (Math.abs(dx) > 50) lbStep(dx < 0 ? 1 : -1);
+      const g = LB.gesture;
+      if (!LB.pointers.has(e.pointerId)) return;
+      LB.pointers.delete(e.pointerId);
+      if (g?.mode === 'single' && g.scale === 1 && !g.moved) {
+        const dx = e.clientX - g.startX;
+        const dy = e.clientY - g.startY;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) lbStep(dx < 0 ? 1 : -1);
+      }
+      if (LB.pointers.size < 2) LB.gesture = null;
     });
     LB.el = el;
     return el;
   }
-
-  const lbImg = () => $('.a-lightbox__img', LB.el);
-  const lbVisible = (t) => t && t.isConnected && t.getBoundingClientRect().height > 0;
 
   function lbFrom(r) {
     const t = lbImg().getBoundingClientRect();
@@ -205,6 +287,11 @@
 
   function lbFill(i) {
     LB.i = i;
+    LB.scale = 1;
+    LB.x = 0;
+    LB.y = 0;
+    LB.pointers.clear();
+    LB.gesture = null;
     const it = LB.items[i];
     const n = LB.items.length;
     const img = lbImg();
@@ -216,6 +303,7 @@
     $('.a-lightbox__next', LB.el).hidden = n < 2;
     $('.a-lightbox__prev', LB.el).disabled = i === 0;
     $('.a-lightbox__next', LB.el).disabled = i === n - 1;
+    lbSetZoom(1, 0, 0);
     return img.decode().catch(() => {});
   }
 
@@ -226,14 +314,11 @@
       return;
     }
     const img = lbImg();
-    if (M && M.animate) {
-      await M.animate(img, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${-dir * 32}px)` }], { duration: 120, easing: M.EASE_IN, fill: 'forwards' }).finished.catch(() => {});
-    }
+    if (M && M.animate)
+      await M.animate(img, [{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: M.EASE_IN, fill: 'forwards' }).finished.catch(() => {});
     await lbFill(j);
     img.getAnimations().forEach((a) => a.cancel());
-    if (M && M.animate) {
-      M.animate(img, [{ opacity: 0, transform: `translateX(${dir * 32}px)` }, { opacity: 1, transform: 'none' }], { duration: 220, easing: M.EASE_OUT });
-    }
+    if (M && M.animate) M.animate(img, [{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: M.EASE_OUT });
   }
 
   window.openLightbox = async function (items, index = 0, caption = '') {
@@ -269,6 +354,7 @@
     }
     LB.el.hidden = true;
     LB.el.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+    document.dispatchEvent(new CustomEvent('lightbox:close'));
     const back = (lbVisible(thumb) && thumb.closest('button, a')) || LB.opener;
     if (back && back.isConnected) back.focus({ preventScroll: true });
   };
@@ -279,6 +365,21 @@
     if (!window.isLightboxOpen()) return;
     if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); window.closeLightbox(); }
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.stopPropagation(); e.preventDefault(); lbStep(e.key === 'ArrowLeft' ? -1 : 1); }
+    else if (e.key === '+' || e.key === '=') { e.preventDefault(); lbZoomTo(LB.scale + 0.5); }
+    else if (e.key === '-') { e.preventDefault(); lbZoomTo(LB.scale - 0.5); }
+    else if (e.key === '0') { e.preventDefault(); lbSetZoom(1, 0, 0); }
+    else if (e.key === 'Tab') {
+      const focusable = $$('button:not([hidden]):not(:disabled)', LB.el)
+        .filter((button) => button.getClientRects().length > 0);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && (document.activeElement === first || !LB.el.contains(document.activeElement))) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !LB.el.contains(document.activeElement))) {
+        e.preventDefault(); first.focus();
+      }
+    }
   }, true);
 
   /* ---------------- Sidebar (mở rộng / thu gọn) · Tab bar ---------------- */

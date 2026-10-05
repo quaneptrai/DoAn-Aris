@@ -47,6 +47,7 @@ namespace ArisSkyve.Infrastructure.Data.Context
         public DbSet<PollOption> PollOptions { get; set; }
         public DbSet<PollVote> PollVotes { get; set; }
         public DbSet<CompanyFollow> CompanyFollows { get; set; }
+        public DbSet<CompanyProfileView> CompanyProfileViews { get; set; }
         public DbSet<HiddenPost> HiddenPosts { get; set; }
         public DbSet<PostReport> PostReports { get; set; }
         public DbSet<Mention> Mentions { get; set; }
@@ -504,6 +505,14 @@ namespace ArisSkyve.Infrastructure.Data.Context
                 .WithMany()
                 .HasForeignKey(cf => cf.BusinessAccountId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CompanyProfileView>()
+                .HasOne(view => view.BusinessAccount)
+                .WithMany()
+                .HasForeignKey(view => view.BusinessAccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<CompanyProfileView>()
+                .HasIndex(view => new { view.BusinessAccountId, view.ViewedAtUtc });
 
             modelBuilder.Entity<HiddenPost>()
                 .HasKey(hp => new { hp.UserId, hp.PostId });

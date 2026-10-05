@@ -15,6 +15,24 @@
     const email = $('#authEmail');
     const hint = $('#authEmailHint');
     const submit = $('#authSubmit');
+    const agreement = $('#authAcceptTerms');
+    const agreementError = $('#authAgreementError');
+
+    function hasAgreement() {
+        const accepted = !!agreement?.checked;
+        if (agreement) agreement.setAttribute('aria-invalid', String(!accepted));
+        if (agreementError) agreementError.hidden = accepted;
+        if (!accepted) {
+            agreement?.focus();
+            M.shake(agreement);
+        }
+        return accepted;
+    }
+
+    agreement?.addEventListener('change', () => {
+        agreement.setAttribute('aria-invalid', String(!agreement.checked));
+        if (agreementError) agreementError.hidden = agreement.checked;
+    });
 
     if (form && email) {
         const check = (show) => {
@@ -33,6 +51,12 @@
         email.addEventListener('input', () => { if (!hint.hidden) check(true); syncOk(); });
         syncOk();
         form.addEventListener('submit', (e) => {
+            if (!hasAgreement()) {
+                e.preventDefault();
+                return;
+            }
+            const terms = $('[data-auth-terms-value]', form);
+            if (terms) terms.value = 'true';
             if (!check(true)) {
                 e.preventDefault();
                 M.shake(email.closest('.auth-input'));
@@ -45,6 +69,17 @@
         });
     }
 
+    $$('[data-auth-social-form]').forEach((socialForm) => {
+        socialForm.addEventListener('submit', (e) => {
+            const terms = $('[data-auth-terms-value]', socialForm);
+            if (!hasAgreement()) {
+                e.preventDefault();
+                return;
+            }
+            if (terms) terms.value = 'true';
+        });
+    });
+
     /* Đăng ký: vai trò */
     const roles = $('#authRoles');
     if (roles) {
@@ -54,10 +89,8 @@
             if (intent) intent.value = v;
             if (label) label.textContent = v === 'business' ? 'Email công việc' : 'Email';
             if (email) email.placeholder = v === 'business' ? 'tuyendung@congty.com' : 'ten@vidu.com';
-            $$('[data-social]').forEach((a) => {
-                const url = new URL(a.href, location.origin);
-                url.searchParams.set('intent', v);
-                a.href = url.pathname + url.search;
+            $$('[data-auth-intent]').forEach((field) => {
+                field.value = v;
             });
             const u = new URL(location.href);
             u.searchParams.set('intent', v);

@@ -60,10 +60,6 @@
             }
             <span class="co-hero__mono" aria-hidden="true">@initials</span>
             <div class="co-hero__badges">
-                @if (Model.OpenJobCount > 0)
-                {
-                    <span class="co-badge"><span class="fx-live" aria-hidden="true"></span>Đang tuyển @Model.OpenJobCount vị trí</span>
-                }
                 @if (!string.IsNullOrWhiteSpace(company.Industry))
                 {
                     <span class="co-badge">@company.Industry</span>

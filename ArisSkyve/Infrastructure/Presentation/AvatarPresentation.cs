@@ -1,3 +1,5 @@
+using ArisSkyve.Infrastructure.Services;
+
 namespace ArisSkyve.Infrastructure.Presentation;
 
 /// <summary>
@@ -13,6 +15,9 @@ public static class AvatarPresentation
         !string.IsNullOrWhiteSpace(avatarUrl)
         && !avatarUrl.Contains("default-avatar", StringComparison.OrdinalIgnoreCase)
         && !avatarUrl.Contains("ui-avatars.com", StringComparison.OrdinalIgnoreCase);
+
+    public static string? ResolveCompanyAvatar(string? avatarUrl) =>
+        HasImage(avatarUrl) ? PublicMediaDeliveryUrl.ToDeliveryUrl(avatarUrl) : null;
 
     public static string Initials(string? name, string fallback = "A")
     {
