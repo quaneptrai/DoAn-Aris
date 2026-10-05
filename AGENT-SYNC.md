@@ -1,4 +1,29 @@
-# CLAUDE CODE — DONE 05/10/2026 ~01:55 (areas below are free again)
+# CODEX — GOOGLE DRIVE RELEASE COMPLETE 05/10/2026
+
+- Released the Google Drive public-media and private Resume-original implementation in `3d4af1f`; `026bd64` separately prevents Web Deploy passwords from appearing in command-line arguments by using a session-only Credential Manager target.
+- Production migration `20261004200951_AddPrivateDriveResumeOriginals` is applied and no longer pending. The release script deployed commit `026bd64` after an on-disk backup, then completed both `/health/live` and `/health/ready` checks; external post-release checks also returned **200**.
+- Drive credentials and the two distinct folder settings were copied only into ignored production settings. Read-only folder verification and a deliberate synthetic storage smoke both passed. The smoke created only an in-memory PNG/PDF, checked their expected Drive metadata, and confirmed deletion; it did not touch the production database, user accounts, or CVs.
+- Legacy protected PDFs remain in `App_Data` as rollback copies. When an authenticated owner next accesses an unmapped legacy original, the new lifecycle performs a bounded, owner-scoped lazy migration to the private Drive folder; there is no startup bulk upload.
+- Final relevant checks: `ResumeFlowTests` **66/66**, `PublicMediaValidationTests` passed, Drive helper build passed (only the unavailable NuGet vulnerability-feed warning), and the production Drive smoke passed.
+- Follow-up requiring hosting-account authority: rotate the saved Web Deploy profile credential, because an earlier pre-fix diagnostic exposed it to a local process command line. No credential value is recorded here.
+
+# CLAUDE CODE — PRODUCTION DEPLOY 05/10/2026 ~02:00
+
+- Live site https://thuctap.runasp.net (IIS, Web Deploy `site62246`) now runs commit `d32a993`: everything in `dabee09` plus persisted data-protection keys in `App_Data/dataprotection-keys`.
+  - Verified: `/health/live`, `/health/ready`, `/privacy`, Login and Register all 200; a freshly signed magic link logs in.
+  - Links issued by the old site before the deploy are invalid now.
+- **Shared database.** Migration `AddPrivacyAndCvAiConsent` was applied to the database at `db47010.public.databaseasp.net`. Local development and production use this same database.
+- **Configuration.** Production settings are written into `web.config` as environment variables from the git-ignored `.local/production-settings.json` (DB, SMTP, magic-link secret, OAuth, `AiCore__BaseUrl=https://api.quandang.site`, parser URL and key).
+  - Redeploy with `.\scripts\deploy-iis.ps1` (try `-WhatIf` first). It publishes from a clean worktree, so uncommitted work is not shipped. It backs up the live site to `.local/deploy-backups`, never deletes server-only files and skips `App_Data`.
+  - Pre-deploy live backup: `<claude scratchpad>/live-backup-20261005.zip`.
+- **Google Drive (Codex).** Uploads on production fail until Drive is configured. After the Drive code is committed:
+  1. Add `GoogleDrive__Enabled=true`, `GoogleDrive__FolderId`, `GoogleDrive__ServiceAccountJsonBase64` (and `UseSharedDrive`/`MakeFilesPublic` if needed) to `.local/production-settings.json`.
+  2. Run `.\scripts\deploy-iis.ps1`.
+- **AiCore.** Production calls https://api.quandang.site, which is the Cloudflare tunnel `api-quandang` → `localhost:8001` on this PC.
+  - The tunnel is not running at the moment (Cloudflare 530).
+  - AiCore has no `AICORE_API_KEY`. Do not expose it again until the key is set in AiCore `.env` and `AiCore__ApiKey` is added to the production settings.
+
+# CLAUDE CODE — DONE 05/10/2026 ~01:40 (areas below are free again)
 
 - Parser on FastAPI Cloud: app `aris-resume-parser`, URL https://aris-resume-parser.fastapicloud.dev (team "Quan Dang", us-east-1).
   - Every `/api/*` route requires header `X-Resume-Parser-Key`; the value is in the cloud secret `RESUME_PARSER_API_KEY` and in Aris user-secrets `ResumeEngine:ParserApiKey`.

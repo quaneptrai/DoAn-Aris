@@ -58,11 +58,33 @@ and add children to each configured folder without printing IDs or credentials:
 dotnet run --project tools/GoogleDriveOAuthBootstrap/GoogleDriveOAuthBootstrap.csproj -- --verify-drive-access
 ```
 
+### Deliberate storage smoke test
+
+When a write/read/delete check is specifically needed, run the opt-in smoke
+test with both flags shown below. It uploads one synthetic in-memory PNG to
+the configured public-media folder and one synthetic in-memory PDF to the
+distinct private-resume folder, validates only owner-scoped metadata, then
+deletes every test file in `finally` before reporting success.
+
+```powershell
+dotnet run --project tools/GoogleDriveOAuthBootstrap/GoogleDriveOAuthBootstrap.csproj -- --smoke-storage --confirm-smoke-storage
+```
+
+It never starts ArisSkyve, connects to the production database, accesses user
+accounts or CV records, grants public permissions, follows public URLs, or
+prints file IDs, URLs, settings, credentials, or payload contents. The command
+fails if cleanup cannot be confirmed. If the process is forcibly interrupted,
+look only in the two configured folders for files whose names start with
+`aris-storage-smoke-` and remove those synthetic files manually.
+
 ## Google Workspace Shared Drive
 
 Use this alternative only when a Workspace Shared Drive is available. Enable
-the Drive API, add the service account as a Content manager (or suitable
-create/delete role), and create a dedicated private folder there.
+the Drive API, add the service account as an Organizer on the dedicated parent
+folder (or another role with both create and permanent-delete capability), and
+create a dedicated private folder there. This is required for the application's
+cleanup operations and for the storage smoke test: Drive requires delete
+authority for a shared-drive file, not merely permission to add children.
 
 ```text
 GoogleDrive__Enabled=true

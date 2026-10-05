@@ -3,6 +3,7 @@ using Google.Apis.Auth.OAuth2.Flows;
 using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Drive.v3;
 using Google.Apis.Services;
+using Google.Apis.Upload;
 using Google.Apis.Util.Store;
 using DriveFile = Google.Apis.Drive.v3.Data.File;
 using System.Text;
@@ -14,6 +15,10 @@ const string ConfigureUserSecretsFlag = "--configure-user-secrets";
 const string ConfigurePrivateResumeStorageFlag = "--configure-private-resume-storage";
 const string ConfigureProductionSettingsFlag = "--configure-production-settings";
 const string VerifyDriveAccessFlag = "--verify-drive-access";
+const string SmokeStorageFlag = "--smoke-storage";
+const string ConfirmSmokeStorageFlag = "--confirm-smoke-storage";
+const string StorageSmokeMarkerProperty = "aris_storage_smoke";
+const string StorageSmokeRunProperty = "aris_storage_smoke_run";
 
 if (args.Length == 1 && string.Equals(args[0], ConfigurePrivateResumeStorageFlag, StringComparison.Ordinal))
 {
@@ -57,6 +62,40 @@ if (args.Length == 1 && string.Equals(args[0], VerifyDriveAccessFlag, StringComp
     }
 }
 
+if (args.Length == 2 &&
+    string.Equals(args[0], SmokeStorageFlag, StringComparison.Ordinal) &&
+    string.Equals(args[1], ConfirmSmokeStorageFlag, StringComparison.Ordinal))
+{
+    try
+    {
+        await SmokeStorageAsync();
+        Console.WriteLine("Google Drive storage smoke test completed and removed its synthetic test files.");
+        return 0;
+    }
+    catch (StorageSmokeException exception) when (exception.CleanupFailed)
+    {
+        // The test never writes identifiers, URLs, configuration values, or
+        // payload data to the console. A cleanup failure must remain visible
+        // as a failed command, without disclosing the temporary file IDs.
+        Console.Error.WriteLine("Google Drive storage smoke test failed and cleanup could not be confirmed. No sensitive details were displayed.");
+        return 1;
+    }
+    catch
+    {
+        Console.Error.WriteLine("Google Drive storage smoke test failed. No sensitive details were displayed.");
+        return 1;
+    }
+}
+
+if (args.Any(argument =>
+        string.Equals(argument, SmokeStorageFlag, StringComparison.Ordinal) ||
+        string.Equals(argument, ConfirmSmokeStorageFlag, StringComparison.Ordinal)))
+{
+    Console.Error.WriteLine("Usage: dotnet run --project tools/GoogleDriveOAuthBootstrap -- --smoke-storage --confirm-smoke-storage");
+    Console.Error.WriteLine("This creates and removes only synthetic in-memory test files; both flags are required.");
+    return 2;
+}
+
 if (args.Length != 2 || string.IsNullOrWhiteSpace(args[0]) ||
     !string.Equals(args[1], ConfigureUserSecretsFlag, StringComparison.Ordinal))
 {
@@ -64,6 +103,7 @@ if (args.Length != 2 || string.IsNullOrWhiteSpace(args[0]) ||
     Console.Error.WriteLine("   or: dotnet run --project tools/GoogleDriveOAuthBootstrap -- --configure-private-resume-storage");
     Console.Error.WriteLine("   or: dotnet run --project tools/GoogleDriveOAuthBootstrap -- --configure-production-settings");
     Console.Error.WriteLine("   or: dotnet run --project tools/GoogleDriveOAuthBootstrap -- --verify-drive-access");
+    Console.Error.WriteLine("   or: dotnet run --project tools/GoogleDriveOAuthBootstrap -- --smoke-storage --confirm-smoke-storage");
     Console.Error.WriteLine("Download the Desktop OAuth client JSON from Google Cloud, then pass its path. A client ID is also accepted in an interactive console.");
     return 2;
 }
@@ -359,6 +399,253 @@ static async Task VerifyDriveAccessAsync()
     Console.WriteLine("Google Drive access verified for the public-media and private-resume folders. No files were created or changed.");
 }
 
+static async Task SmokeStorageAsync()
+{
+    var secrets = await LoadArisUserSecretsAsync();
+    var publicFolderId = ReadRequiredDriveId(secrets.Values, "GoogleDrive:FolderId");
+    var privateFolderId = ReadRequiredDriveId(secrets.Values, "GoogleDrive:PrivateResumeOriginalsFolderId");
+    if (string.Equals(publicFolderId, privateFolderId, StringComparison.Ordinal))
+        throw new InvalidOperationException("The public-media and private-resume folders must be different before storage smoke testing.");
+
+    var useSharedDrive = ReadOptionalBoolean(secrets.Values, "GoogleDrive:UseSharedDrive", false);
+    using var drive = CreateConfiguredDriveService(secrets.Values);
+
+    // Verify the parent folders before writing anything. This intentionally
+    // performs only Drive operations: it does not load the application,
+    // production settings, database, accounts, or CV records.
+    await VerifyFolderAsync(drive, publicFolderId, useSharedDrive, "public media", requireDeleteChildren: true);
+    await VerifyFolderAsync(drive, privateFolderId, useSharedDrive, "private resume originals", requireDeleteChildren: true);
+
+    var runToken = Guid.NewGuid().ToString("N");
+    var artifacts = new[]
+    {
+        new StorageSmokeArtifact(
+            publicFolderId,
+            $"aris-storage-smoke-{runToken}.png",
+            "image/png",
+            "public-png",
+            runToken,
+            CreateSyntheticPng()),
+        new StorageSmokeArtifact(
+            privateFolderId,
+            $"aris-storage-smoke-{runToken}.pdf",
+            "application/pdf",
+            "private-pdf",
+            runToken,
+            CreateSyntheticPdf())
+    };
+
+    // Reserve Drive IDs before the first upload. This keeps cleanup
+    // unambiguous even when Drive commits an upload but the response is lost.
+    await AssignSmokeArtifactIdsAsync(drive, artifacts);
+
+    Exception? testFailure = null;
+    Exception? cleanupFailure = null;
+    try
+    {
+        foreach (var artifact in artifacts)
+            await UploadAndVerifySmokeArtifactAsync(drive, artifact, useSharedDrive);
+    }
+    catch (Exception exception)
+    {
+        // Do not write exception details here: API exceptions can include
+        // opaque Drive identifiers. Cleanup still runs for every planned file.
+        testFailure = exception;
+    }
+    finally
+    {
+        try
+        {
+            cleanupFailure = await CleanupSmokeArtifactsAsync(drive, artifacts, useSharedDrive);
+        }
+        catch (Exception exception)
+        {
+            cleanupFailure = exception;
+        }
+    }
+
+    if (cleanupFailure is not null)
+        throw new StorageSmokeException(cleanupFailed: true, cleanupFailure);
+    if (testFailure is not null)
+        throw new StorageSmokeException(cleanupFailed: false, testFailure);
+}
+
+static async Task AssignSmokeArtifactIdsAsync(
+    DriveService drive,
+    IReadOnlyList<StorageSmokeArtifact> artifacts)
+{
+    var generate = drive.Files.GenerateIds();
+    generate.Count = artifacts.Count;
+    generate.Space = "drive";
+    generate.Type = "files";
+    generate.Fields = "ids";
+    var generated = await generate.ExecuteAsync();
+    var ids = generated.Ids;
+    if (ids is null ||
+        ids.Count != artifacts.Count ||
+        ids.Any(id => !IsSafeDriveId(id)) ||
+        ids.Distinct(StringComparer.Ordinal).Count() != ids.Count)
+    {
+        throw new InvalidOperationException("Google Drive did not return valid unique IDs for the synthetic smoke-test files.");
+    }
+
+    for (var index = 0; index < artifacts.Count; index++)
+        artifacts[index].FileId = ids[index];
+}
+
+static async Task UploadAndVerifySmokeArtifactAsync(
+    DriveService drive,
+    StorageSmokeArtifact artifact,
+    bool useSharedDrive)
+{
+    if (!IsSafeDriveId(artifact.FileId))
+        throw new InvalidOperationException("A synthetic Drive smoke-test file does not have a reserved ID.");
+
+    var fileId = artifact.FileId!;
+    var metadata = new DriveFile
+    {
+        Id = fileId,
+        Name = artifact.Name,
+        MimeType = artifact.ContentType,
+        Parents = new List<string> { artifact.ParentId },
+        AppProperties = new Dictionary<string, string>
+        {
+            [StorageSmokeMarkerProperty] = "true",
+            [StorageSmokeRunProperty] = artifact.RunToken,
+            ["aris_storage_smoke_kind"] = artifact.Kind
+        }
+    };
+
+    using var source = new MemoryStream(artifact.Content, writable: false);
+    var create = drive.Files.Create(metadata, source, artifact.ContentType);
+    create.Fields = "id";
+    create.SupportsAllDrives = useSharedDrive;
+    var progress = await create.UploadAsync();
+    var responseFileId = create.ResponseBody?.Id;
+    if (progress.Status != UploadStatus.Completed ||
+        !string.Equals(responseFileId, fileId, StringComparison.Ordinal))
+        throw new InvalidOperationException("A synthetic Drive smoke-test file was not uploaded successfully.");
+
+    var get = drive.Files.Get(fileId);
+    get.Fields = "id,name,mimeType,size,parents,trashed,appProperties";
+    get.SupportsAllDrives = useSharedDrive;
+    var uploaded = await get.ExecuteAsync();
+    if (!MatchesSmokeArtifact(uploaded, artifact) ||
+        uploaded.Size is null ||
+        uploaded.Size.Value != artifact.Content.LongLength)
+    {
+        throw new InvalidOperationException("A synthetic Drive smoke-test file did not have the expected private metadata.");
+    }
+}
+
+static async Task<Exception?> CleanupSmokeArtifactsAsync(
+    DriveService drive,
+    IReadOnlyList<StorageSmokeArtifact> artifacts,
+    bool useSharedDrive)
+{
+    List<Exception>? failures = null;
+    for (var index = artifacts.Count - 1; index >= 0; index--)
+    {
+        var artifact = artifacts[index];
+        try
+        {
+            await DeleteAndConfirmSmokeArtifactAbsentAsync(drive, artifact, useSharedDrive);
+        }
+        catch (Exception exception)
+        {
+            (failures ??= new List<Exception>()).Add(exception);
+        }
+    }
+
+    return failures is null ? null : new AggregateException(failures);
+}
+
+static async Task DeleteAndConfirmSmokeArtifactAbsentAsync(
+    DriveService drive,
+    StorageSmokeArtifact artifact,
+    bool useSharedDrive)
+{
+    if (!IsSafeDriveId(artifact.FileId))
+        throw new InvalidOperationException("A synthetic Drive smoke-test file does not have a reserved ID for cleanup.");
+
+    var fileId = artifact.FileId!;
+    Exception? deleteFailure = null;
+    try
+    {
+        var delete = drive.Files.Delete(fileId);
+        delete.SupportsAllDrives = useSharedDrive;
+        await delete.ExecuteAsync();
+    }
+    catch (Google.GoogleApiException exception) when (exception.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+    {
+        // A pre-generated ID that was never committed is already in the
+        // desired state; Drive's 404 is the absence confirmation.
+        return;
+    }
+    catch (Exception exception)
+    {
+        // A dropped delete response can still mean the object was removed.
+        // Verify by its pre-generated ID before declaring cleanup failed.
+        deleteFailure = exception;
+    }
+
+    if (await IsSmokeArtifactAbsentAsync(drive, fileId, useSharedDrive))
+        return;
+
+    throw deleteFailure is null
+        ? new InvalidOperationException("A synthetic Drive smoke-test file remains after cleanup.")
+        : new InvalidOperationException("Google Drive could not confirm removal of a synthetic smoke-test file.", deleteFailure);
+}
+
+static async Task<bool> IsSmokeArtifactAbsentAsync(
+    DriveService drive,
+    string fileId,
+    bool useSharedDrive)
+{
+    var get = drive.Files.Get(fileId);
+    get.Fields = "id";
+    get.SupportsAllDrives = useSharedDrive;
+    try
+    {
+        await get.ExecuteAsync();
+        return false;
+    }
+    catch (Google.GoogleApiException exception) when (exception.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+    {
+        return true;
+    }
+}
+
+static bool MatchesSmokeArtifact(DriveFile file, StorageSmokeArtifact artifact) =>
+    file.Trashed != true &&
+    string.Equals(file.Name, artifact.Name, StringComparison.Ordinal) &&
+    string.Equals(file.MimeType, artifact.ContentType, StringComparison.Ordinal) &&
+    file.Parents?.Any(parent => string.Equals(parent, artifact.ParentId, StringComparison.Ordinal)) == true &&
+    file.AppProperties is not null &&
+    file.AppProperties.TryGetValue(StorageSmokeMarkerProperty, out var marker) &&
+    string.Equals(marker, "true", StringComparison.Ordinal) &&
+    file.AppProperties.TryGetValue(StorageSmokeRunProperty, out var runToken) &&
+    string.Equals(runToken, artifact.RunToken, StringComparison.Ordinal) &&
+    file.AppProperties.TryGetValue("aris_storage_smoke_kind", out var kind) &&
+    string.Equals(kind, artifact.Kind, StringComparison.Ordinal);
+
+static byte[] CreateSyntheticPng() => Convert.FromBase64String(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9J+xYAAAAASUVORK5CYII=");
+
+static byte[] CreateSyntheticPdf() => Encoding.ASCII.GetBytes("""
+    %PDF-1.4
+    % Aris storage smoke test: synthetic content only
+    1 0 obj
+    << /Type /Catalog /Pages 2 0 R >>
+    endobj
+    2 0 obj
+    << /Type /Pages /Count 0 /Kids [] >>
+    endobj
+    trailer
+    << /Root 1 0 R >>
+    %%EOF
+    """);
+
 static DriveService CreateConfiguredDriveService(JsonObject secrets)
 {
     var authMode = ReadRequiredStoredSecret(secrets, "GoogleDrive:AuthMode");
@@ -404,17 +691,24 @@ static DriveService CreateConfiguredDriveService(JsonObject secrets)
     });
 }
 
-static async Task VerifyFolderAsync(DriveService drive, string folderId, bool useSharedDrive, string label)
+static async Task VerifyFolderAsync(
+    DriveService drive,
+    string folderId,
+    bool useSharedDrive,
+    string label,
+    bool requireDeleteChildren = false)
 {
     var request = drive.Files.Get(folderId);
-    request.Fields = "id,mimeType,trashed,capabilities(canAddChildren)";
+    request.Fields = "id,mimeType,trashed,capabilities(canAddChildren,canDeleteChildren)";
     request.SupportsAllDrives = useSharedDrive;
     var folder = await request.ExecuteAsync();
     if (folder.Trashed == true ||
         !string.Equals(folder.MimeType, "application/vnd.google-apps.folder", StringComparison.Ordinal) ||
-        folder.Capabilities?.CanAddChildren != true)
+        folder.Capabilities?.CanAddChildren != true ||
+        (requireDeleteChildren && useSharedDrive && folder.Capabilities?.CanDeleteChildren != true))
     {
-        throw new InvalidOperationException($"The configured {label} folder is not a writable, active Google Drive folder.");
+        throw new InvalidOperationException(
+            $"The configured {label} folder is not an active Google Drive folder with the required create/delete capabilities.");
     }
 }
 
@@ -550,3 +844,41 @@ static string ReadRequiredSecret(string label)
 internal sealed record OAuthClient(string ClientId, string ClientSecret);
 
 internal sealed record ArisUserSecrets(string Directory, string Path, JsonObject Values);
+
+internal sealed class StorageSmokeArtifact
+{
+    public StorageSmokeArtifact(
+        string parentId,
+        string name,
+        string contentType,
+        string kind,
+        string runToken,
+        byte[] content)
+    {
+        ParentId = parentId;
+        Name = name;
+        ContentType = contentType;
+        Kind = kind;
+        RunToken = runToken;
+        Content = content;
+    }
+
+    public string ParentId { get; }
+    public string Name { get; }
+    public string ContentType { get; }
+    public string Kind { get; }
+    public string RunToken { get; }
+    public byte[] Content { get; }
+    public string? FileId { get; set; }
+}
+
+internal sealed class StorageSmokeException : Exception
+{
+    public StorageSmokeException(bool cleanupFailed, Exception innerException)
+        : base("Google Drive storage smoke test failed.", innerException)
+    {
+        CleanupFailed = cleanupFailed;
+    }
+
+    public bool CleanupFailed { get; }
+}
