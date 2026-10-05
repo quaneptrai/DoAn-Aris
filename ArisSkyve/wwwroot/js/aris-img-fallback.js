@@ -40,22 +40,13 @@
     return true;
   }
 
-  function rewriteDriveLink(element) {
-    if (!element || !element.getAttribute) return;
-    var original = element.getAttribute("href") || "";
-    var proxy = driveProxyUrl(original);
-    if (proxy) element.setAttribute("href", proxy);
-  }
-
   function rewriteDriveSources(root) {
     if (!root) return;
     if (root.nodeType === 1) {
       if (/^(IMG|VIDEO|SOURCE)$/.test(root.tagName)) rewriteDriveSource(root);
-      if (root.tagName === "A") rewriteDriveLink(root);
     }
     if (!root.querySelectorAll) return;
     root.querySelectorAll("img[src], video[src], source[src]").forEach(rewriteDriveSource);
-    root.querySelectorAll("a[href]").forEach(rewriteDriveLink);
   }
 
   function isAvatar(img) {
@@ -131,7 +122,6 @@
     records.forEach(function (record) {
       if (record.type === "attributes") {
         if (record.attributeName === "src") rewriteDriveSource(record.target);
-        if (record.attributeName === "href") rewriteDriveLink(record.target);
         return;
       }
       record.addedNodes.forEach(rewriteDriveSources);
@@ -141,6 +131,6 @@
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["src", "href"]
+    attributeFilter: ["src"]
   });
 })();
