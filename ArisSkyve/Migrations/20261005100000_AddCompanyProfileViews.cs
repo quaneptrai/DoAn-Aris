@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace ArisSkyve.Migrations;
 
-[DbContext(typeof(ArisDBContext))]
 [Migration("20261005100000_AddCompanyProfileViews")]
 public partial class AddCompanyProfileViews : Migration
 {

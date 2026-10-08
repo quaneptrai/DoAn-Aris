@@ -425,6 +425,22 @@ async function main() {
 
     const anonymous = new CookieJar(baseUrl);
     const registerToken = await formToken(anonymous, '/Account/Register');
+    for (const view of ['Login', 'Register']) {
+        const page = await expectPage(await anonymous.request(`/Account/${view}`), 200, `${view} consent placement`);
+        const formAt = page.indexOf('id="authForm"');
+        const emailAt = page.indexOf('id="authEmail"');
+        const consentAt = page.indexOf('id="authAcceptTerms"');
+        const buttonAt = page.indexOf('id="authSubmit"');
+        const formEnd = page.indexOf('</form>', formAt);
+        assert(formAt >= 0 && formAt < emailAt && emailAt < consentAt && consentAt < buttonAt && buttonAt < formEnd,
+            `${view} must place consent inside the form between the email field and submit button`);
+        assert(page.slice(formAt, formEnd).includes('data-auth-terms-value'),
+            `${view} must keep its form consent submission field`);
+    }
+    const authCss = await expectStatus(await anonymous.request('/css/pages/auth.css'), 200, 'auth CSS');
+    assert(authCss.includes('animation: auth-wall') && authCss.includes('@keyframes auth-wall')
+        && authCss.includes('prefers-reduced-motion: reduce'),
+        'served auth CSS must animate job columns and provide a reduced-motion fallback');
     const rejectedRegister = await expectPage(await requestMagicLink(anonymous, registerToken, `unchecked-register-${runId}@local.test`, { acceptTerms: false, returnView: 'Register' }), 200, 'register without terms acceptance');
     assert(rejectedRegister.includes('Vui lòng đồng ý với điều khoản') && !rejectedRegister.includes('id="sentTitle"'), 'register must reject unchecked terms before creating a magic link');
     assert(!/<input[^>]*id="authAcceptTerms"[^>]*checked(?:\s|=|>)/.test(rejectedRegister), 'the agreement checkbox must remain unchecked after rejection');
@@ -448,6 +464,8 @@ async function main() {
         assert(page.includes('id="sentTitle"'), `magic link ${i} must be accepted`);
         if (i === 1) {
             assert(page.includes('Chưa gửi được email'), 'checked consent must succeed in Development without a configured mail provider');
+            assert(!page.includes('id="resendAcceptTerms"') && /id="resendForm"[\s\S]*name="AcceptTerms" value="true"/.test(page),
+                'the sent screen must offer resend without asking for a second agreement while retaining server-side consent');
             const match = page.match(/href="([^"]*\/Account\/ConfirmMagicLink[^"]*)"/);
             assert(match, 'Development must expose its signed confirmation URL for local verification');
             const confirmation = new URL(match[1], baseUrl);

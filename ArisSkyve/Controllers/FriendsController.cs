@@ -208,17 +208,12 @@ namespace ArisSkyve.Controllers
             var friendship = new Friendship { RequesterId = myId, AddresseeId = userId };
             _context.Friendships.Add(friendship);
 
-            _context.Notifications.Add(new Notification
-            {
-                UserId = userId,
-                ActorId = myId,
-                Type = "FriendRequest",
-                Content = "đã gửi cho bạn một lời mời kết bạn.",
-                Link = "/Chat/Index?networkTab=requests",
-                CreatedAt = DateTime.UtcNow
-            });
+            // Send → cancel → send again replaces the still-unread request instead of stacking.
+            var staged = await NotificationWriter.StageAsync(_context, userId, myId, "FriendRequest",
+                "đã gửi cho bạn một lời mời kết bạn.", "/Chat/Index?networkTab=requests");
 
             await _context.SaveChangesAsync();
+            await NotificationWriter.PushAsync(NotificationWriter.HubFrom(HttpContext), _context, staged);
             return Json(new { success = true, status = "pending_sent" });
         }
 
@@ -229,20 +224,17 @@ namespace ArisSkyve.Controllers
             var friendship = await _context.Friendships.FirstOrDefaultAsync(f => f.Id == requestId && f.AddresseeId == myId);
             if (friendship == null) return NotFound();
 
+            // A repeated click (double tap, second tab) is a no-op, not another notification.
+            if (friendship.Status == FriendshipStatus.Accepted) return Json(new { success = true });
+
             friendship.Status = FriendshipStatus.Accepted;
             friendship.RespondedAt = DateTime.UtcNow;
 
-            _context.Notifications.Add(new Notification
-            {
-                UserId = friendship.RequesterId,
-                ActorId = myId,
-                Type = "FriendRequestAccepted",
-                Content = "đã chấp nhận lời mời kết bạn của bạn.",
-                Link = "/Chat/Index?networkTab=friends",
-                CreatedAt = DateTime.UtcNow
-            });
+            var staged = await NotificationWriter.StageAsync(_context, friendship.RequesterId, myId, "FriendRequestAccepted",
+                "đã chấp nhận lời mời kết bạn của bạn.", "/Chat/Index?networkTab=friends");
 
             await _context.SaveChangesAsync();
+            await NotificationWriter.PushAsync(NotificationWriter.HubFrom(HttpContext), _context, staged);
             return Json(new { success = true });
         }
 
@@ -264,6 +256,12 @@ namespace ArisSkyve.Controllers
             var myId = CurrentUserId;
             var friendship = await _context.Friendships.FirstOrDefaultAsync(f => f.Id == requestId && f.RequesterId == myId);
             if (friendship == null) return NotFound();
+
+            // A withdrawn request should not stay in the other person's bell.
+            var pendingNotice = await _context.Notifications
+                .Where(n => n.UserId == friendship.AddresseeId && n.ActorId == myId && n.Type == "FriendRequest" && !n.IsRead)
+                .ToListAsync();
+            _context.Notifications.RemoveRange(pendingNotice);
 
             _context.Friendships.Remove(friendship);
             await _context.SaveChangesAsync();

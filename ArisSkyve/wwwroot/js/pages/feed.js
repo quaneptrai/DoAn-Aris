@@ -537,14 +537,97 @@
     let pdPost = null;
     const EMO = ['❤️', '🙌', '🔥', '👏', '😢', '😍', '😮', '😂'];
 
-    function cmtHtml(c) {
-        return `<div class="cmt" id="c-${c.id}">
-          <div class="cmt__face">${face(c.username, c.avatar, 32)}</div>
+    // Replies/likes need the V7 tables; threads are one level deep (the server flattens them).
+    const canThread = () => !!(window.ArisFeatures && window.ArisFeatures.social);
+    let replyTo = null; // { root, name } while answering a comment in the dialog
+
+    function cmtHtml(c, isReply) {
+        const acts = c.pending ? '<span>Đang gửi…</span>' : (canThread() ? `
+              <button type="button" data-clike="${c.id}" class="${c.isLiked ? 'is-liked' : ''}">${c.isLiked ? 'Đã thích' : 'Thích'}${c.likeCount ? ' · ' + c.likeCount : ''}</button>
+              <button type="button" data-creply="${c.id}">Trả lời</button>` : '')
+            + (!c.pending && (c.canDelete || c.isMine) ? `<button type="button" data-cdel="${c.id}">Xoá</button>` : '');
+        return `<div class="cmt${isReply ? ' cmt--reply' : ''}" id="c-${c.id}">
+          <div class="cmt__face">${face(c.username, c.avatar, isReply ? 26 : 32)}</div>
           <div>
             <div class="cmt__body"><span class="cmt__name">${esc(c.username)}</span>${richText(c.content)}</div>
-            <div class="cmt__meta"><span>${timeAgo(minsSince(c.createdAt))}</span></div>
+            <div class="cmt__meta cmt__acts"><span>${timeAgo(minsSince(c.createdAt))}</span>${acts}</div>
           </div>
         </div>`;
+    }
+
+    const threadHtml = (list, rootId) => `<div class="cmt-thread" data-thread="${rootId}">${list.filter((x) => x.parentCommentId === rootId).map((r) => cmtHtml(r, true)).join('')}</div>`;
+
+    function wireComments(box) {
+        if (box.__wired) return;
+        box.__wired = true;
+        box.addEventListener('click', (e) => {
+            const r = e.target.closest('[data-creply]'), l = e.target.closest('[data-clike]'), d = e.target.closest('[data-cdel]');
+            if (r) startReply(+r.dataset.creply);
+            else if (l) likeComment(+l.dataset.clike);
+            else if (d) deleteComment(+d.dataset.cdel);
+        });
+    }
+
+    function startReply(id) {
+        const p = pdPost, c = p && (p.comments || []).find((x) => x.id === id);
+        const formEl = $('#pdForm'), input = $('#pdInput');
+        if (!c || !formEl || !input) return;
+        replyTo = { root: c.parentCommentId || c.id, name: c.username };
+        let bar = $('#pdReplying');
+        if (!bar) {
+            formEl.insertAdjacentHTML('beforebegin', '<div class="cmt-replying" id="pdReplying"><span></span><button type="button" aria-label="Huỷ trả lời">×</button></div>');
+            bar = $('#pdReplying');
+            $('button', bar).addEventListener('click', clearReply);
+        }
+        $('span', bar).textContent = c.isMine ? 'Đang trả lời bình luận của bạn' : `Đang trả lời ${c.username}`;
+        if (!c.isMine && !input.value.includes('@' + c.username)) input.value = `@${c.username} ` + input.value;
+        input.focus();
+        input.dispatchEvent(new Event('input'));
+    }
+
+    function clearReply() {
+        replyTo = null;
+        const bar = $('#pdReplying');
+        if (bar) bar.remove();
+    }
+
+    function likeComment(id) {
+        const p = pdPost, c = p && (p.comments || []).find((x) => x.id === id);
+        if (!c || c.pending) return;
+        c.isLiked = !c.isLiked;
+        c.likeCount = Math.max(0, (c.likeCount || 0) + (c.isLiked ? 1 : -1));
+        redrawComment(id, c);
+        fetch('/Dashboard/ToggleCommentLike/' + id, { method: 'POST' })
+            .then((res) => res.json())
+            .then((data) => { if (data.success) { c.isLiked = data.liked; c.likeCount = data.likeCount; redrawComment(id, c); } })
+            .catch(() => {});
+    }
+
+    function deleteComment(id) {
+        const p = pdPost;
+        if (!p || !window.confirm('Xoá bình luận này? Các câu trả lời của nó cũng bị xoá.')) return;
+        fetch('/Dashboard/DeleteComment/' + id, { method: 'DELETE' })
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data.success) throw new Error(data.message);
+                const gone = new Set(data.removedIds || [id]);
+                p.comments = (p.comments || []).filter((x) => !gone.has(x.id));
+                gone.forEach((cid) => {
+                    const el = $('#c-' + cid);
+                    if (el) el.remove();
+                    const t = $(`[data-thread="${cid}"]`);
+                    if (t) t.remove();
+                });
+                if (typeof data.commentCount === 'number') p.commentCount = data.commentCount;
+                syncCounts(p);
+            })
+            .catch((err) => M.toast((err && err.message) || 'Không thể xoá bình luận.', { tone: 'danger' }));
+    }
+
+    function redrawComment(oldId, c) {
+        const el = $('#c-' + oldId);
+        if (el) el.outerHTML = cmtHtml(c, !!c.parentCommentId);
+        renderIcons();
     }
 
     const cmtSkel = () => Array.from({ length: 3 }, () => '<div class="cmt-skel" aria-hidden="true"><span class="a-skel" style="width:32px;height:32px;border-radius:50%"></span><div><span class="a-skel" style="height:12px;width:80%"></span><span class="a-skel" style="height:10px;width:35%"></span></div></div>').join('');
@@ -608,7 +691,8 @@
             e.preventDefault();
             const text = ta.value.trim();
             if (!text) return;
-            addComment(p, text);
+            addComment(p, text, replyTo && replyTo.root);
+            clearReply();
             ta.value = '';
             autosize(ta, 96);
             $('#pdSend').disabled = true;
@@ -624,30 +708,47 @@
     function renderPdComments(p) {
         const box = $('#pdComments');
         if (!box || pdPost !== p) return;
-        box.innerHTML = (p.comments && p.comments.length)
-            ? p.comments.map(cmtHtml).join('')
+        replyTo = null;
+        wireComments(box);
+        const list = p.comments || [];
+        const top = list.filter((c) => !c.parentCommentId || !list.some((x) => x.id === c.parentCommentId));
+        box.innerHTML = list.length
+            ? top.map((c) => cmtHtml(c) + threadHtml(list, c.id)).join('')
             : '<div class="a-empty" style="padding:32px 8px"><i data-lucide="message-circle"></i><div class="a-empty__title">Chưa có bình luận</div><div class="a-empty__text">Hãy là người đầu tiên bình luận.</div></div>';
         box.setAttribute('aria-busy', 'false');
         renderIcons();
     }
 
-    function addComment(p, text) {
-        const c = { id: nid++, username: myName, avatar: myAvatar, content: text, createdAt: new Date().toISOString() };
+    function addComment(p, text, parentId) {
+        const c = { id: nid++, pending: true, username: myName, avatar: myAvatar, content: text, createdAt: new Date().toISOString(),
+            parentCommentId: parentId || null, isMine: true, canDelete: true, likeCount: 0, isLiked: false };
         p.comments = p.comments || [];
         p.comments.push(c);
         p.commentCount++;
         syncCounts(p);
         if (pdPost === p && !pd.hidden) insertDialogComment(c);
 
-        fetch('/Dashboard/AddComment', form({ postId: p.id, content: text }))
+        const fields = { postId: p.id, content: text };
+        if (parentId) fields.parentCommentId = parentId;
+        fetch('/Dashboard/AddComment', form(fields))
             .then((res) => res.json())
             .then((data) => {
                 if (!data.success) throw new Error(data.message || 'Lỗi gửi bình luận');
                 if (typeof data.commentCount === 'number') p.commentCount = data.commentCount;
-                if (data.comment) { c.id = data.comment.id; c.createdAt = data.comment.createdAt; }
+                const tempId = c.id;
+                if (data.comment) Object.assign(c, data.comment);
+                c.pending = false;
+                redrawComment(tempId, c);
                 syncCounts(p);
             })
-            .catch(() => M.toast('Không thể gửi bình luận. Thử lại nhé.', { tone: 'danger' }));
+            .catch((err) => {
+                p.comments = p.comments.filter((x) => x !== c);
+                p.commentCount = Math.max(0, p.commentCount - 1);
+                const el = $('#c-' + c.id);
+                if (el) el.remove();
+                syncCounts(p);
+                M.toast((err && err.message) || 'Không thể gửi bình luận. Thử lại nhé.', { tone: 'danger' });
+            });
     }
 
     /* Bình luận ngay trong thẻ (ô "Thêm bình luận…"): gửi qua addComment, hiện ngay dưới chú thích */
@@ -681,7 +782,9 @@
         if (!box) return;
         const empty = $('.a-empty', box);
         if (empty) empty.remove();
-        box.insertAdjacentHTML('beforeend', cmtHtml(c));
+        const thread = c.parentCommentId && $(`[data-thread="${c.parentCommentId}"]`, box);
+        if (thread) thread.insertAdjacentHTML('beforeend', cmtHtml(c, true));
+        else box.insertAdjacentHTML('beforeend', cmtHtml(c) + `<div class="cmt-thread" data-thread="${c.id}"></div>`);
         renderIcons();
         const el = $('#c-' + c.id, box);
         if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });

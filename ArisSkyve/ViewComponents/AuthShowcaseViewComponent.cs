@@ -2,6 +2,7 @@ using ArisSkyve.Infrastructure.Data.Context;
 using ArisSkyve.Infrastructure.Presentation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace ArisSkyve.ViewComponents
 {
@@ -12,15 +13,39 @@ namespace ArisSkyve.ViewComponents
     public class AuthShowcaseViewComponent : ViewComponent
     {
         private readonly ArisDBContext _context;
+        private readonly IConfiguration _configuration;
+        private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _environment;
 
-        public AuthShowcaseViewComponent(ArisDBContext context)
+        public AuthShowcaseViewComponent(ArisDBContext context, IConfiguration configuration, Microsoft.AspNetCore.Hosting.IWebHostEnvironment environment)
         {
             _context = context;
+            _configuration = configuration;
+            _environment = environment;
         }
 
         public async Task<IViewComponentResult> InvokeAsync()
         {
             var model = new AuthShowcaseViewModel();
+            // Opt-in Visual Studio preview only: show clearly labelled examples without
+            // touching SQL, seeding users, or presenting these as live Aris vacancies.
+            if (_environment.IsDevelopment()
+                && _configuration.GetValue<bool>("E2E:UseInMemoryDatabase")
+                && _configuration.GetValue<bool>("AuthShowcase:Preview"))
+            {
+                model.IsPreview = true;
+                model.TopCompanies = new List<AuthShowcaseCompany>
+                {
+                    new() { Name = "FPT Software", AvatarUrl = "/images/company-logos/fpt-software.svg", Industry = "Công nghệ" },
+                    new() { Name = "Viettel", AvatarUrl = "/images/company-logos/viettel.svg", Industry = "Viễn thông" },
+                    new() { Name = "Tiki", AvatarUrl = "/images/company-logos/tiki.png", Industry = "Thương mại điện tử" }
+                };
+                model.Jobs = new List<AuthShowcaseJob>
+                {
+                    new() { Title = "Software Engineering Intern", Company = "FPT Software", AvatarUrl = "/images/company-logos/fpt-software.svg", City = "Việt Nam" },
+                    new() { Title = "Cloud Forward Deployed Engineer", Company = "FPT Software", AvatarUrl = "/images/company-logos/fpt-software.svg", City = "Việt Nam" }
+                };
+                return View(model);
+            }
             try
             {
                 var companies = await _context.BussinessAccounts.AsNoTracking()
@@ -40,7 +65,7 @@ namespace ArisSkyve.ViewComponents
                 model.TopCompanies = companies.Select(b => new AuthShowcaseCompany
                 {
                     Name = b.Name,
-                    AvatarUrl = AvatarPresentation.ResolveCompanyAvatar(b.AvatarUrl),
+                    AvatarUrl = CompanyLogo(b.Name, b.AvatarUrl),
                     Industry = b.Industry,
                     Jobs = b.Jobs
                 }).ToList();
@@ -65,7 +90,7 @@ namespace ArisSkyve.ViewComponents
                     Id = j.Id,
                     Title = j.Title,
                     Company = j.Company,
-                    AvatarUrl = AvatarPresentation.ResolveCompanyAvatar(j.BizAvatar),
+                    AvatarUrl = CompanyLogo(j.Company, j.BizAvatar),
                     Salary = j.Salary,
                     City = j.City
                 }).ToList();
@@ -77,10 +102,25 @@ namespace ArisSkyve.ViewComponents
             }
             return View(model);
         }
+
+        private static string? CompanyLogo(string? name, string? avatarUrl)
+        {
+            var realAvatar = AvatarPresentation.ResolveCompanyAvatar(avatarUrl);
+            if (realAvatar != null) return realAvatar;
+            // A verified logo is only used for its actual organisation.
+            return name?.Trim() switch
+            {
+                "FPT Software" => "/images/company-logos/fpt-software.svg",
+                "Viettel" => "/images/company-logos/viettel.svg",
+                "Tiki" => "/images/company-logos/tiki.png",
+                _ => null
+            };
+        }
     }
 
     public class AuthShowcaseViewModel
     {
+        public bool IsPreview { get; set; }
         public List<AuthShowcaseCompany> TopCompanies { get; set; } = new();
         public List<AuthShowcaseJob> Jobs { get; set; } = new();
     }

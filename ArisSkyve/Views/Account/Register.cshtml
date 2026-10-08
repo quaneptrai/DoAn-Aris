@@ -55,15 +55,6 @@ else
             </label>
         </fieldset>
 
-        <div class="auth-agreement">
-            <input type="checkbox" id="authAcceptTerms" required checked="@(ViewBag.AcceptTerms is bool accepted && accepted ? "checked" : null)" aria-describedby="authAgreementError" />
-            <div class="auth-agreement__copy">
-                <label for="authAcceptTerms">Tôi đồng ý với <b>Điều khoản sử dụng</b> và <a href="/privacy">Chính sách quyền riêng tư</a> của Aris.</label>
-                <p class="auth-legal">Sự đồng ý này không bật quyền xử lý CV bằng AI.</p>
-            </div>
-            <span class="auth-agreement__error" id="authAgreementError" role="alert" aria-live="polite" hidden>Vui lòng đồng ý với điều khoản và chính sách quyền riêng tư để tiếp tục.</span>
-        </div>
-
         @await Html.PartialAsync("_AuthSocial", intent)
 
         <div class="auth-sep"><span>hoặc tiếp tục với email</span></div>
@@ -84,6 +75,14 @@ else
                 </span>
                 <span class="auth-hint" id="authEmailHint" hidden>Email chưa đúng định dạng, ví dụ: ten@congty.com</span>
             </label>
+            <div class="auth-agreement">
+                <input type="checkbox" id="authAcceptTerms" required checked="@(ViewBag.AcceptTerms is bool accepted && accepted ? "checked" : null)" aria-describedby="authAgreementError" />
+                <div class="auth-agreement__copy">
+                    <label for="authAcceptTerms">Tôi đồng ý với <b>Điều khoản sử dụng</b> và <a href="/privacy">Chính sách quyền riêng tư</a> của Aris.</label>
+                    <p class="auth-legal">Sự đồng ý này không bật quyền xử lý CV bằng AI.</p>
+                </div>
+                <span class="auth-agreement__error" id="authAgreementError" role="alert" aria-live="polite" hidden>Vui lòng đồng ý với điều khoản và chính sách quyền riêng tư để tiếp tục.</span>
+            </div>
             <button class="a-btn a-btn--sunset auth-submit" type="submit" id="authSubmit">
                 <span>Tạo tài khoản</span><i data-lucide="arrow-right"></i>
             </button>

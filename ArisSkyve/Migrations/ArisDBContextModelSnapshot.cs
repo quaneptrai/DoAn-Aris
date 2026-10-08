@@ -156,6 +156,27 @@ namespace ArisSkyve.Migrations
                     b.ToTable("CompanyFollows");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.CompanyProfileView", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BusinessAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ViewedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessAccountId", "ViewedAtUtc");
+
+                    b.ToTable("CompanyProfileViews");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.ContactMethod", b =>
                 {
                     b.Property<int>("Id")
@@ -822,6 +843,29 @@ namespace ArisSkyve.Migrations
                     b.ToTable("Messages");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.MessageReaction", b =>
+                {
+                    b.Property<int>("MessageId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("MessageId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("MessageReactions");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.Notification", b =>
                 {
                     b.Property<int>("Id")
@@ -1370,27 +1414,6 @@ namespace ArisSkyve.Migrations
                     b.ToTable("StoryViews");
                 });
 
-            modelBuilder.Entity("ArisSkyve.Domain.Entities.CompanyProfileView", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<int>("BusinessAccountId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ViewedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BusinessAccountId", "ViewedAtUtc");
-
-                    b.ToTable("CompanyProfileViews");
-                });
-
             modelBuilder.Entity("ArisSkyve.Domain.Entities.Tags", b =>
                 {
                     b.Property<int>("Id")
@@ -1705,6 +1728,17 @@ namespace ArisSkyve.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.CompanyProfileView", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.BussinessAccount", "BusinessAccount")
+                        .WithMany()
+                        .HasForeignKey("BusinessAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessAccount");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.ContactMethod", b =>
                 {
                     b.HasOne("ArisSkyve.Domain.Entities.EmployesAccount", "EmployesAccount")
@@ -1940,6 +1974,25 @@ namespace ArisSkyve.Migrations
                     b.Navigation("ReplyToMessage");
 
                     b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.MessageReaction", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.Message", "Message")
+                        .WithMany()
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ArisSkyve.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ArisSkyve.Domain.Entities.Notification", b =>
@@ -2199,17 +2252,6 @@ namespace ArisSkyve.Migrations
                     b.Navigation("Story");
 
                     b.Navigation("Viewer");
-                });
-
-            modelBuilder.Entity("ArisSkyve.Domain.Entities.CompanyProfileView", b =>
-                {
-                    b.HasOne("ArisSkyve.Domain.Entities.BussinessAccount", "BusinessAccount")
-                        .WithMany()
-                        .HasForeignKey("BusinessAccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BusinessAccount");
                 });
 
             modelBuilder.Entity("ArisSkyve.Domain.Entities.UserSessionVersion", b =>

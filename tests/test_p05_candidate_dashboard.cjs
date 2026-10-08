@@ -23,9 +23,10 @@ assert(controllerContent.includes('todos.Add(new("sparkles", "Việc làm phù h
 assert(controllerContent.includes('todos.Add(new("send", $"{ViewBag.AppliedCount} hồ sơ đã nộp"'), 'Controller must prompt to track applications if appliedCount > 0');
 console.log('✓ Test 2: DashboardController adds targeted todos for candidates');
 
-// Test 3: Views/Dashboard/Index.cshtml displays application count and profile stats
-assert(viewContent.includes('href="/JobApplications/MyApplications">Đơn nộp <b class="a-num">@(ViewBag.AppliedCount ?? 0)</b>'), 'View must display applied count badge');
+// Test 3: Keep actionable metrics but remove decorative status pills.
+assert(viewContent.includes('href="/JobApplications/MyApplications">Đơn nộp <b class="a-num">@(ViewBag.AppliedCount ?? 0)</b>'), 'View must display applied count');
 assert(viewContent.includes('Hồ sơ <b class="a-num">@profilePercent%</b>'), 'View must display profile completion percentage');
-console.log('✓ Test 3: Views/Dashboard/Index.cshtml renders applied count and profile stats');
+assert(viewContent.includes('me-card__state--open') && !viewContent.includes('fx-pill'), 'Profile state remains readable without ornamental pills');
+console.log('✓ Test 3: Views/Dashboard/Index.cshtml keeps actionable metrics and plain status');
 
 console.log('\n--- All P05 tests passed successfully! ---');

@@ -31,6 +31,7 @@
     <!-- CSS: Bootstrap rồi aris-line.css -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/aris-line.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/aris-notify.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/match-insight.css" asp-append-version="true" />
     <link rel="icon" type="image/svg+xml" href="~/favicon.svg" asp-append-version="true">
     <link rel="alternate icon" href="~/favicon.ico">
@@ -137,13 +138,15 @@
     <script src="~/js/aris-shell.js" asp-append-version="true"></script>
     <script src="~/js/aris-palette.js" asp-append-version="true"></script>
     <script src="~/js/notification-client.js" asp-append-version="true"></script>
+    <script src="~/js/chat-reactions.js" asp-append-version="true"></script>
     <script>
         // Cờ tính năng (Feature gate - tự động bật khi migration V7Social được áp)
         window.ArisFeatures = {
             social: @(FeatureGate.Enabled ? "true" : "false"),
             stories: @(FeatureGate.Stories ? "true" : "false"),
             polls: @(FeatureGate.Polls ? "true" : "false"),
-            savedJobs: @(FeatureGate.SavedJobs ? "true" : "false")
+            savedJobs: @(FeatureGate.SavedJobs ? "true" : "false"),
+            chatReactions: @(FeatureGate.MessageReactions ? "true" : "false")
         };
 
         // Compatibility helper for legacy showToast calls across app

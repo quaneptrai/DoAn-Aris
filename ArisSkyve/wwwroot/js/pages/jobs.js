@@ -581,7 +581,6 @@ let matcherAbortController = null;
         return;
     }
 
-    const ind = $('.a-indicator', list);
     const searchInput = $('#jobSearch');
     const filterPop = $('#filterPop');
     const applyDialog = $('#applyDialog');
@@ -591,6 +590,36 @@ let matcherAbortController = null;
     const jdCompact = $('#jdCompact');
     const jdCompactLogo = $('#jdCompactLogo');
     const jdCompactTitle = $('#jdCompactTitle');
+    const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let detailRequest = 0;
+    let searchRequest = 0;
+    let searchAbort = null;
+    const hasActiveFilters = () => !!(state.q || state.location || state.category || state.mode);
+    const clearFilterButton = '<button class="a-btn a-btn--secondary a-btn--sm" type="button" data-clear-jobs>Xoá bộ lọc</button>';
+
+    function showEmptyJobs(filtered) {
+        const title = filtered ? 'Không có việc phù hợp bộ lọc' : 'Chưa có việc đang tuyển';
+        const description = filtered ? 'Thử từ khoá khác hoặc xoá bộ lọc để xem thêm cơ hội.' : 'Quay lại sau để xem các vị trí mới trên Aris.';
+        const content = `<div class="a-empty jobs-empty"><div class="a-empty__title">${title}</div><div class="a-empty__text">${description}</div>${filtered ? clearFilterButton : ''}</div>`;
+        list.innerHTML = `<div class="a-empty jobs-empty jobs-empty--list"><div class="a-empty__title">${filtered ? 'Không có kết quả' : 'Danh sách đang trống'}</div><div class="a-empty__text">${filtered ? 'Thử tìm theo tên công việc khác.' : 'Việc mới sẽ xuất hiện tại đây.'}</div></div>`;
+        jdInner.innerHTML = content;
+        jdInner.removeAttribute('aria-busy');
+        jdCompact.classList.remove('is-shown');
+        state.selectedId = null;
+        const url = new URL(location);
+        url.searchParams.delete('job');
+        history.replaceState(null, '', url);
+        reveal(list.querySelector('.jobs-empty'), 'jobs-result-enter');
+        reveal(jdInner.querySelector('.jobs-empty'), 'jobs-result-enter');
+    }
+
+    function reveal(el, name) {
+        if (!el || reducedMotion()) return;
+        el.classList.remove(name);
+        void el.offsetWidth;
+        el.classList.add(name);
+        el.addEventListener('animationend', () => el.classList.remove(name), { once: true });
+    }
 
     const OPTIONS = {
         location: { label: 'Địa điểm', multi: false, values: ['TP.HCM', 'Hà Nội', 'Đà Nẵng', 'Toàn quốc'] },
@@ -613,14 +642,16 @@ let matcherAbortController = null;
     };
 
     function placeInd(instant) {
-        if (!ind || !state.selectedId) return;
+        if (!state.selectedId) return;
+        const ind = $('.a-indicator', list);
         const target = $(`#job-${state.selectedId}`, list);
-        if (target) M.indicator(ind, target, { instant });
+        if (ind && target) M.indicator(ind, target, { instant });
     }
 
     // Load Job Details into sheet
     async function selectJob(id, opts = {}) {
         if (!id) return;
+        const request = ++detailRequest;
         if (matcherAbortController) matcherAbortController.abort();
         state.selectedId = id;
 
@@ -641,41 +672,41 @@ let matcherAbortController = null;
         url.searchParams.set('job', id);
         history.replaceState(null, '', url);
 
-        jdInner.classList.remove('jd-swap-in');
-        jdInner.classList.add('jd-swap-out');
-
+        jdInner.classList.remove('jd-swap-in', 'jd-swap-out');
+        jdInner.setAttribute('aria-busy', 'true');
+        // Keep the previous detail readable until the new response is ready.
         try {
             const res = await fetch(`/Jobs/Details/${id}`);
             if (!res.ok) throw new Error('Details not found');
             const html = await res.text();
+            if (request !== detailRequest) return;
             const doc = new DOMParser().parseFromString(html, 'text/html');
             const detailBlock = doc.querySelector('[data-job-detail]');
 
-            if (detailBlock) {
-                setTimeout(() => {
-                    jdInner.innerHTML = detailBlock.outerHTML;
-                    jdInner.classList.remove('jd-swap-out');
-                    jdInner.classList.add('jd-swap-in');
-                    jdScroll.scrollTop = 0;
-                    jdCompact.classList.remove('is-shown');
+            if (!detailBlock) throw new Error('Details unavailable');
+            if (request !== detailRequest) return;
+            jdInner.innerHTML = detailBlock.outerHTML;
+            jdInner.removeAttribute('aria-busy');
+            reveal(jdInner, 'jd-swap-in');
+            jdScroll.scrollTop = 0;
+            jdCompact.classList.remove('is-shown');
 
-                    const titleEl = jdInner.querySelector('.jd-title');
-                    if (titleEl && jdCompactTitle) jdCompactTitle.textContent = titleEl.textContent;
+            const titleEl = jdInner.querySelector('.jd-title');
+            if (titleEl && jdCompactTitle) jdCompactTitle.textContent = titleEl.textContent;
 
-                    const logoEl = jdInner.querySelector('.jd-head .a-logo');
-                    if (logoEl && jdCompactLogo) {
-                        jdCompactLogo.className = logoEl.className.replace('a-logo--56', 'a-logo--28');
-                        jdCompactLogo.dataset.tone = logoEl.dataset.tone;
-                        jdCompactLogo.innerHTML = logoEl.innerHTML;
-                    }
-
-                    renderIcons();
-                    initCvMatcher(jdInner);
-                }, 100);
+            const logoEl = jdInner.querySelector('.jd-head .a-logo');
+            if (logoEl && jdCompactLogo) {
+                jdCompactLogo.className = logoEl.className.replace('a-logo--56', 'a-logo--28');
+                jdCompactLogo.dataset.tone = logoEl.dataset.tone;
+                jdCompactLogo.innerHTML = logoEl.innerHTML;
             }
+
+            renderIcons();
+            initCvMatcher(jdInner);
         } catch (e) {
-            console.error('Failed to load job detail:', e);
-            jdInner.classList.remove('jd-swap-out');
+            if (request !== detailRequest) return;
+            jdInner.removeAttribute('aria-busy');
+            M.toast('Không tải được chi tiết việc làm. Vui lòng chọn lại để thử.', { tone: 'danger' });
         }
     }
 
@@ -714,6 +745,13 @@ let matcherAbortController = null;
         if (row) {
             const id = parseInt(row.dataset.id, 10);
             selectJob(id);
+        }
+    });
+    list?.addEventListener('keydown', (e) => {
+        const row = e.target.closest('.job-row');
+        if (row && e.target === row && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            selectJob(parseInt(row.dataset.id, 10));
         }
     });
 
@@ -805,7 +843,10 @@ let matcherAbortController = null;
                 state[key] = '';
                 const labelEl = anchor.querySelector('span');
                 if (labelEl) labelEl.textContent = opt.label;
-                anchor.setAttribute('aria-pressed', 'false');
+                if (key !== 'sort') anchor.setAttribute('aria-pressed', 'false');
+                else $('#sortBtn').setAttribute('aria-label', 'Sắp xếp: Mới nhất');
+                if (key === 'sort') state.sort = 'newest';
+                if (key === 'sort' && labelEl) labelEl.textContent = 'Mới nhất';
                 closeFilterPopover();
                 triggerSearch();
             }
@@ -838,12 +879,20 @@ let matcherAbortController = null;
         }, 300);
     });
 
+    list.addEventListener('click', (e) => {
+        if (e.target.closest('[data-clear-jobs]')) $('#clearFilters')?.click();
+    });
+    jdInner.addEventListener('click', (e) => {
+        if (e.target.closest('[data-clear-jobs]')) $('#clearFilters')?.click();
+    });
+
     $('#clearFilters')?.addEventListener('click', () => {
         state.q = '';
         state.location = '';
         state.category = '';
         state.mode = '';
         state.sort = 'newest';
+        $('#sortBtn span').textContent = 'Mới nhất';
         if (searchInput) searchInput.value = '';
         $$('#filters .a-chip').forEach(c => {
             const k = c.dataset.filter;
@@ -856,7 +905,16 @@ let matcherAbortController = null;
     async function triggerSearch() {
         state.skip = 0;
         state.exhausted = false;
-        $('#clearFilters').hidden = !state.q && !state.location && !state.category && !state.mode;
+        const request = ++searchRequest;
+        ++detailRequest;
+        searchAbort?.abort();
+        searchAbort = new AbortController();
+        const filtered = hasActiveFilters();
+        $('#clearFilters').hidden = !filtered;
+        $('#sortBtn').disabled = true;
+        list.setAttribute('aria-busy', 'true');
+        state.loading = true;
+        $('#resultCount').textContent = 'Đang tải…';
 
         const params = new URLSearchParams();
         if (state.q) params.set('q', state.q);
@@ -868,29 +926,49 @@ let matcherAbortController = null;
         params.set('take', 10);
 
         try {
-            const res = await fetch(`/Jobs/GetJobs?${params.toString()}`);
+            const res = await fetch(`/Jobs/GetJobs?${params.toString()}`, { signal: searchAbort.signal });
+            if (!res.ok) throw new Error('Search unavailable');
             if (res.headers.get('content-type')?.includes('application/json')) {
                 const data = await res.json();
+                if (request !== searchRequest) return;
                 if (!data.success) {
-                    list.innerHTML = `<span class="a-indicator" data-axis="y" data-inset="18"></span><div class="a-empty"><div class="a-empty__title">Không tìm thấy việc làm phù hợp</div></div>`;
+                    ++detailRequest;
+                    showEmptyJobs(filtered);
                     $('#resultCount').textContent = '0';
-                    state.selectedId = null;
+                    state.exhausted = true;
                     return;
                 }
+                throw new Error('Unexpected search response');
             }
             const html = await res.text();
+            if (request !== searchRequest) return;
             list.innerHTML = `<span class="a-indicator" data-axis="y" data-inset="18"></span>` + html;
             renderIcons();
 
             const rows = $$('.job-row', list);
             $('#resultCount').textContent = rows.length;
             if (rows.length > 0) {
-                const firstId = parseInt(rows[0].dataset.id, 10);
-                selectJob(firstId);
+                rows.slice(0, 10).forEach((row, index) => {
+                    row.style.setProperty('--job-order', index);
+                    reveal(row, 'job-row--enter');
+                });
+                selectJob(parseInt(rows[0].dataset.id, 10));
+            } else {
+                ++detailRequest;
+                showEmptyJobs(filtered);
+                state.exhausted = true;
             }
             state.skip = rows.length;
         } catch (e) {
-            console.error(e);
+            if (request !== searchRequest || e.name === 'AbortError') return;
+            M.toast('Không tải được kết quả. Vui lòng thử lại.', { tone: 'danger' });
+            $('#resultCount').textContent = $$('.job-row', list).length;
+        } finally {
+            if (request === searchRequest) {
+                list.removeAttribute('aria-busy');
+                state.loading = false;
+                $('#sortBtn').disabled = !$$('.job-row', list).length;
+            }
         }
     }
 
@@ -907,6 +985,7 @@ let matcherAbortController = null;
     async function loadMoreJobs() {
         if (state.loading || state.exhausted) return;
         state.loading = true;
+        const request = searchRequest;
 
         const params = new URLSearchParams();
         if (state.q) params.set('q', state.q);
@@ -920,10 +999,11 @@ let matcherAbortController = null;
         try {
             const res = await fetch(`/Jobs/GetJobs?${params.toString()}`);
             if (res.headers.get('content-type')?.includes('application/json')) {
-                state.exhausted = true;
+                if (request === searchRequest) state.exhausted = true;
                 return;
             }
             const html = await res.text();
+            if (request !== searchRequest) return;
             if (!html || !html.trim()) {
                 state.exhausted = true;
                 return;
@@ -941,9 +1021,9 @@ let matcherAbortController = null;
             const totalRows = $$('.job-row', list).length;
             $('#resultCount').textContent = totalRows;
         } catch (e) {
-            state.exhausted = true;
+            if (request === searchRequest) state.exhausted = true;
         } finally {
-            state.loading = false;
+            if (request === searchRequest) state.loading = false;
         }
     }
 

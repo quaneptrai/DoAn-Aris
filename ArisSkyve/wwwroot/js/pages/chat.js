@@ -311,7 +311,8 @@
 
         const avatar = mine ? '' : `<div class="m-avatar">${pos === 'last' || pos === 'single' ? avatarHtml(currentConv ? nm(currentConv) : '', 32, false, currentConv ? currentConv.avatar : null) : ''}</div>`;
 
-        const actions = m.deleted ? '' : `<div class="m-actions">
+        const reactBtn = window.ArisReactions && ArisReactions.enabled() ? `<button type="button" data-act="react" data-id="${m.id}" data-tip="Thả cảm xúc" aria-label="Thả cảm xúc"><i data-lucide="smile-plus"></i></button>` : '';
+        const actions = m.deleted ? '' : `<div class="m-actions">${reactBtn}
             <button type="button" data-act="reply" data-id="${m.id}" data-tip="Trả lời" aria-label="Trả lời"><i data-lucide="quote"></i></button>
             <button type="button" data-act="forward" data-id="${m.id}" data-tip="Chuyển tiếp" aria-label="Chuyển tiếp"><i data-lucide="forward"></i></button>
             <button type="button" data-act="more" data-id="${m.id}" data-tip="Thêm" aria-label="Thêm tuỳ chọn" aria-haspopup="menu"><i data-lucide="more-horizontal"></i></button>
@@ -322,7 +323,7 @@
         else if (receipt === 'sent') rc = '<div class="m-sent"><i data-lucide="check"></i>Đã gửi</div>';
 
         return `<div class="m-row m-row--${mine ? 'me' : 'them'} is-${pos}" data-id="${m.id}">
-          ${avatar}<div class="m-stack">${bubble}${actions}${rc}</div>
+          ${avatar}<div class="m-stack">${bubble}${window.ArisReactions ? ArisReactions.chipsHtml(m, myUserId) : ''}${actions}${rc}</div>
         </div>`;
     }
 
@@ -734,6 +735,8 @@
             $$('.m-row.is-active', box).forEach((r) => { if (r !== row) r.classList.remove('is-active'); });
             if (row) row.classList.toggle('is-active');
         }
+        const chip = e.target.closest('.rx-chip');
+        if (chip) { ArisChat.react(parseInt(chip.dataset.id, 10), chip.dataset.rx); return; }
         const btn = e.target.closest('[data-act]');
         if (!btn) return;
         const act = btn.dataset.act;
@@ -741,7 +744,9 @@
         const m = messagesById[msgId];
         if (!m) return;
 
-        if (act === 'reply') {
+        if (act === 'react') {
+            ArisReactions.open(btn, m, myUserId, (emoji) => ArisChat.react(m.id, emoji));
+        } else if (act === 'reply') {
             setReplyingTo(m);
         } else if (act === 'forward') {
             openForwardModal(m);
@@ -1349,6 +1354,10 @@
                 currentConv.isOnline = isOnline;
                 setStatus(isOnline ? 'online' : 'offline');
             }
+        });
+
+        if (ArisChat.onReaction) ArisChat.onReaction((update) => {
+            if (window.ArisReactions && ArisReactions.apply(messagesById, update)) renderThread(currentMessages, { keepScroll: true });
         });
 
         ArisChat.onDeleted((messageId) => {

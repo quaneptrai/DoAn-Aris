@@ -33,15 +33,30 @@ window.ArisNotifications = (function () {
         return div.innerHTML;
     }
 
+    // Lucide icon per notification type, shown on the avatar corner.
+    const TYPE_ICON = {
+        FriendRequest: "user-plus", FriendRequestAccepted: "user-check",
+        PostComment: "message-circle", CommentReply: "reply",
+        JobApplication: "file-text", ApplicationWithdrawn: "file-minus", ApplicationStatus: "briefcase",
+        InterviewScheduled: "calendar", InterviewResponse: "calendar-check", InterviewReminder: "alarm-clock",
+        EvaluationDue: "clipboard-check", OfferSent: "gift", OfferAccepted: "party-popper", OfferDeclined: "x-circle"
+    };
+    const MAX_ITEMS = 50;
+
     function init({ bellBtn, badge, list }) {
         if (!bellBtn || !list) return;
+        // The script is included by more than one partial; one bell = one instance.
+        if (bellBtn.__arisNotif) return;
+        bellBtn.__arisNotif = true;
 
         let notifications = [];
         let loaded = false;
+        let loadedAt = 0;
+        let unreadTotal = 0;
 
         function updateBadge() {
             if (!badge) return;
-            const unreadCount = notifications.filter(n => !n.isRead).length;
+            const unreadCount = Math.max(unreadTotal, notifications.filter(n => !n.isRead).length);
             if (unreadCount > 0) {
                 badge.style.display = "";
                 badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
@@ -69,29 +84,36 @@ window.ArisNotifications = (function () {
             }
 
             const headerHtml = `
-                <div style="display: flex; align-items: center; padding: 12px 14px 8px 16px; border-bottom: 1px solid var(--line-soft);">
-                    <b style="flex: 1; font-size: 15px; color: var(--text);">Thông báo</b>
+                <div class="nf-head">
+                    <b class="nf-head__title">Thông báo</b>
+                    ${unreadCount ? `<span class="nf-head__count">${unreadCount > 99 ? "99+" : unreadCount} mới</span>` : ""}
                     <button class="a-btn a-btn--ghost a-btn--sm notif-markall-btn" type="button" ${unreadCount ? '' : 'disabled'}>
                         Đánh dấu đã đọc
                     </button>
                 </div>`;
 
-            const rowsHtml = notifications.map(n => `
-                <a class="a-row notif ${n.isRead ? '' : 'is-unread'}" href="${n.link || '#'}" data-id="${n.id}" style="align-items: flex-start; min-height: 0; padding: 10px 14px; text-decoration: none;">
+            const row = n => {
+                const actor = n.prefixActor && n.actorName ? `<b>${escapeHtml(n.actorName)}</b> ` : "";
+                const icon = TYPE_ICON[n.type] || "bell";
+                return `
+                <a class="a-row notif nf-row ${n.isRead ? '' : 'is-unread'}" href="${escapeHtml(n.link || '#')}" data-id="${n.id}">
                     <span class="notif__bar" aria-hidden="true"></span>
-                    <span class="a-avatar a-avatar--36" style="flex-shrink: 0; margin-right: 10px;">
-                        <img src="${n.actorAvatar || '/img/default-avatar.svg'}" alt="" onerror="this.src='/img/default-avatar.svg';" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                    <span class="nf-row__avatar">
+                        <img src="${escapeHtml(n.actorAvatar || '/img/default-avatar.svg')}" alt="" onerror="this.src='/img/default-avatar.svg';">
+                        <span class="nf-row__type nf-type--${escapeHtml(n.type || 'other')}"><i data-lucide="${icon}"></i></span>
                     </span>
-                    <span class="a-row__main" style="font-size: 13px; line-height: 1.45; color: var(--text-2);">
-                        ${escapeHtml(n.content)}
-                        <br>
-                        <span class="a-row__meta" style="font-size: 11px; color: var(--text-3); margin-top: 2px; display: inline-block;">
-                            ${formatTime(n.createdAt)}
-                        </span>
+                    <span class="a-row__main nf-row__main">
+                        <span class="nf-row__text">${actor}${escapeHtml(n.content)}</span>
+                        <span class="nf-row__time">${formatTime(n.createdAt)}</span>
                     </span>
-                </a>`).join("");
+                    ${n.isRead ? "" : '<span class="nf-row__dot" aria-label="Chưa đọc"></span>'}
+                </a>`;
+            };
+            const fresh = notifications.filter(n => !n.isRead);
+            const seen = notifications.filter(n => n.isRead);
+            const section = (title, items) => items.length ? `<div class="nf-sec">${title}</div>${items.map(row).join("")}` : "";
 
-            list.innerHTML = headerHtml + `<div class="a-list" style="padding: 4px 0; gap: 0;">${rowsHtml}</div>`;
+            list.innerHTML = headerHtml + `<div class="a-list nf-scroll">${section("Mới", fresh)}${section("Trước đó", seen)}</div>`;
             if (window.renderIcons) window.renderIcons();
         }
 
@@ -100,8 +122,10 @@ window.ArisNotifications = (function () {
                 const res = await fetch("/Notifications/GetNotifications");
                 if (!res.ok) return;
                 const data = await res.json();
-                notifications = data.notifications || [];
+                notifications = (data.notifications || []).slice(0, MAX_ITEMS);
+                unreadTotal = data.unreadCount || 0;
                 loaded = true;
+                loadedAt = Date.now();
                 renderList();
                 updateBadge();
             } catch (err) {
@@ -116,6 +140,7 @@ window.ArisNotifications = (function () {
                 try {
                     await fetch("/Notifications/MarkAllAsRead", { method: "POST" });
                     notifications.forEach(n => n.isRead = true);
+                    unreadTotal = 0;
                     renderList();
                     updateBadge();
                 } catch (err) {
@@ -129,21 +154,28 @@ window.ArisNotifications = (function () {
             const id = parseInt(item.dataset.id, 10);
             const n = notifications.find(x => x.id === id);
             if (n && !n.isRead) {
-                fetch(`/Notifications/MarkAsRead?id=${id}`, { method: "POST" }).catch(() => {});
+                // keepalive: the link navigates away immediately.
+                fetch(`/Notifications/MarkAsRead?id=${id}`, { method: "POST", keepalive: true }).catch(() => {});
                 n.isRead = true;
+                unreadTotal = Math.max(0, unreadTotal - 1);
                 item.classList.remove("is-unread");
                 updateBadge();
             }
         });
 
         bellBtn.addEventListener("click", () => {
-            if (!loaded) load();
+            if (!loaded || Date.now() - loadedAt > 60000) load();
         });
 
         if (window.ArisChat) {
             ArisChat.onNotification((n) => {
-                notifications.unshift(n);
-                if (M && M.pulse && badge) M.pulse(badge);
+                // A repeat of an unread event replaces the older entry instead of stacking.
+                const drop = new Set([n.id, ...(n.replaces || [])]);
+                const dropUnread = notifications.filter(x => drop.has(x.id) && !x.isRead).length;
+                notifications = [n, ...notifications.filter(x => !drop.has(x.id))].slice(0, MAX_ITEMS);
+                unreadTotal = Math.max(0, unreadTotal - dropUnread) + 1;
+                const motion = window.ArisMotion;
+                if (motion && motion.pulse && badge) motion.pulse(badge);
                 renderList();
                 updateBadge();
             });

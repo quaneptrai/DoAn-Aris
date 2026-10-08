@@ -207,19 +207,12 @@
             <div class="me-card__foot">
                 @if (isBusiness)
                 {
-                    <span class="fx-pill fx-pill--brand"><span class="fx-pill__dot"></span>Tài khoản doanh nghiệp</span>
+                    <span class="me-card__state">Doanh nghiệp</span>
                     <a class="me-card__stat" href="/Employer">Bảng tuyển dụng</a>
                 }
                 else
                 {
-                    @if (profile?.IsLookingForJob == true)
-                    {
-                        <span class="fx-pill fx-pill--emerald"><span class="fx-pill__dot"></span>Sẵn sàng nhận việc mới</span>
-                    }
-                    else
-                    {
-                        <span class="fx-pill"><span class="fx-pill__dot"></span>Không tìm việc</span>
-                    }
+                    <span class="me-card__state @(profile?.IsLookingForJob == true ? "me-card__state--open" : "")">@(profile?.IsLookingForJob == true ? "Đang tìm cơ hội" : "Chưa tìm việc")</span>
                     <div class="d-flex align-items-center gap-2">
                         @if ((ViewBag.AppliedCount ?? 0) > 0)
                         {

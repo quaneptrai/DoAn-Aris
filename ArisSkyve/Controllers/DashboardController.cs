@@ -2,6 +2,8 @@ using ArisSkyve.Domain.Entities;
 using ArisSkyve.Hubs;
 using ArisSkyve.Infrastructure.Data.Context;
 using ArisSkyve.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -63,6 +65,13 @@ namespace ArisSkyve.Controllers
                 .Include(u => u.Profile.Education)
                 .Include(u => u.Profile.ContactMethods)
                 .FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                // The in-memory preview gets a new database after each restart, but
+                // the browser may retain its old, still-valid authentication cookie.
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return RedirectToAction("Login", "Account");
+            }
 
             var friendIds = await _context.Friendships
                 .Where(f => f.Status == FriendshipStatus.Accepted && (f.RequesterId == userId || f.AddresseeId == userId))
@@ -753,20 +762,33 @@ namespace ArisSkyve.Controllers
                 }
             }
 
+            var postOwnerId = await _context.Posts.Where(p => p.Id == postId).Select(p => (int?)p.UserId).FirstOrDefaultAsync();
+            var present = commentIds.ToHashSet();
+
             var result = comments.Select(c => new
             {
                 id = c.Id,
                 userId = c.UserId,
-                username = c.User?.Profile?.FullName ?? c.User?.Username ?? "Người dùng",
+                username = c.User == null ? "Người dùng" : ChatController.DisplayName(c.User),
                 avatar = c.User?.Profile?.AvatarUrl ?? "/images/default-avatar.png",
                 content = c.Content,
-                createdAt = c.CreatedAt,
-                parentCommentId = parentMap.TryGetValue(c.Id, out var pId) ? (int?)pId : null,
+                createdAt = DateTime.SpecifyKind(c.CreatedAt, DateTimeKind.Utc),
+                parentCommentId = ThreadRoot(c.Id, parentMap, present),
                 likeCount = likeCounts.TryGetValue(c.Id, out var lc) ? lc : 0,
-                isLiked = myLikes.Contains(c.Id)
+                isLiked = myLikes.Contains(c.Id),
+                isMine = currentUserId > 0 && c.UserId == currentUserId,
+                canDelete = currentUserId > 0 && (c.UserId == currentUserId || postOwnerId == currentUserId)
             });
 
             return Json(result);
+        }
+
+        // Threads are one level deep: a reply to a reply hangs under the top-level comment.
+        private static int? ThreadRoot(int commentId, IReadOnlyDictionary<int, int> parents, IReadOnlySet<int> present)
+        {
+            if (!parents.TryGetValue(commentId, out var root)) return null;
+            for (var hops = 0; hops < 16 && parents.TryGetValue(root, out var next); hops++) root = next;
+            return present.Contains(root) ? root : null;
         }
 
         [HttpPost]
@@ -791,6 +813,23 @@ namespace ArisSkyve.Controllers
             var post = await _context.Posts.FirstOrDefaultAsync(p => p.Id == postId);
             if (post == null) return NotFound();
 
+            // Validate the reply target before saving anything: it must be a comment of this
+            // post (your own comments included). The thread root is its top-level comment.
+            Comment? answered = null;
+            int? threadRootId = null;
+            if (parentCommentId.HasValue)
+            {
+                answered = await _context.Comments.FirstOrDefaultAsync(c => c.Id == parentCommentId.Value && c.PostId == postId);
+                if (answered == null) return Json(new { success = false, message = "Bình luận bạn trả lời không còn tồn tại." });
+                threadRootId = answered.Id;
+                for (var hops = 0; hops < 16; hops++)
+                {
+                    var up = await _context.CommentReplies.Where(r => r.CommentId == threadRootId).Select(r => (int?)r.ParentCommentId).FirstOrDefaultAsync();
+                    if (up == null || !await _context.Comments.AnyAsync(c => c.Id == up && c.PostId == postId)) break;
+                    threadRootId = up;
+                }
+            }
+
             var comment = new Comment
             {
                 Content = content.Trim(),
@@ -800,17 +839,27 @@ namespace ArisSkyve.Controllers
             };
             _context.Comments.Add(comment);
             post.CommentCount += 1;
+
+            // Bell: the person answered, and the post owner — never yourself, never twice.
+            var preview = comment.Content.Length > 80 ? comment.Content[..80] + "…" : comment.Content;
+            var link = $"/Dashboard?post={postId}";
+            StagedNotification? toAnswered = null, toOwner = null;
+            if (answered != null)
+                toAnswered = await NotificationWriter.StageAsync(_context, answered.UserId, userId, "CommentReply", $"đã trả lời bình luận của bạn: “{preview}”", link);
+            if (post.UserId != answered?.UserId)
+                toOwner = await NotificationWriter.StageAsync(_context, post.UserId, userId, "PostComment",
+                    answered == null ? $"đã bình luận về bài viết của bạn: “{preview}”" : $"đã trả lời một bình luận trong bài viết của bạn: “{preview}”", link);
+
             await _context.SaveChangesAsync();
 
-            if (parentCommentId.HasValue && _featureGate.Enabled)
+            if (threadRootId.HasValue)
             {
-                _context.CommentReplies.Add(new CommentReply
-                {
-                    CommentId = comment.Id,
-                    ParentCommentId = parentCommentId.Value
-                });
+                _context.CommentReplies.Add(new CommentReply { CommentId = comment.Id, ParentCommentId = threadRootId.Value });
                 await _context.SaveChangesAsync();
             }
+
+            await NotificationWriter.PushAsync(_chatHubContext, _context, toAnswered);
+            await NotificationWriter.PushAsync(_chatHubContext, _context, toOwner);
 
             var user = await _context.Users.Include(u => u.Profile).FirstAsync(u => u.Id == userId);
 
@@ -821,11 +870,16 @@ namespace ArisSkyve.Controllers
                 comment = new
                 {
                     id = comment.Id,
-                    username = user.Username,
+                    userId,
+                    username = ChatController.DisplayName(user),
                     avatar = user.Profile?.AvatarUrl ?? "/images/default-avatar.png",
                     content = comment.Content,
                     createdAt = comment.CreatedAt,
-                    parentCommentId = parentCommentId
+                    parentCommentId = threadRootId,
+                    likeCount = 0,
+                    isLiked = false,
+                    isMine = true,
+                    canDelete = true
                 }
             });
         }
@@ -890,22 +944,34 @@ namespace ArisSkyve.Controllers
                 return Json(new { success = false, message = "Bạn không có quyền xoá bình luận này." });
             }
 
+            // A comment goes together with its replies (they used to turn into top-level comments).
+            var removed = new List<Comment> { comment };
             if (_featureGate.Enabled)
             {
-                var replies = _context.CommentReplies.Where(r => r.CommentId == id || r.ParentCommentId == id);
-                var likes = _context.CommentLikes.Where(l => l.CommentId == id);
-                _context.CommentReplies.RemoveRange(replies);
-                _context.CommentLikes.RemoveRange(likes);
+                var frontier = new List<int> { id };
+                for (var depth = 0; depth < 16 && frontier.Count > 0; depth++)
+                {
+                    var childIds = await _context.CommentReplies.Where(r => frontier.Contains(r.ParentCommentId)).Select(r => r.CommentId).ToListAsync();
+                    var children = await _context.Comments.Where(c => childIds.Contains(c.Id) && c.PostId == comment.PostId).ToListAsync();
+                    children.RemoveAll(c => removed.Any(r => r.Id == c.Id));
+                    removed.AddRange(children);
+                    frontier = children.Select(c => c.Id).ToList();
+                }
+
+                var removedIds = removed.Select(c => c.Id).ToList();
+                _context.CommentReplies.RemoveRange(await _context.CommentReplies
+                    .Where(r => removedIds.Contains(r.CommentId) || removedIds.Contains(r.ParentCommentId)).ToListAsync());
+                _context.CommentLikes.RemoveRange(await _context.CommentLikes.Where(l => removedIds.Contains(l.CommentId)).ToListAsync());
             }
 
-            if (comment.Post != null && comment.Post.CommentCount > 0)
+            if (comment.Post != null)
             {
-                comment.Post.CommentCount--;
+                comment.Post.CommentCount = Math.Max(0, comment.Post.CommentCount - removed.Count);
             }
-            _context.Comments.Remove(comment);
+            _context.Comments.RemoveRange(removed);
             await _context.SaveChangesAsync();
 
-            return Json(new { success = true });
+            return Json(new { success = true, removedIds = removed.Select(c => c.Id), commentCount = comment.Post?.CommentCount });
         }
 
         [HttpPost]
@@ -1281,6 +1347,12 @@ namespace ArisSkyve.Controllers
 
                 if (_featureGate.Enabled)
                 {
+                    // Reply links point at comments with a Restrict FK: remove them first.
+                    var commentIds = await _context.Comments.Where(c => c.PostId == id).Select(c => c.Id).ToListAsync();
+                    _context.CommentReplies.RemoveRange(await _context.CommentReplies
+                        .Where(r => commentIds.Contains(r.CommentId) || commentIds.Contains(r.ParentCommentId)).ToListAsync());
+                    _context.CommentLikes.RemoveRange(await _context.CommentLikes.Where(l => commentIds.Contains(l.CommentId)).ToListAsync());
+
                     var extras = _context.PostExtras.Where(e => e.PostId == id);
                     var polls = _context.PostPolls.Where(p => p.PostId == id);
                     var tags = _context.PostHashTags.Where(t => t.PostId == id);

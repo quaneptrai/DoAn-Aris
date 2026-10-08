@@ -12,6 +12,7 @@ window.ArisChat = (function () {
         read: [],
         notification: [],
         deleted: [],
+        reaction: [],
         newPost: [],
         connectionState: []
     };
@@ -35,6 +36,7 @@ window.ArisChat = (function () {
         connection.on('MessagesRead', (userId) => handlers.read.forEach(fn => fn(userId)));
         connection.on('ReceiveNotification', (n) => handlers.notification.forEach(fn => fn(n)));
         connection.on('MessageDeleted', (messageId) => handlers.deleted.forEach(fn => fn(messageId)));
+        connection.on('MessageReactionChanged', (update) => handlers.reaction.forEach(fn => fn(update)));
         connection.on('NewPost', (post) => handlers.newPost.forEach(fn => fn(post)));
         connection.onreconnecting(() => emitConnectionState('reconnecting'));
         connection.onreconnected(() => emitConnectionState('connected'));
@@ -77,6 +79,7 @@ window.ArisChat = (function () {
         onRead: (fn) => handlers.read.push(fn),
         onNotification: (fn) => handlers.notification.push(fn),
         onDeleted: (fn) => handlers.deleted.push(fn),
+        onReaction: (fn) => handlers.reaction.push(fn),
         onNewPost: (fn) => handlers.newPost.push(fn),
         onConnectionState: (fn) => {
             handlers.connectionState.push(fn);
@@ -94,6 +97,10 @@ window.ArisChat = (function () {
         async deleteMessage(messageId) {
             await ensureConnected();
             return connection.invoke('DeleteMessage', messageId);
+        },
+        async react(messageId, emoji) {
+            await ensureConnected();
+            return connection.invoke('ToggleReaction', messageId, emoji).catch(() => false);
         },
         async typing(receiverId) {
             await ensureConnected();

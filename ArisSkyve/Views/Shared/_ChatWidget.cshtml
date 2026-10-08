@@ -482,6 +482,7 @@
             }
             const actions = m.deleted ? "" : `
                 <div class="widget-msg-actions">
+                    ${window.ArisReactions && ArisReactions.enabled() ? `<button type="button" class="widget-msg-act-btn" data-wact="react" data-id="${m.id}" title="Thả cảm xúc" aria-label="Thả cảm xúc"><i data-lucide="smile-plus"></i></button>` : ""}
                     <button type="button" class="widget-msg-act-btn" data-wact="reply" data-id="${m.id}" title="Trả lời" aria-label="Trả lời"><i data-lucide="quote"></i></button>
                     <button type="button" class="widget-msg-act-btn" data-wact="forward" data-id="${m.id}" title="Chuyển tiếp" aria-label="Chuyển tiếp"><i data-lucide="forward"></i></button>
                     <button type="button" class="widget-msg-act-btn" data-wact="more" data-id="${m.id}" title="Thêm" aria-label="Thêm tuỳ chọn" aria-haspopup="menu"><i data-lucide="more-horizontal"></i></button>
@@ -491,7 +492,7 @@
             else if (receipt === "sent") rc = `<div class="widget-msg-sent"><i data-lucide="check"></i>Đã gửi</div>`;
 
             return `<div class="widget-msg-row ${mine ? "mine" : "them"} is-${pos}" data-msg-id="${m.id}">
-                ${avatarCell}<div class="widget-msg-stack">${body}${actions}${rc}</div>
+                ${avatarCell}<div class="widget-msg-stack">${body}${window.ArisReactions ? ArisReactions.chipsHtml(m, myUserId) : ""}${actions}${rc}</div>
             </div>`;
         }
 
@@ -663,12 +664,15 @@
         }
 
         threadMessages.addEventListener("click", (e) => {
+            const chip = e.target.closest(".rx-chip");
+            if (chip) { ArisChat.react(parseInt(chip.dataset.id, 10), chip.dataset.rx); return; }
             const b = e.target.closest("[data-wact]");
             if (!b) return;
             const m = messagesById[b.dataset.id];
             if (!m) return;
             const act = b.dataset.wact;
-            if (act === "reply") setReplyingTo(m);
+            if (act === "react") ArisReactions.open(b, m, myUserId, (emoji) => ArisChat.react(m.id, emoji));
+            else if (act === "reply") setReplyingTo(m);
             else if (act === "forward") {
                 forwardingMessageId = m.id;
                 renderForwardTargetList();
@@ -783,6 +787,10 @@
                 if (changed) renderWidgetThread({ keepScroll: true });
             }
             loadConversations();
+        });
+
+        if (ArisChat.onReaction) ArisChat.onReaction((update) => {
+            if (window.ArisReactions && ArisReactions.apply(messagesById, update)) renderWidgetThread({ keepScroll: true });
         });
 
         if (ArisChat.onDeleted) ArisChat.onDeleted((messageId) => {

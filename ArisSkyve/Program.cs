@@ -76,7 +76,13 @@ if (!disableE2EBackgroundServices)
 {
     builder.Services.AddHostedService<ResumeOriginalCleanupWorker>();
 }
-builder.Services.AddSingleton<V7FeatureGate>();
+builder.Services.AddSingleton<V7FeatureGate>(sp =>
+{
+    var gate = ActivatorUtilities.CreateInstance<V7FeatureGate>(sp);
+    // The in-memory database is created from the current model, so gated tables always exist.
+    if (useEphemeralE2E) gate.EnableForEphemeralDatabase();
+    return gate;
+});
 builder.Services.AddSingleton<IV7FeatureGate>(sp => sp.GetRequiredService<V7FeatureGate>());
 if (!disableE2EBackgroundServices)
 {

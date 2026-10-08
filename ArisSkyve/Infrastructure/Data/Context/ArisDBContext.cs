@@ -24,6 +24,7 @@ namespace ArisSkyve.Infrastructure.Data.Context
         public DbSet<Comment> Comments { get; set; }
         public virtual DbSet<UserRecommendations> UserRecommendations { get; set; }
         public DbSet<Message> Messages { get; set; }
+        public DbSet<MessageReaction> MessageReactions { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<JobApplication> JobApplications { get; set; }
         public DbSet<ApplicationEvent> ApplicationEvents { get; set; }
@@ -216,6 +217,24 @@ namespace ArisSkyve.Infrastructure.Data.Context
                 .HasOne(m => m.ReplyToMessage)
                 .WithMany()
                 .HasForeignKey(m => m.ReplyToMessageId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Chat reactions: one per user per message. Recalling a message removes its
+            // reactions; the user side is Restrict like every other User FK here.
+            modelBuilder.Entity<MessageReaction>()
+                .HasKey(r => new { r.MessageId, r.UserId });
+            modelBuilder.Entity<MessageReaction>()
+                .Property(r => r.Emoji)
+                .HasMaxLength(32);
+            modelBuilder.Entity<MessageReaction>()
+                .HasOne(r => r.Message)
+                .WithMany()
+                .HasForeignKey(r => r.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<MessageReaction>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Notification <-> Recipient/Actor (Restrict to avoid multiple cascade paths from User)

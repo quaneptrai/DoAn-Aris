@@ -18,6 +18,20 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
+    },
+    "UI Preview (in-memory)": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5035",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "E2E__UseInMemoryDatabase": "true",
+        "E2E__DisableBackgroundServices": "true",
+        "AuthShowcase__Preview": "true",
+        "DemoData__SeedCompaniesAndJobs": "false",
+        "DemoData__SeedSocial": "false"
+      }
     }
   }
 }

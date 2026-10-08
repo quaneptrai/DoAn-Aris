@@ -1,3 +1,13 @@
+# CLAUDE CODE — CHAT REACTIONS, NOTIFICATION SPAM, COMMENT REPLIES 07/10/2026
+
+- **Migration NOT applied** (shared DB): `ArisSkyve/Migrations/20261007051229_AddMessageReactions` creates only table `MessageReactions` (PK MessageId+UserId, FK Message Cascade, FK User Restrict). Idempotent script: `.local/migration-AddMessageReactions.sql`. `V7FeatureGate.MessageReactions` turns on by itself once it is applied; until then reactions are hidden and `ToggleReaction` returns false.
+- Fixed `20261005100000_AddCompanyProfileViews.cs` declaring `[DbContext]` twice (broke every `dotnet ef` command).
+- In-memory E2E/preview mode now force-enables the V7 gate (the in-memory DB has every table).
+- Notifications: chat messages no longer create bell rows (chat badges count them; legacy `Message` rows are filtered out of the bell); `NotificationWriter` never notifies yourself and replaces an unread repeat (same user/actor/type/link); friend Accept/Cancel and employer status no-op/undo no longer stack rows; payload adds type/actorName/prefixActor/replaces and UTC `Z` times; `notification-client.js` guards double init, scrolls, groups Mới/Trước đó (`css/aris-notify.css`).
+- Chat: `ChatHub.ToggleReaction` + `MessageReactionChanged`; shared `js/chat-reactions.js` used by `pages/chat.js` and `_ChatWidget.cshtml`; recall no longer fails when the message was quoted; chat times sent as UTC.
+- Comments: Reply on every comment (own included), like, delete (takes replies along), one-level threads, notifications to post owner / answered author; DeletePost removes reply links first.
+- Verified: build 0 errors; `test_csrf_global_coverage`, `test_f7_backend_behavioral`, `test_public_media_hardening` pass; in-memory smoke pages 200. Not verified in a browser: reaction/reply UI flows, visual styling. General UI restyle (chat page, widget, feed cards) not done yet.
+
 # CODEX — GOOGLE DRIVE RELEASE COMPLETE 05/10/2026
 
 - Released the Google Drive public-media and private Resume-original implementation in `3d4af1f`; `026bd64` separately prevents Web Deploy passwords from appearing in command-line arguments by using a session-only Credential Manager target.

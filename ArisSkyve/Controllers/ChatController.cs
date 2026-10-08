@@ -14,12 +14,18 @@ namespace ArisSkyve.Controllers
     {
         private readonly ArisDBContext _context;
         private readonly IPublicMediaStore _publicMedia;
+        private readonly IV7FeatureGate? _featureGate;
 
-        public ChatController(ArisDBContext context, IPublicMediaStore publicMedia)
+        public ChatController(ArisDBContext context, IPublicMediaStore publicMedia, IV7FeatureGate? featureGate = null)
         {
             _context = context;
             _publicMedia = publicMedia;
+            _featureGate = featureGate;
         }
+
+        // Message times are written as DateTime.UtcNow, but SQL Server returns them without a
+        // kind, which serializes without "Z" and made browsers read them as local time.
+        private static DateTime Utc(DateTime value) => DateTime.SpecifyKind(value, DateTimeKind.Utc);
 
         private int CurrentUserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
@@ -67,7 +73,7 @@ namespace ArisSkyve.Controllers
                         displayName = DisplayName(partner),
                         avatar = partner.Profile?.AvatarUrl ?? "/images/default-avatar.png",
                         lastMessage = lastMessagePreview,
-                        lastMessageAt = last.SentAt,
+                        lastMessageAt = Utc(last.SentAt),
                         isMine = last.SenderId == myId,
                         unreadCount = g.Count(m => m.ReceiverId == myId && !m.IsRead),
                         isOnline = partner.ShowActiveStatus && ChatHub.IsConnected(partner.Id)
@@ -87,20 +93,20 @@ namespace ArisSkyve.Controllers
             var partner = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
             if (partner == null) return NotFound();
 
-            var messages = await _context.Messages
+            var rows = await _context.Messages
                 .Where(m => (m.SenderId == myId && m.ReceiverId == userId) || (m.SenderId == userId && m.ReceiverId == myId))
                 .OrderBy(m => m.SentAt)
                 .Select(m => new
                 {
-                    id = m.Id,
-                    senderId = m.SenderId,
-                    receiverId = m.ReceiverId,
-                    content = m.Content,
-                    imageUrl = m.ImageUrl,
-                    isForwarded = m.IsForwarded,
-                    sentAt = m.SentAt,
-                    isRead = m.IsRead,
-                    replyTo = m.ReplyToMessage == null ? null : new
+                    m.Id,
+                    m.SenderId,
+                    m.ReceiverId,
+                    m.Content,
+                    m.ImageUrl,
+                    m.IsForwarded,
+                    m.SentAt,
+                    m.IsRead,
+                    ReplyTo = m.ReplyToMessage == null ? null : new
                     {
                         id = m.ReplyToMessage.Id,
                         senderId = m.ReplyToMessage.SenderId,
@@ -110,6 +116,35 @@ namespace ArisSkyve.Controllers
                     }
                 })
                 .ToListAsync();
+
+            // Reactions have their own table, which exists only once AddMessageReactions is applied.
+            var reactionsByMessage = new Dictionary<int, List<object>>();
+            if (_featureGate?.MessageReactions == true && rows.Count > 0)
+            {
+                var ids = rows.Select(r => r.Id).ToList();
+                var reactionRows = await _context.MessageReactions.AsNoTracking()
+                    .Where(r => ids.Contains(r.MessageId))
+                    .OrderBy(r => r.CreatedAt)
+                    .Select(r => new { r.MessageId, r.UserId, r.Emoji })
+                    .ToListAsync();
+                reactionsByMessage = reactionRows
+                    .GroupBy(r => r.MessageId)
+                    .ToDictionary(g => g.Key, g => g.Select(r => (object)new { userId = r.UserId, emoji = r.Emoji }).ToList());
+            }
+
+            var messages = rows.Select(m => new
+            {
+                id = m.Id,
+                senderId = m.SenderId,
+                receiverId = m.ReceiverId,
+                content = m.Content,
+                imageUrl = m.ImageUrl,
+                isForwarded = m.IsForwarded,
+                sentAt = Utc(m.SentAt),
+                isRead = m.IsRead,
+                replyTo = m.ReplyTo,
+                reactions = reactionsByMessage.TryGetValue(m.Id, out var list) ? list : new List<object>()
+            });
 
             return Json(new
             {

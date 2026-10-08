@@ -1,4 +1,5 @@
 using ArisSkyve.Infrastructure.Data.Context;
+using ArisSkyve.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,8 @@ namespace ArisSkyve.Controllers
     [Authorize]
     public class NotificationsController : Controller
     {
+        private const int PageSize = 30;
+
         private readonly ArisDBContext _context;
 
         public NotificationsController(ArisDBContext context)
@@ -23,23 +26,23 @@ namespace ArisSkyve.Controllers
         {
             var userId = CurrentUserId;
 
-            var notifications = await _context.Notifications
+            // Chat messages are counted on the chat badges, not in the bell.
+            var bell = _context.Notifications
+                .Where(n => n.UserId == userId && n.Type != NotificationWriter.LegacyMessageType);
+
+            var rows = await bell
                 .Include(n => n.Actor).ThenInclude(a => a!.Profile)
-                .Where(n => n.UserId == userId)
-                .OrderByDescending(n => n.CreatedAt)
-                .Take(30)
-                .Select(n => new
-                {
-                    id = n.Id,
-                    content = n.Content,
-                    link = n.Link,
-                    isRead = n.IsRead,
-                    createdAt = n.CreatedAt,
-                    actorAvatar = n.Actor != null ? (n.Actor.Profile != null ? n.Actor.Profile.AvatarUrl : null) : null
-                })
+                .OrderByDescending(n => n.CreatedAt).ThenByDescending(n => n.Id)
+                .Take(PageSize)
+                .AsNoTracking()
                 .ToListAsync();
 
-            var unreadCount = await _context.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead);
+            var notifications = rows.Select(n => NotificationWriter.Payload(
+                n,
+                n.Actor == null ? null : ChatController.DisplayName(n.Actor),
+                n.Actor?.Profile?.AvatarUrl));
+
+            var unreadCount = await bell.CountAsync(n => !n.IsRead);
 
             return Json(new { notifications, unreadCount });
         }

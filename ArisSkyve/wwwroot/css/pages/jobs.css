@@ -35,6 +35,18 @@
 .jobs-list__scroll { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 4px 8px 24px; }
 .jobs-list__scroll .a-list { gap: 8px; }
 .jobs-list__scroll .a-list > .a-indicator { display: none; }
+.jobs-list__scroll .a-list[aria-busy="true"] { opacity: .7; transition: opacity 160ms var(--e-out); }
+.jobs-empty { margin-top: clamp(24px, 12vh, 110px); }
+#jobList > .jobs-empty { margin-top: 36px; }
+.jobs-empty--list { justify-items: start; text-align: left; margin-inline: 0; padding: 8px 14px; }
+.jobs-empty--list .a-empty__text { text-wrap: auto; }
+@media (prefers-reduced-motion: no-preference) {
+  .job-row--enter { animation: jobs-row-enter 280ms var(--e-out) backwards; animation-delay: calc(var(--job-order, 0) * 32ms); }
+  .jobs-result-enter { animation: jobs-result-enter 240ms var(--e-out); }
+  .apply-done { animation: jobs-result-enter 280ms var(--e-out); }
+}
+@keyframes jobs-row-enter { from { opacity: 0; transform: translateY(8px); } }
+@keyframes jobs-result-enter { from { opacity: 0; transform: translateY(6px); } }
 
 /* Thẻ việc làm trong danh sách */
 .job-row {

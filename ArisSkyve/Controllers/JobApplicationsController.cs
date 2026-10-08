@@ -1,6 +1,7 @@
 using ArisSkyve.Application.DTOs;
 using ArisSkyve.Domain.Entities;
 using ArisSkyve.Infrastructure.Data.Context;
+using ArisSkyve.Infrastructure.Services;
 using ArisSkyve.Infrastructure.Services.Recruitment;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -63,18 +64,10 @@ namespace ArisSkyve.Controllers
             });
         }
 
-        private void Notify(int userId, string type, string content, string link)
-        {
-            _context.Notifications.Add(new Notification
-            {
-                UserId = userId,
-                ActorId = CurrentUserId,
-                Type = type,
-                Content = content,
-                Link = link,
-                CreatedAt = DateTime.UtcNow
-            });
-        }
+        // Staged with the caller's other changes (they save together). A repeat of the same
+        // still-unread event — move + undo on the board, a reschedule — replaces the older one.
+        private Task NotifyAsync(int userId, string type, string content, string link) =>
+            NotificationWriter.StageAsync(_context, userId, CurrentUserId, type, content, link);
 
         private static string? Clip(string? s, int max)
         {
@@ -208,15 +201,8 @@ namespace ArisSkyve.Controllers
                 var businessProfile = await _context.Profiles.FirstOrDefaultAsync(p => p.Id == job.BusinessAccountId);
                 if (businessProfile != null)
                 {
-                    _context.Notifications.Add(new Notification
-                    {
-                        UserId = businessProfile.UserId,
-                        ActorId = user.Id,
-                        Type = "JobApplication",
-                        Content = $"{user.Profile.FullName} vừa ứng tuyển vào vị trí \"{job.Title}\".",
-                        Link = $"/Employer/Index?jobId={job.Id}",
-                        CreatedAt = DateTime.UtcNow
-                    });
+                    await NotificationWriter.StageAsync(_context, businessProfile.UserId, user.Id, "JobApplication",
+                        $"{user.Profile.FullName} vừa ứng tuyển vào vị trí \"{job.Title}\".", $"/Employer/Index?jobId={job.Id}");
                 }
             }
 
@@ -253,7 +239,7 @@ namespace ArisSkyve.Controllers
 
             var employerUserId = application.JobPosting.BusinessAccount?.UserId;
             if (employerUserId.HasValue)
-                Notify(employerUserId.Value, "ApplicationWithdrawn", $"{user.Profile.FullName} đã rút đơn \"{application.JobPosting.Title}\".", EmployerLink(application));
+                await NotifyAsync(employerUserId.Value, "ApplicationWithdrawn", $"{user.Profile.FullName} đã rút đơn \"{application.JobPosting.Title}\".", EmployerLink(application));
 
             await _context.SaveChangesAsync();
 
@@ -579,11 +565,18 @@ namespace ArisSkyve.Controllers
                 return Json(new { success = false, message = "Nhóm lý do từ chối không hợp lệ." });
 
             var previous = application.Status;
-            application.Status = dto.Status;
-            application.StatusNote = dto.Note;
-            application.RejectionCategory = isReject
+            var rejectionCategory = isReject
                 ? (string.IsNullOrWhiteSpace(dto.RejectionCategory) ? RejectionCategories.Other : dto.RejectionCategory)
                 : null;
+
+            // Re-sending the current state (double click, drop on the same column) changes
+            // nothing, so it must not add a timeline event or notify the candidate again.
+            if (previous == dto.Status && (application.StatusNote ?? "") == (dto.Note ?? "") && application.RejectionCategory == rejectionCategory)
+                return Json(new { success = true, statusLabel = StatusLabel(dto.Status), unchanged = true });
+
+            application.Status = dto.Status;
+            application.StatusNote = dto.Note;
+            application.RejectionCategory = rejectionCategory;
             application.UpdatedAt = DateTime.UtcNow;
 
             if (dto.Status == JobApplicationStatus.Hired)
@@ -604,17 +597,11 @@ namespace ArisSkyve.Controllers
                     ? string.Join("\n", new[] { RejectionCategories.Label(application.RejectionCategory), dto.Note }.Where(x => !string.IsNullOrWhiteSpace(x)))
                     : dto.Note);
 
-            _context.Notifications.Add(new Notification
-            {
-                UserId = application.Applicant.UserId,
-                ActorId = CurrentUserId,
-                Type = "ApplicationStatus",
-                Content = isReject
+            await NotifyAsync(application.Applicant.UserId, "ApplicationStatus",
+                isReject
                     ? $"Đơn \"{application.JobPosting.Title}\" chưa phù hợp lần này. Xem lý do và lộ trình kỹ năng cho lần sau."
                     : $"Đơn ứng tuyển \"{application.JobPosting.Title}\" của bạn đã chuyển sang trạng thái: {StatusLabel(dto.Status)}.",
-                Link = CandidateLink(application),
-                CreatedAt = DateTime.UtcNow
-            });
+                CandidateLink(application));
 
             await _context.SaveChangesAsync();
 
@@ -700,17 +687,11 @@ namespace ArisSkyve.Controllers
                 isReschedule ? $"Đổi lịch phỏng vấn vòng {application.InterviewRound}" : $"Mời phỏng vấn vòng {application.InterviewRound}",
                 $"{whenText} · {duration} phút · {where}" + (string.IsNullOrWhiteSpace(dto.Note) ? "" : $"\n{dto.Note}"));
 
-            _context.Notifications.Add(new Notification
-            {
-                UserId = application.Applicant.UserId,
-                ActorId = CurrentUserId,
-                Type = "InterviewScheduled",
-                Content = isReschedule
+            await NotifyAsync(application.Applicant.UserId, "InterviewScheduled",
+                isReschedule
                     ? $"Lịch phỏng vấn cho \"{application.JobPosting.Title}\" đã được đổi sang {whenText}. Vui lòng xác nhận."
                     : $"Bạn được mời phỏng vấn vòng {application.InterviewRound} cho \"{application.JobPosting.Title}\" vào lúc {whenText}. Vui lòng xác nhận.",
-                Link = CandidateLink(application),
-                CreatedAt = DateTime.UtcNow
-            });
+                CandidateLink(application));
 
             await _context.SaveChangesAsync();
 
@@ -798,7 +779,7 @@ namespace ArisSkyve.Controllers
             var employerUserId = application.JobPosting.BusinessAccount?.UserId;
             if (employerUserId.HasValue)
             {
-                Notify(employerUserId.Value, "InterviewResponse",
+                await NotifyAsync(employerUserId.Value, "InterviewResponse",
                     accept
                         ? $"{user.Profile.FullName} đã xác nhận tham gia phỏng vấn cho \"{application.JobPosting.Title}\"."
                         : $"{user.Profile.FullName} không tham gia được lịch phỏng vấn \"{application.JobPosting.Title}\""
@@ -885,7 +866,7 @@ namespace ArisSkyve.Controllers
             if (app.OfferStartDate.HasValue) parts.Add($"Bắt đầu: {VnTime.Format(app.OfferStartDate.Value, "dd/MM/yyyy")}");
             parts.Add($"Hạn trả lời: {VnTime.Format(expires, "dd/MM/yyyy")}");
             AddEvent(app, ApplicationEventTypes.OfferSent, "Employer", isResend ? "Gửi lại offer" : "Gửi offer", string.Join(" · ", parts) + (app.StatusNote == null ? "" : $"\n{app.StatusNote}"));
-            Notify(app.Applicant.UserId, "OfferSent",
+            await NotifyAsync(app.Applicant.UserId, "OfferSent",
                 $"Bạn nhận được offer cho \"{app.JobPosting.Title}\". Trả lời trước {VnTime.Format(expires, "dd/MM/yyyy")}.",
                 CandidateLink(app));
 
@@ -927,7 +908,7 @@ namespace ArisSkyve.Controllers
             if (employerUserId.HasValue)
             {
                 var full = accept && openings.HasValue && hired >= openings.Value && app.JobPosting.isActive;
-                Notify(employerUserId.Value, accept ? "OfferAccepted" : "OfferDeclined",
+                await NotifyAsync(employerUserId.Value, accept ? "OfferAccepted" : "OfferDeclined",
                     accept
                         ? $"{user.Profile.FullName} đã nhận offer \"{app.JobPosting.Title}\"." + (full ? $" Đã đủ {hired}/{openings} người — cân nhắc đóng tin." : "")
                         : $"{user.Profile.FullName} đã từ chối offer \"{app.JobPosting.Title}\"" + (app.OfferDeclineReason == null ? "." : $": {app.OfferDeclineReason}"),

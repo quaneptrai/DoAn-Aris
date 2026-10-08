@@ -55,7 +55,7 @@
                 <div class="jobs-meta">
                     <span aria-live="polite"><b class="a-num" id="resultCount">@Model.JobPostings.Count</b> kết quả</span>
                     <button class="a-btn a-btn--ghost a-btn--sm" type="button" id="clearFilters" @(string.IsNullOrWhiteSpace(ViewBag.SearchQuery) && string.IsNullOrWhiteSpace(ViewBag.SearchLocation) && string.IsNullOrWhiteSpace(ViewBag.SelectedCategory) && string.IsNullOrWhiteSpace(ViewBag.SelectedWorkMode) ? "hidden" : "")>Xoá bộ lọc</button>
-                    <button class="a-btn a-btn--ghost a-btn--sm jobs-sort" type="button" id="sortBtn" data-filter="sort" aria-haspopup="dialog" aria-label="Sắp xếp: Mới nhất">
+                    <button class="a-btn a-btn--ghost a-btn--sm jobs-sort" type="button" id="sortBtn" data-filter="sort" aria-haspopup="dialog" aria-label="Sắp xếp: Mới nhất" @(!Model.JobPostings.Any() ? "disabled" : "")>
                         <i data-lucide="arrow-up-down"></i><span>@(ViewBag.SelectedSort == "oldest" ? "Cũ nhất" : "Mới nhất")</span>
                     </button>
                 </div>
@@ -64,6 +64,13 @@
                     <div class="a-list" id="jobList" role="listbox" aria-label="Kết quả việc làm">
                         <span class="a-indicator" data-axis="y" data-inset="18"></span>
                         @await Html.PartialAsync("_JobCardPartial", Model.JobPostings)
+                        @if (!Model.JobPostings.Any())
+                        {
+                            <div class="a-empty jobs-empty jobs-empty--list">
+                                <div class="a-empty__title">@(string.IsNullOrWhiteSpace(ViewBag.SearchQuery) && string.IsNullOrWhiteSpace(ViewBag.SearchLocation) && string.IsNullOrWhiteSpace(ViewBag.SelectedCategory) && string.IsNullOrWhiteSpace(ViewBag.SelectedWorkMode) ? "Danh sách đang trống" : "Không có kết quả")</div>
+                                <div class="a-empty__text">@(string.IsNullOrWhiteSpace(ViewBag.SearchQuery) && string.IsNullOrWhiteSpace(ViewBag.SearchLocation) && string.IsNullOrWhiteSpace(ViewBag.SelectedCategory) && string.IsNullOrWhiteSpace(ViewBag.SelectedWorkMode) ? "Việc mới sẽ xuất hiện tại đây." : "Thử tìm theo tên công việc khác.")</div>
+                            </div>
+                        }
                     </div>
                     <div id="listSentinel" aria-hidden="true"></div>
                 </div>
@@ -100,10 +107,14 @@
                 <div class="job-detail__inner" id="jdInner">
                     @if (!Model.JobPostings.Any())
                     {
-                        <div class="a-empty" style="margin-top:18vh">
+                        <div class="a-empty jobs-empty">
                             <i data-lucide="briefcase"></i>
-                            <div class="a-empty__title">Chưa có việc nào khớp</div>
-                            <div class="a-empty__text">Thử từ khoá ngắn hơn, hoặc bỏ bớt bộ lọc địa điểm / hình thức.</div>
+                            <div class="a-empty__title">@(ViewBag.TotalJobsCount == 0 && string.IsNullOrWhiteSpace(ViewBag.SearchQuery) && string.IsNullOrWhiteSpace(ViewBag.SearchLocation) && string.IsNullOrWhiteSpace(ViewBag.SelectedCategory) && string.IsNullOrWhiteSpace(ViewBag.SelectedWorkMode) ? "Chưa có việc đang tuyển" : "Không có việc phù hợp bộ lọc")</div>
+                            <div class="a-empty__text">@(ViewBag.TotalJobsCount == 0 && string.IsNullOrWhiteSpace(ViewBag.SearchQuery) && string.IsNullOrWhiteSpace(ViewBag.SearchLocation) && string.IsNullOrWhiteSpace(ViewBag.SelectedCategory) && string.IsNullOrWhiteSpace(ViewBag.SelectedWorkMode) ? "Quay lại sau để xem các vị trí mới trên Aris." : "Thử từ khoá khác hoặc xoá bộ lọc để xem thêm cơ hội.")</div>
+                            @if (!string.IsNullOrWhiteSpace(ViewBag.SearchQuery) || !string.IsNullOrWhiteSpace(ViewBag.SearchLocation) || !string.IsNullOrWhiteSpace(ViewBag.SelectedCategory) || !string.IsNullOrWhiteSpace(ViewBag.SelectedWorkMode))
+                            {
+                                <button class="a-btn a-btn--secondary a-btn--sm" type="button" data-clear-jobs>Xoá bộ lọc</button>
+                            }
                         </div>
                     }
                     else
