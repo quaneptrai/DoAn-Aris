@@ -401,6 +401,27 @@
         else setLike(p, true);
     }
 
+    /* Tia hạt nổ ra quanh nút tim khi bấm thích (kiểu Instagram) */
+    function likeBurst(btn) {
+        if (M.reduced() || !btn || !btn.isConnected) return;
+        const n = 8;
+        for (let i = 0; i < n; i++) {
+            const s = document.createElement('span');
+            s.className = 'like-burst';
+            s.setAttribute('aria-hidden', 'true');
+            const ang = (i / n) * Math.PI * 2 + Math.random() * 0.6;
+            const dist = 24 + Math.random() * 16;
+            const dx = (Math.cos(ang) * dist).toFixed(1);
+            const dy = (Math.sin(ang) * dist).toFixed(1);
+            btn.appendChild(s);
+            s.animate([
+                { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+                { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0)`, opacity: 0 }
+            ], { duration: 480 + Math.random() * 220, easing: 'cubic-bezier(.17,.67,.35,1)' })
+                .finished.then(() => s.remove()).catch(() => s.remove());
+        }
+    }
+
     /* ---------------------------------------------------------------------------
        THÍCH (LẠC QUAN) · LƯU · THEO DÕI CÔNG TY · KẾT NỐI
        --------------------------------------------------------------------------- */
@@ -437,9 +458,20 @@
                     ? [{ transform: 'scale(1)' }, { transform: 'scale(1.35)' }, { transform: 'scale(1)' }]
                     : [{ transform: 'scale(.8)' }, { transform: 'scale(1)' }],
                     { duration: on ? 420 : 220, easing: 'ease-out' });
+                if (on) likeBurst(b);
             }
             const box = $('[data-likes]', h);
-            if (box) box.innerHTML = likesHtml(p);
+            if (box) {
+                const oldNum = $('.a-num', box);
+                const oldVal = oldNum ? (oldNum.dataset.value ?? oldNum.textContent.trim()) : null;
+                box.innerHTML = likesHtml(p);
+                const newNum = $('.a-num', box);
+                if (newNum && oldVal !== null && !quiet) {
+                    newNum.dataset.value = oldVal;
+                    const m = newNum.textContent.trim().match(/[\d.,]+/);
+                    if (m) M.rollNumber(newNum, m[0]);
+                }
+            }
         });
     }
 
