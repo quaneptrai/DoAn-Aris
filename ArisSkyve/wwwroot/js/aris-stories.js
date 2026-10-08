@@ -177,7 +177,10 @@ window.ArisStories = (function () {
         viewer.hidden = false;
         document.documentElement.style.overflow = 'hidden';
         frame();
-        M.animate(viewer, [{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' });
+        M.animate(viewer, [{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
+        M.animate($('.story__frame', viewer),
+            [{ opacity: 0, transform: 'scale(.94) translateY(10px)' }, { opacity: 1, transform: 'scale(1) translateY(0)' }],
+            { duration: 260, easing: 'cubic-bezier(.22,.9,.28,1)' });
     }
 
     function frame() {
@@ -294,7 +297,10 @@ window.ArisStories = (function () {
         if (u && u.items.every((x) => x._seen)) u.seen = true;
         const back = sv.back;
         sv = null;
-        const a = M.animate(viewer, [{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-in' });
+        M.animate($('.story__frame', viewer),
+            [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.96) translateY(8px)' }],
+            { duration: 180, easing: 'ease-in' });
+        const a = M.animate(viewer, [{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: 'ease-in' });
         (a.finished || Promise.resolve()).then(() => {
             viewer.hidden = true;
             viewer.innerHTML = '';

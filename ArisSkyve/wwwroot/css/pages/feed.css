@@ -232,8 +232,16 @@
 .act svg { width: 24px; height: 24px; transition: transform var(--d-2) var(--e-spring); }
 .act:hover { opacity: .65; }
 .act:active svg { transform: scale(.85); }
+.act--like { position: relative; }
 .act--like[aria-pressed="true"] { color: var(--like); opacity: 1; }
 .act--like[aria-pressed="true"] svg { fill: currentColor; }
+/* Hạt nổ ra quanh nút tim khi bấm thích */
+.like-burst {
+  position: absolute; left: 50%; top: 50%;
+  width: 6px; height: 6px; margin: -3px 0 0 -3px;
+  border-radius: 50%; background: var(--like);
+  pointer-events: none; z-index: 3;
+}
 .act--save { margin-left: auto; }
 .act--save[aria-pressed="true"] svg { fill: currentColor; }
 .act > span { display: none; }
