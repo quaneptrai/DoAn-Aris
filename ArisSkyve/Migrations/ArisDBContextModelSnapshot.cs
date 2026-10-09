@@ -123,6 +123,27 @@ namespace ArisSkyve.Migrations
                     b.ToTable("CommentLikes");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.CommentReaction", b =>
+                {
+                    b.Property<int>("CommentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("CommentId", "UserId");
+
+                    b.ToTable("CommentReactions");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.CommentReply", b =>
                 {
                     b.Property<int>("CommentId")
@@ -1098,6 +1119,29 @@ namespace ArisSkyve.Migrations
                     b.ToTable("PostPolls");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.PostReaction", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PostId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId", "PostId");
+
+                    b.HasIndex("PostId", "Kind");
+
+                    b.ToTable("PostReactions");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.PostReport", b =>
                 {
                     b.Property<int>("Id")
@@ -1690,6 +1734,17 @@ namespace ArisSkyve.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.CommentReaction", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.CommentLike", "Like")
+                        .WithOne()
+                        .HasForeignKey("ArisSkyve.Domain.Entities.CommentReaction", "CommentId", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Like");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.CommentReply", b =>
                 {
                     b.HasOne("ArisSkyve.Domain.Entities.Comment", "Comment")
@@ -2121,6 +2176,17 @@ namespace ArisSkyve.Migrations
                         .IsRequired();
 
                     b.Navigation("Post");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.PostReaction", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.Like", "Like")
+                        .WithOne()
+                        .HasForeignKey("ArisSkyve.Domain.Entities.PostReaction", "UserId", "PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Like");
                 });
 
             modelBuilder.Entity("ArisSkyve.Domain.Entities.PostReport", b =>

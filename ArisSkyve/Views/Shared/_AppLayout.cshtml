@@ -146,7 +146,8 @@
             stories: @(FeatureGate.Stories ? "true" : "false"),
             polls: @(FeatureGate.Polls ? "true" : "false"),
             savedJobs: @(FeatureGate.SavedJobs ? "true" : "false"),
-            chatReactions: @(FeatureGate.MessageReactions ? "true" : "false")
+            chatReactions: @(FeatureGate.MessageReactions ? "true" : "false"),
+            postReactions: @(FeatureGate.PostReactions ? "true" : "false")
         };
 
         // Compatibility helper for legacy showToast calls across app

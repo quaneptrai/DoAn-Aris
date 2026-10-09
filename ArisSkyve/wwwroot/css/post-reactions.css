@@ -1,0 +1,239 @@
+/* =============================================================================
+   ARIS — Cảm xúc bài viết & bình luận (đi cùng wwwroot/js/post-reactions.js)
+   Thanh chọn cảm xúc · hiệu ứng thả · cụm biểu tượng · hộp thoại "Cảm xúc"
+   ============================================================================= */
+:root {
+  --rx-emoji: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  --rx-like: var(--like);
+  --rx-celebrate: #7C3AED;
+  --rx-support: #EA580C;
+  --rx-insightful: #0D9488;
+  --rx-haha: #D97706;
+  --rx-wow: #0284C7;
+  --rx-sad: #4F46E5;
+}
+:root[data-theme="dark"] {
+  --rx-celebrate: #A78BFA;
+  --rx-support: #FB923C;
+  --rx-insightful: #2DD4BF;
+  --rx-haha: #FBBF24;
+  --rx-wow: #38BDF8;
+  --rx-sad: #818CF8;
+}
+.rx-k--like { --rx: var(--rx-like); }
+.rx-k--celebrate { --rx: var(--rx-celebrate); }
+.rx-k--support { --rx: var(--rx-support); }
+.rx-k--insightful { --rx: var(--rx-insightful); }
+.rx-k--haha { --rx: var(--rx-haha); }
+.rx-k--wow { --rx: var(--rx-wow); }
+.rx-k--sad { --rx: var(--rx-sad); }
+
+/* ---------- Thanh chọn cảm xúc ---------- */
+.rxd {
+  position: fixed;
+  z-index: calc(var(--z-modal) + 6);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  transform-origin: var(--ox, 24px) 100%;
+  animation: rxd-in 300ms var(--e-spring) both;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.rxd.is-below { transform-origin: var(--ox, 24px) 0; }
+.rxd.is-out { animation: rxd-out 160ms var(--e-out) forwards; pointer-events: none; }
+.rxd__i {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  animation: rxd-face-in 460ms var(--e-spring) both;
+  animation-delay: calc(var(--i, 0) * 26ms + 40ms);
+  -webkit-tap-highlight-color: transparent;
+}
+.rxd__e {
+  display: block;
+  font: 30px/1 var(--rx-emoji);
+  transition: transform 240ms var(--e-spring);
+  will-change: transform;
+}
+.rxd.has-hot .rxd__i:not(.is-hot) .rxd__e { transform: scale(.86); }
+.rxd__i.is-hot .rxd__e,
+.rxd__i:focus-visible .rxd__e { transform: translateY(-10px) scale(1.45); }
+.rxd__i:focus-visible { outline: none; }
+.rxd__i:focus-visible::before { content: ""; position: absolute; inset: 3px; border-radius: 50%; box-shadow: 0 0 0 2px var(--brand); }
+.rxd__tip {
+  position: absolute;
+  bottom: calc(100% + 16px);
+  left: 50%;
+  padding: 3px 9px;
+  border-radius: var(--r-full);
+  background: rgb(9 9 11 / .88);
+  color: #FFFFFF;
+  font: 600 11px/1.45 var(--font);
+  white-space: nowrap;
+  opacity: 0;
+  translate: -50% 4px;
+  pointer-events: none;
+  transition: opacity 120ms var(--e-out), translate 160ms var(--e-out);
+}
+.rxd.is-below .rxd__tip { bottom: auto; top: calc(100% + 6px); }
+.rxd__i.is-hot .rxd__tip,
+.rxd__i:focus-visible .rxd__tip { opacity: 1; translate: -50% 0; }
+/* Cảm xúc đang chọn: chấm nhỏ màu cảm xúc dưới mặt */
+.rxd__i.is-on::after { content: ""; position: absolute; bottom: 0; left: 50%; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--rx); }
+
+/* Mỗi mặt có một cử động riêng khi được trỏ tới — giống emoji động */
+.rxd__i.is-hot.rx-k--like .rxd__e { animation: rx-beat 900ms ease-in-out infinite; }
+.rxd__i.is-hot.rx-k--celebrate .rxd__e { animation: rx-wiggle 700ms ease-in-out infinite; }
+.rxd__i.is-hot.rx-k--support .rxd__e { animation: rx-flex 800ms ease-in-out infinite; }
+.rxd__i.is-hot.rx-k--insightful .rxd__e { animation: rx-glow 1s ease-in-out infinite; }
+.rxd__i.is-hot.rx-k--haha .rxd__e { animation: rx-shake 420ms ease-in-out infinite; }
+.rxd__i.is-hot.rx-k--wow .rxd__e { animation: rx-gasp 1s ease-in-out infinite; }
+.rxd__i.is-hot.rx-k--sad .rxd__e { animation: rx-droop 1.2s ease-in-out infinite; }
+
+.rxd--sm { padding: 4px; }
+.rxd--sm .rxd__i { width: 34px; height: 34px; }
+.rxd--sm .rxd__e { font-size: 22px; }
+.rxd--sm .rxd__i.is-hot .rxd__e,
+.rxd--sm .rxd__i:focus-visible .rxd__e { transform: translateY(-8px) scale(1.4); }
+.rxd--sm .rxd__tip { bottom: calc(100% + 12px); }
+
+@keyframes rxd-in { from { opacity: 0; transform: translateY(10px) scale(.55); } to { opacity: 1; transform: none; } }
+@keyframes rxd-out { to { opacity: 0; transform: translateY(6px) scale(.9); } }
+@keyframes rxd-face-in { from { opacity: 0; transform: translateY(16px) scale(.3); } to { opacity: 1; transform: none; } }
+@keyframes rx-beat { 0%, 100% { scale: 1; } 25% { scale: 1.14; } 50% { scale: .96; } 70% { scale: 1.08; } }
+@keyframes rx-wiggle { 0%, 100% { rotate: 0deg; } 25% { rotate: -16deg; } 75% { rotate: 14deg; } }
+@keyframes rx-flex { 0%, 100% { rotate: 0deg; scale: 1; } 50% { rotate: -18deg; scale: 1.08; } }
+@keyframes rx-glow { 0%, 100% { filter: drop-shadow(0 0 0 rgb(250 204 21 / 0)); } 50% { filter: drop-shadow(0 0 9px rgb(250 204 21 / .95)); } }
+@keyframes rx-shake { 0%, 100% { translate: 0 0; rotate: 0deg; } 25% { translate: -2px -1px; rotate: -6deg; } 75% { translate: 2px 1px; rotate: 6deg; } }
+@keyframes rx-gasp { 0%, 100% { scale: 1; } 40% { scale: 1.16 .9; } 60% { scale: .94 1.1; } }
+@keyframes rx-droop { 0%, 100% { translate: 0 0; } 50% { translate: 0 3px; } }
+
+/* ---------- Hiệu ứng thả ---------- */
+.rxfx { position: fixed; inset: 0; z-index: calc(var(--z-modal) + 7); pointer-events: none; overflow: hidden; }
+.rxfx > span { position: fixed; display: block; pointer-events: none; }
+.rxfx__fly, .rxfx__float { font-family: var(--rx-emoji); line-height: 1; }
+.rxfx__float { font-size: 22px; filter: drop-shadow(0 4px 8px rgb(0 0 0 / .18)); }
+.rxfx__ring { width: 34px; height: 34px; border: 2px solid var(--rx); border-radius: 50%; }
+.rxfx__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--rx); }
+.rxfx__dot:nth-child(3n) { width: 4px; height: 4px; }
+
+/* ---------- Nút Thích mang mặt cảm xúc (Bảng tin) ---------- */
+.act--like { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.act--like .act__emo { display: none; font: 22px/1 var(--rx-emoji); }
+.act--like[data-kind]:not([data-kind=""]):not([data-kind="like"]) svg { display: none; }
+.act--like[data-kind]:not([data-kind=""]):not([data-kind="like"]) .act__emo { display: block; }
+.act--like[aria-expanded="true"] { opacity: 1; }
+
+/* ---------- Cụm biểu tượng + "Bạn và N người khác" ---------- */
+.rx-sum { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.rx-sum__t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rx-sum:hover .rx-sum__t { text-decoration: underline; text-underline-offset: 3px; }
+.rx-sum:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 6px; }
+.rx-stack { display: inline-flex; flex: none; }
+.rx-stack__i {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--surface);
+  font: 14px/1 var(--rx-emoji);
+}
+.rx-stack__i:first-child { margin-left: 0; z-index: 3; }
+.rx-stack__i:nth-child(2) { z-index: 2; }
+.rx-stack__i:nth-child(3) { z-index: 1; }
+.rx-sum:hover .rx-stack__i { animation: rx-stack-hop 420ms var(--e-spring) both; }
+.rx-sum:hover .rx-stack__i:nth-child(2) { animation-delay: 50ms; }
+.rx-sum:hover .rx-stack__i:nth-child(3) { animation-delay: 100ms; }
+@keyframes rx-stack-hop { 40% { translate: 0 -4px; } }
+
+/* ---------- Bình luận ---------- */
+.cmt__acts button.is-liked[class*="rx-k--"] { color: var(--rx); }
+.cmt__acts [data-clike] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+.cmt__rx {
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 4px;
+  padding: 2px 6px 2px 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  color: var(--text-3);
+  font: 600 var(--fs-11)/1 var(--font);
+  cursor: pointer;
+  transition: border-color var(--d-1) var(--e-out), transform var(--d-2) var(--e-spring);
+}
+.cmt__rx:hover { border-color: var(--text-4); transform: translateY(-1px); }
+.cmt__rx .rx-stack__i { width: 18px; height: 18px; margin-left: -5px; font-size: 12px; }
+.cmt__rx .rx-stack__i:first-child { margin-left: 0; }
+.cmt__body { cursor: default; }
+
+/* Câu trả lời thu gọn kiểu Instagram: "—— Xem 3 câu trả lời" */
+.cmt-thread.is-collapsed > .cmt { display: none; }
+.cmt-thread > .cmt__more { margin: 2px 0 6px; }
+.cmt-thread:not(.is-collapsed) > .cmt__more { margin-bottom: 2px; }
+
+/* ---------- Hộp thoại "Cảm xúc" ---------- */
+/* Opens on top of the post dialog, so it stacks (and dims) above it. */
+.rxl-scrim { z-index: calc(var(--z-modal) + 2); }
+.rxl { z-index: calc(var(--z-modal) + 3); width: min(420px, calc(100vw - 32px)); height: min(560px, calc(100dvh - 48px)); }
+.rxl .a-dialog__head { padding-bottom: 8px; }
+.rxl__tabs { position: relative; display: flex; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.rxl__tabs::-webkit-scrollbar { display: none; }
+.rxl__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font: 600 var(--fs-13)/1 var(--font);
+  cursor: pointer;
+  transition: color var(--d-1) var(--e-out);
+}
+.rxl__tab:hover, .rxl__tab[aria-selected="true"] { color: var(--text); }
+.rxl__tab:focus-visible { outline: 2px solid var(--brand); outline-offset: -4px; border-radius: 8px; }
+.rxl__e { font: 18px/1 var(--rx-emoji); }
+.rxl__ink { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; border-radius: 2px; background: var(--text); transition: transform var(--d-3) var(--e-spring), width var(--d-3) var(--e-spring); }
+.rxl__ink.is-instant { transition: none; }
+.rxl__list { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 6px 8px 12px; }
+.rxl__row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: var(--r-md); color: var(--text); text-decoration: none; transition: background var(--d-1) var(--e-out); }
+.rxl__row:hover { background: var(--surface-hover); }
+.rxl__row.is-skel { pointer-events: none; }
+.rxl__face { position: relative; flex: none; }
+.rxl__badge { position: absolute; right: -4px; bottom: -4px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 2px var(--surface); font: 12px/1 var(--rx-emoji); }
+.rxl__who { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.rxl__who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 var(--fs-14)/1.3 var(--font); }
+.rxl__who small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 var(--fs-12)/1.3 var(--font); color: var(--text-3); }
+.rxl__me { align-self: flex-start; padding: 1px 7px; border-radius: var(--r-full); background: var(--brand-soft); color: var(--brand-text); font: 600 var(--fs-11)/1.5 var(--font); }
+.rxl__go { flex: none; width: 16px; height: 16px; color: var(--text-4); }
+.rxl__more { padding: 10px; text-align: center; font: 500 var(--fs-12)/1.3 var(--font); color: var(--text-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rxd, .rxd__i, .rxd.is-out { animation: none; }
+  .rxd__e, .rxd__tip, .rxl__ink { transition: none; }
+  .rxd__i.is-hot .rxd__e { animation: none !important; }
+  .rx-sum:hover .rx-stack__i { animation: none; }
+}

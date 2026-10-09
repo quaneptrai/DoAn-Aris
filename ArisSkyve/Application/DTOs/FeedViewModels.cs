@@ -19,6 +19,12 @@ namespace ArisSkyve.Application.DTOs
         public string Relation { get; set; } = "none";
         public bool Saved { get; set; }
         public List<string> FriendLikers { get; set; } = new();
+
+        /// <summary>Cảm xúc mình đã thả (ReactionKinds; null khi chưa thích, "like" là tim).</summary>
+        public string? MyReaction { get; set; }
+
+        /// <summary>Số lượt theo từng cảm xúc, nhiều nhất trước (để vẽ cụm biểu tượng dưới bài).</summary>
+        public List<(string Kind, int Count)> Reactions { get; set; } = new();
     }
 
     /// <summary>Lời mời kết bạn đang chờ mình trả lời (cột phải Bảng tin).</summary>

@@ -33,6 +33,7 @@
 
     const cfg = window.__FEED_CONFIG__ || {};
     const F = window.ArisFeatures || {};
+    const RX = window.ArisPostReactions || null; // cảm xúc (post-reactions.js); thiếu thì vẫn là tim
     const myId = cfg.currentUserId || 0;
     const myName = cfg.currentUserName || 'Tôi';
     const myAvatar = cfg.currentUserAvatar || '/images/default-avatar.png';
@@ -93,6 +94,8 @@
             mins: p.mins || 0,
             likes: p.likes || 0,
             liked: !!p.liked,
+            myReaction: p.myReaction || (p.liked ? 'like' : null),
+            reactions: Array.isArray(p.reactions) ? p.reactions : [],
             saved: !!p.saved,
             commentCount: p.commentCount || 0,
             isOwner: !!p.isOwner,
@@ -120,20 +123,39 @@
        --------------------------------------------------------------------------- */
     const authorHref = (p) => (p.isCompany && p.companyId ? `/Company/Details/${p.companyId}` : (p.isOwner ? '/Profile' : `/Profile/View/${p.userId}`));
 
+    const myKind = (p) => (p.liked ? (p.myReaction || 'like') : null);
+
+    /* Dòng dưới bài: cụm cảm xúc nhiều nhất + "Bạn và N người khác"; bấm để xem ai đã thả gì. */
     function likesHtml(p) {
-        if (p.likes <= 0) return '<span class="post__likes-empty">Hãy là người đầu tiên thích bài này</span>';
+        const rx = !!(RX && RX.enabled());
+        if (p.likes <= 0) return `<span class="post__likes-empty">${rx ? 'Hãy là người đầu tiên bày tỏ cảm xúc' : 'Hãy là người đầu tiên thích bài này'}</span>`;
         const n = (x) => `<b class="a-num">${x}</b>`;
+        const hearts = !RX || RX.onlyHearts(p.reactions);
+        const mine = myKind(p);
         let who;
-        if (p.liked) {
-            who = p.likes > 1 ? `Bạn và ${n(p.likes - 1)} người khác đã thích` : 'Bạn đã thích bài này';
+        if (mine) {
+            who = p.likes > 1
+                ? `Bạn và ${n(p.likes - 1)} người khác${hearts ? ' đã thích' : ''}`
+                : (mine === 'like' || !RX ? 'Bạn đã thích bài này' : `Bạn đã thả “${RX.kind(mine).label}”`);
         } else if (p.friendLikers.length) {
             const names = p.friendLikers.slice(0, 2).map((x) => `<b>${esc(x)}</b>`);
             const rest = p.likes - names.length;
-            who = `Được thích bởi ${rest > 0 ? `${names.join(', ')} và ${n(rest)} người khác` : names.join(' và ')}`;
+            const people = rest > 0 ? `${names.join(', ')} và ${n(rest)} người khác` : names.join(' và ');
+            who = hearts ? `Được thích bởi ${people}` : people;
         } else {
-            who = `${n(p.likes)} lượt thích`;
+            who = `${n(p.likes)} lượt ${hearts ? 'thích' : 'cảm xúc'}`;
         }
-        return `<span class="post__rx" aria-hidden="true">${HEART}</span><span>${who}</span>`;
+        const stack = RX ? RX.stackHtml(p.reactions.length ? p.reactions : [{ kind: 'like', count: p.likes }]) : '';
+        return `<button class="rx-sum" type="button" data-rx-list aria-label="Xem ai đã bày tỏ cảm xúc">${stack}<span class="rx-sum__t">${who}</span></button>`;
+    }
+
+    /* Nút Thích: tim, hoặc mặt cảm xúc đã chọn. Rê chuột / giữ / ↑ để mở thanh chọn cảm xúc. */
+    function likeBtnHtml(p, tip) {
+        const k = myKind(p);
+        const label = !k ? 'Thích' : (k === 'like' || !RX ? 'Bỏ thích' : `Bỏ cảm xúc ${RX.kind(k).label}`);
+        const menu = RX && RX.enabled() ? ' aria-haspopup="menu" aria-expanded="false"' : '';
+        return `<button class="act act--like" type="button" data-like data-kind="${k || ''}" aria-pressed="${!!k}" aria-label="${label}"${menu}${tip ? ` data-tip="${tip}" data-tip-side="bottom"` : ''}>`
+            + `<i data-lucide="heart"></i><b class="act__emo rx-face" aria-hidden="true">${k && k !== 'like' && RX ? RX.kind(k).e : ''}</b></button>`;
     }
 
     const dotsHtml = (p) => `<div class="car__dots" aria-hidden="true">${p.media.map((_, i) => `<span class="car__dot${i === 0 ? ' is-on' : ''}"></span>`).join('')}</div>`;
@@ -225,7 +247,7 @@
           ${isText ? bodyHtml(p) : ''}
           ${p.media ? `<div class="post__media">${carHtml(p)}${stripHtml(p)}</div>` : ''}
           <div class="post__bar">
-            <button class="act act--like" type="button" data-like aria-pressed="${p.liked}" aria-label="Thích" data-tip="Thích · L"><i data-lucide="heart"></i></button>
+            ${likeBtnHtml(p, 'Thích · L')}
             <button class="act" type="button" data-comments aria-label="Bình luận" data-tip="Bình luận · C"><i data-lucide="message-circle"></i></button>
             <button class="act" type="button" data-share aria-label="Gửi cho bạn bè" data-tip="Gửi cho bạn bè"><i data-lucide="send"></i></button>
             <button class="act act--save" type="button" data-save aria-pressed="${p.saved}" aria-label="${p.saved ? 'Bỏ lưu' : 'Lưu bài viết'}" data-tip="Lưu · S"><i data-lucide="bookmark"></i></button>
@@ -397,8 +419,8 @@
             { transform: `translateY(-48px) scale(.9) rotate(${rot}deg)`, opacity: 0 }
         ], { duration: M.reduced() ? 1 : 1000, easing: 'ease-out' });
         a.finished.then(() => h.remove()).catch(() => h.remove());
-        if (p.liked) hosts(p).forEach((x) => { const b = $('[data-like] svg', x); if (b) M.pulse(b, 1.25); });
-        else setLike(p, true);
+        if (p.liked) hosts(p).forEach((x) => { const b = $('[data-like]', x); if (b) M.pulse(b, 1.2); });
+        else react(p, 'like', { anchor: $('[data-like]', car.closest('[data-pid]') || document) });
     }
 
     /* Tia hạt nổ ra quanh nút tim khi bấm thích (kiểu Instagram) */
@@ -425,54 +447,82 @@
     /* ---------------------------------------------------------------------------
        THÍCH (LẠC QUAN) · LƯU · THEO DÕI CÔNG TY · KẾT NỐI
        --------------------------------------------------------------------------- */
-    function setLike(p, on) {
-        if (p.liked === on) return;
-        p.liked = on;
-        p.likes += on ? 1 : -1;
-        syncLike(p, on);
+    /* Thích / thả cảm xúc (lạc quan).
+       k = null: bấm nút — bật tim, hoặc gỡ cảm xúc đang có. k = một loại: đặt loại đó; chọn lại đúng loại đang có thì gỡ.
+       fx = { anchor: nút đã dùng, from: vị trí mặt trong thanh chọn } — hiệu ứng chỉ chạy ở nút đó. */
+    function react(p, k, fx = {}) {
+        const cur = myKind(p);
+        const next = k == null ? (cur ? null : 'like') : (k === cur ? null : k);
+        const before = { liked: p.liked, myReaction: p.myReaction, likes: p.likes, reactions: p.reactions };
+        const seq = (p._rxSeq = (p._rxSeq || 0) + 1);
+        p.liked = !!next;
+        p.myReaction = next;
+        p.likes = Math.max(0, p.likes + (next ? 1 : 0) - (cur ? 1 : 0));
+        if (RX) p.reactions = RX.shift(p.reactions, cur, next);
+        syncLike(p, { fx: next ? fx : null, removed: !next ? fx.anchor : null });
 
-        fetch('/Dashboard/ToggleLike', form({ postId: p.id }))
+        const body = { postId: p.id };
+        if (k) body.kind = k;
+        fetch('/Dashboard/ToggleLike', form(body))
             .then((res) => res.json())
             .then((data) => {
                 if (!data.success) throw new Error(data.message || 'Lỗi thích');
-                p.liked = data.liked;
+                if (seq !== p._rxSeq) return; // a newer click is in flight; it decides
+                p.liked = !!data.liked;
+                p.myReaction = data.liked ? (data.kind || 'like') : null;
                 p.likes = data.likeCount;
-                syncLike(p, p.liked, true);
+                if (Array.isArray(data.reactions)) p.reactions = data.reactions;
+                syncLike(p, { quiet: true });
             })
             .catch(() => {
-                p.liked = !on;
-                p.likes += on ? -1 : 1;
-                syncLike(p, !on, true);
+                if (seq !== p._rxSeq) return;
+                Object.assign(p, before);
+                syncLike(p, { quiet: true });
                 hosts(p).forEach((x) => M.shake($('[data-like]', x)));
-                M.toast('Chưa lưu được lượt thích do lỗi kết nối.', { tone: 'danger' });
+                M.toast('Chưa lưu được cảm xúc do lỗi kết nối.', { tone: 'danger' });
             });
     }
 
-    function syncLike(p, on, quiet) {
+    function syncLike(p, o = {}) {
+        const k = myKind(p);
         hosts(p).forEach((h) => {
             const b = $('[data-like]', h);
-            if (!b) return;
-            b.setAttribute('aria-pressed', String(p.liked));
-            if (!quiet && $('svg', b)) {
-                M.animate($('svg', b), on
-                    ? [{ transform: 'scale(1)' }, { transform: 'scale(1.35)' }, { transform: 'scale(1)' }]
-                    : [{ transform: 'scale(.8)' }, { transform: 'scale(1)' }],
-                    { duration: on ? 420 : 220, easing: 'ease-out' });
-                if (on) likeBurst(b);
+            if (b) {
+                b.setAttribute('aria-pressed', String(!!k));
+                b.dataset.kind = k || '';
+                b.setAttribute('aria-label', !k ? 'Thích' : (k === 'like' || !RX ? 'Bỏ thích' : `Bỏ cảm xúc ${RX.kind(k).label}`));
+                const emo = $('.act__emo', b);
+                if (emo) emo.textContent = k && k !== 'like' && RX ? RX.kind(k).e : '';
             }
             const box = $('[data-likes]', h);
             if (box) {
                 const oldNum = $('.a-num', box);
                 const oldVal = oldNum ? (oldNum.dataset.value ?? oldNum.textContent.trim()) : null;
+                const oldKinds = $$('.rx-stack__i', box).map((x) => x.className);
                 box.innerHTML = likesHtml(p);
+                if (o.quiet) return;
                 const newNum = $('.a-num', box);
-                if (newNum && oldVal !== null && !quiet) {
+                if (newNum && oldVal !== null) {
                     newNum.dataset.value = oldVal;
                     const m = newNum.textContent.trim().match(/[\d.,]+/);
                     if (m) M.rollNumber(newNum, m[0]);
                 }
+                // A face that just joined the summary pops in.
+                $$('.rx-stack__i', box).filter((x) => !oldKinds.includes(x.className)).forEach((x) =>
+                    M.animate(x, [{ transform: 'scale(0)' }, { transform: 'scale(1.25)', offset: .6 }, { transform: 'scale(1)' }], { duration: 380, easing: 'ease-out' }));
             }
         });
+        if (o.quiet) return;
+        const anchor = o.fx && o.fx.anchor && o.fx.anchor.isConnected ? o.fx.anchor : null;
+        if (k && anchor) {
+            if (RX) RX.celebrate(anchor, k, { from: o.fx.from });
+            else if ($('svg', anchor)) {
+                M.animate($('svg', anchor), [{ transform: 'scale(1)' }, { transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'ease-out' });
+                likeBurst(anchor);
+            }
+        } else if (!k && o.removed && o.removed.isConnected && $('svg', o.removed)) {
+            M.animate($('svg', o.removed), [{ transform: 'scale(.8)' }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });
+        }
     }
 
     function toggleSave(p) {
@@ -573,30 +623,79 @@
     const canThread = () => !!(window.ArisFeatures && window.ArisFeatures.social);
     let replyTo = null; // { root, name } while answering a comment in the dialog
 
+    const cKind = (c) => (c.isLiked ? (c.myReaction || 'like') : null);
+
     function cmtHtml(c, isReply) {
+        const k = cKind(c);
+        const likeText = !k ? 'Thích' : (k === 'like' || !RX ? 'Đã thích' : RX.kind(k).label);
+        const menu = RX && RX.enabled() ? ' aria-haspopup="menu" aria-expanded="false"' : '';
         const acts = c.pending ? '<span>Đang gửi…</span>' : (canThread() ? `
-              <button type="button" data-clike="${c.id}" class="${c.isLiked ? 'is-liked' : ''}">${c.isLiked ? 'Đã thích' : 'Thích'}${c.likeCount ? ' · ' + c.likeCount : ''}</button>
+              <button type="button" data-clike="${c.id}" class="${k ? `is-liked rx-k--${k}` : ''}" aria-pressed="${!!k}"${menu}>${likeText}</button>
               <button type="button" data-creply="${c.id}">Trả lời</button>` : '')
             + (!c.pending && (c.canDelete || c.isMine) ? `<button type="button" data-cdel="${c.id}">Xoá</button>` : '');
+        // Right column: the comment's reaction summary (top faces + count) — opens "who reacted".
+        const total = c.likeCount || 0;
+        const summary = total > 0 && canThread() && !c.pending
+            ? `<button type="button" class="cmt__rx" data-crx="${c.id}" aria-label="${total} lượt cảm xúc, xem ai đã thả">${RX ? RX.stackHtml(c.reactions && c.reactions.length ? c.reactions : [{ kind: 'like', count: total }], 2) : ''}<span class="a-num">${total}</span></button>`
+            : '<span></span>';
         return `<div class="cmt${isReply ? ' cmt--reply' : ''}" id="c-${c.id}">
           <div class="cmt__face">${face(c.username, c.avatar, isReply ? 26 : 32)}</div>
           <div>
             <div class="cmt__body"><span class="cmt__name">${esc(c.username)}</span>${richText(c.content)}</div>
             <div class="cmt__meta cmt__acts"><span>${timeAgo(minsSince(c.createdAt))}</span>${acts}</div>
           </div>
+          ${summary}
         </div>`;
     }
 
-    const threadHtml = (list, rootId) => `<div class="cmt-thread" data-thread="${rootId}">${list.filter((x) => x.parentCommentId === rootId).map((r) => cmtHtml(r, true)).join('')}</div>`;
+    /* Câu trả lời thu gọn kiểu Instagram ("—— Xem 3 câu trả lời"); trả lời mới thì mở luồng ra. */
+    const threadToggle = (n, open) => `<button type="button" class="cmt__more" data-cthread aria-expanded="${open}">${open ? 'Ẩn câu trả lời' : `Xem ${n} câu trả lời`}</button>`;
+
+    function threadHtml(list, rootId) {
+        const replies = list.filter((x) => x.parentCommentId === rootId);
+        return `<div class="cmt-thread${replies.length ? ' is-collapsed' : ''}" data-thread="${rootId}">${replies.length ? threadToggle(replies.length, false) : ''}${replies.map((r) => cmtHtml(r, true)).join('')}</div>`;
+    }
+
+    // Keeps a thread's toggle in step with its replies; `open` forces it open / closed.
+    function syncThread(thread, open) {
+        if (!thread) return;
+        const n = $$(':scope > .cmt', thread).length;
+        let btn = $(':scope > [data-cthread]', thread);
+        if (!n) {
+            if (btn) btn.remove();
+            thread.classList.remove('is-collapsed');
+            return;
+        }
+        if (typeof open === 'boolean') thread.classList.toggle('is-collapsed', !open);
+        const isOpen = !thread.classList.contains('is-collapsed');
+        if (!btn) {
+            thread.insertAdjacentHTML('afterbegin', threadToggle(n, isOpen));
+            btn = $(':scope > [data-cthread]', thread);
+        }
+        btn.setAttribute('aria-expanded', String(isOpen));
+        btn.textContent = isOpen ? 'Ẩn câu trả lời' : `Xem ${n} câu trả lời`;
+    }
 
     function wireComments(box) {
         if (box.__wired) return;
         box.__wired = true;
         box.addEventListener('click', (e) => {
             const r = e.target.closest('[data-creply]'), l = e.target.closest('[data-clike]'), d = e.target.closest('[data-cdel]');
+            const s = e.target.closest('[data-crx]'), th = e.target.closest('[data-cthread]');
             if (r) startReply(+r.dataset.creply);
-            else if (l) likeComment(+l.dataset.clike);
+            else if (l) {
+                if (RX && RX.wasHeld(l)) return;
+                if (RX) RX.closeDock(true);
+                reactComment(+l.dataset.clike, null);
+            }
             else if (d) deleteComment(+d.dataset.cdel);
+            else if (s && RX) RX.openList({ commentId: +s.dataset.crx }, s);
+            else if (th) {
+                const thread = th.parentElement;
+                const opening = thread.classList.contains('is-collapsed');
+                syncThread(thread, opening);
+                if (opening && M.stagger) M.stagger($$(':scope > .cmt', thread), { max: 8, step: 24 });
+            }
         });
     }
 
@@ -623,16 +722,44 @@
         if (bar) bar.remove();
     }
 
-    function likeComment(id) {
+    /* Thích / cảm xúc cho bình luận và câu trả lời — cùng quy tắc với bài viết (react). */
+    function reactComment(id, k, fx = {}) {
         const p = pdPost, c = p && (p.comments || []).find((x) => x.id === id);
         if (!c || c.pending) return;
-        c.isLiked = !c.isLiked;
-        c.likeCount = Math.max(0, (c.likeCount || 0) + (c.isLiked ? 1 : -1));
+        const cur = cKind(c);
+        const next = k == null ? (cur ? null : 'like') : (k === cur ? null : k);
+        const before = { isLiked: c.isLiked, myReaction: c.myReaction, likeCount: c.likeCount, reactions: c.reactions };
+        const seq = (c._rxSeq = (c._rxSeq || 0) + 1);
+        c.isLiked = !!next;
+        c.myReaction = next;
+        c.likeCount = Math.max(0, (c.likeCount || 0) + (next ? 1 : 0) - (cur ? 1 : 0));
+        if (RX) c.reactions = RX.shift(c.reactions, cur, next);
         redrawComment(id, c);
-        fetch('/Dashboard/ToggleCommentLike/' + id, { method: 'POST' })
+        const btn = $(`#c-${id} [data-clike]`);
+        if (next && btn) {
+            if (RX) RX.celebrate(btn, next, { from: fx.from, small: true });
+            else M.pulse(btn, 1.2);
+        }
+        const pill = $(`#c-${id} .cmt__rx`);
+        if (pill && next) M.pulse(pill, 1.15);
+
+        fetch('/Dashboard/ToggleCommentLike/' + id + (k ? '?kind=' + encodeURIComponent(k) : ''), { method: 'POST' })
             .then((res) => res.json())
-            .then((data) => { if (data.success) { c.isLiked = data.liked; c.likeCount = data.likeCount; redrawComment(id, c); } })
-            .catch(() => {});
+            .then((data) => {
+                if (!data.success) throw new Error(data.message);
+                if (seq !== c._rxSeq) return;
+                c.isLiked = !!data.liked;
+                c.myReaction = data.liked ? (data.kind || 'like') : null;
+                c.likeCount = data.likeCount;
+                if (Array.isArray(data.reactions)) c.reactions = data.reactions;
+                redrawComment(id, c);
+            })
+            .catch((err) => {
+                if (seq !== c._rxSeq) return;
+                Object.assign(c, before);
+                redrawComment(id, c);
+                M.toast((err && err.message) || 'Chưa lưu được cảm xúc, thử lại nhé.', { tone: 'danger' });
+            });
     }
 
     function deleteComment(id) {
@@ -646,9 +773,11 @@
                 p.comments = (p.comments || []).filter((x) => !gone.has(x.id));
                 gone.forEach((cid) => {
                     const el = $('#c-' + cid);
+                    const parent = el && el.parentElement && el.parentElement.closest('.cmt-thread');
                     if (el) el.remove();
                     const t = $(`[data-thread="${cid}"]`);
                     if (t) t.remove();
+                    if (parent) syncThread(parent);
                 });
                 if (typeof data.commentCount === 'number') p.commentCount = data.commentCount;
                 syncCounts(p);
@@ -683,7 +812,7 @@
             </div>
             <div class="pd__foot">
               <div class="post__actions post__actions--icons">
-                <button class="act act--like" type="button" data-like aria-pressed="${p.liked}" aria-label="Thích"><i data-lucide="heart"></i></button>
+                ${likeBtnHtml(p)}
                 <button class="act" type="button" data-comments aria-label="Viết bình luận"><i data-lucide="message-circle"></i></button>
                 <button class="act" type="button" data-share aria-label="Chia sẻ"><i data-lucide="share-2"></i></button>
                 <button class="act act--save" type="button" data-save aria-pressed="${p.saved}" aria-label="${p.saved ? 'Bỏ lưu' : 'Lưu bài viết'}"><i data-lucide="bookmark"></i></button>
@@ -813,7 +942,10 @@
         const empty = $('.a-empty', box);
         if (empty) empty.remove();
         const thread = c.parentCommentId && $(`[data-thread="${c.parentCommentId}"]`, box);
-        if (thread) thread.insertAdjacentHTML('beforeend', cmtHtml(c, true));
+        if (thread) {
+            thread.insertAdjacentHTML('beforeend', cmtHtml(c, true));
+            syncThread(thread, true); // your new reply is never hidden in a collapsed thread
+        }
         else box.insertAdjacentHTML('beforeend', cmtHtml(c) + `<div class="cmt-thread" data-thread="${c.id}"></div>`);
         renderIcons();
         const el = $('#c-' + c.id, box);
@@ -822,6 +954,7 @@
 
     async function closePost() {
         if (pd.hidden) return;
+        if (RX) RX.closeDock(true);
         await M.closeDialog(pd, pdScrim);
         pdPost = null;
         delete pd.dataset.pid;
@@ -1562,7 +1695,7 @@
         const el = currentPost();
         const p = el && byId(+el.dataset.pid);
         if (!p) return;
-        if (k === 'l') { e.preventDefault(); setLike(p, !p.liked); }
+        if (k === 'l') { e.preventDefault(); react(p, null, { anchor: $('[data-like]', el) }); }
         else if (k === 'c') { e.preventDefault(); openPost(p, $('[data-comments]', el), { focus: true }); }
         else if (k === 's') { e.preventDefault(); toggleSave(p); }
     });
@@ -1597,7 +1730,13 @@
         // Bài viết
         const host = t.closest('[data-pid]');
         const p = host && byId(+host.dataset.pid);
-        if (p && t.closest('[data-like]')) { setLike(p, !p.liked); return; }
+        if (p && (b = t.closest('[data-like]'))) {
+            if (RX && RX.wasHeld(b)) return; // the long press opened the reaction bar instead
+            if (RX) RX.closeDock(true);
+            react(p, null, { anchor: b });
+            return;
+        }
+        if (p && (b = t.closest('[data-rx-list]'))) { if (RX) RX.openList({ postId: p.id }, b); return; }
         if (p && (b = t.closest('[data-comments]'))) {
             if (host === pd) $('#pdInput')?.focus();
             else openPost(p, b, { focus: b.classList.contains('act') });
@@ -1635,7 +1774,24 @@
     /* ---------------------------------------------------------------------------
        KHỞI CHẠY
        --------------------------------------------------------------------------- */
+    /* Thanh chọn cảm xúc trên nút Thích của bài (thẻ + hộp thoại) và của bình luận / câu trả lời. */
+    function bindReactions() {
+        if (!RX) return;
+        RX.bind(document, '[data-like]', (b) => {
+            const host = b.closest('[data-pid]');
+            const p = host && byId(+host.dataset.pid);
+            if (!p) return null;
+            return { current: myKind(p), onPick: (k, fx) => react(p, k, { anchor: b, from: fx.from }) };
+        });
+        RX.bind(document, '[data-clike]', (b) => {
+            const c = pdPost && (pdPost.comments || []).find((x) => x.id === +b.dataset.clike);
+            if (!c || c.pending || !canThread()) return null;
+            return { current: cKind(c), size: 'sm', onPick: (k, fx) => reactComment(c.id, k, { from: fx.from }) };
+        });
+    }
+
     function init() {
+        bindReactions();
         renderFeed();
         if (window.ArisStories && $('#storyTrack')) {
             window.ArisStories.init({

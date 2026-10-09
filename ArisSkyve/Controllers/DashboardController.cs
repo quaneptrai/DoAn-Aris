@@ -255,6 +255,8 @@ namespace ArisSkyve.Controllers
                 mins = (int)Math.Max(0, (DateTime.UtcNow - p.CreatedAt).TotalMinutes),
                 likes = p.LikeCount,
                 liked,
+                myReaction = liked ? meta.MyReaction ?? ReactionKinds.Default : null,
+                reactions = ReactionJson(meta.Reactions),
                 commentCount = p.CommentCount,
                 isOwner = p.UserId == userId,
                 media = (p.PostMedias ?? Enumerable.Empty<PostMedias>())
@@ -330,6 +332,13 @@ namespace ArisSkyve.Controllers
                     likers[g.Key] = g.Select(r => r.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().Take(2).ToList();
             }
 
+            var reactionCounts = await PostReactionSummaryAsync(postIds);
+            var myKinds = _featureGate.PostReactions
+                ? await _context.PostReactions
+                    .Where(r => r.UserId == userId && postIds.Contains(r.PostId))
+                    .ToDictionaryAsync(r => r.PostId, r => r.Kind)
+                : new Dictionary<int, string>();
+
             foreach (var p in posts)
             {
                 var biz = p.User?.Profile as BussinessAccount;
@@ -345,7 +354,9 @@ namespace ArisSkyve.Controllers
                     Following = biz != null && followed.Contains(biz.Id),
                     Relation = p.UserId == userId ? "self" : friends.Contains(p.UserId) ? "friend" : pending.Contains(p.UserId) ? "pending" : "none",
                     Saved = saved.Contains(p.Id),
-                    FriendLikers = likers.TryGetValue(p.Id, out var fl) ? fl : new List<string>()
+                    FriendLikers = likers.TryGetValue(p.Id, out var fl) ? fl : new List<string>(),
+                    MyReaction = myKinds.TryGetValue(p.Id, out var mk) ? mk : null,
+                    Reactions = reactionCounts.TryGetValue(p.Id, out var rc) ? rc : new List<(string Kind, int Count)>()
                 };
             }
             return result;
@@ -691,9 +702,14 @@ namespace ArisSkyve.Controllers
             }
         }
 
+        /// <summary>
+        /// Thích / thả cảm xúc. Không có <paramref name="kind"/>: bật/tắt tim như trước (trang cũ vẫn dùng).
+        /// Có kind: đặt cảm xúc đó; chọn lại đúng cảm xúc đang có thì gỡ. Trước khi có migration
+        /// AddPostReactions mọi lựa chọn đều thành tim.
+        /// </summary>
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> ToggleLike(int postId)
+        public async Task<IActionResult> ToggleLike(int postId, string? kind = null)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
@@ -703,24 +719,167 @@ namespace ArisSkyve.Controllers
             var post = await _context.Posts.FirstOrDefaultAsync(p => p.Id == postId);
             if (post == null) return NotFound();
 
-            var existingLike = await _context.Likes.FirstOrDefaultAsync(l => l.UserId == userId && l.PostId == postId);
-            bool liked = false;
+            var reactions = _featureGate.PostReactions;
+            if (string.IsNullOrWhiteSpace(kind)) kind = null;
+            else if (!ReactionKinds.IsKnown(kind)) return Json(new { success = false, message = "Cảm xúc không hợp lệ." });
+            else if (!reactions) kind = ReactionKinds.Default;
 
-            if (existingLike != null)
+            var existingLike = await _context.Likes.FirstOrDefaultAsync(l => l.UserId == userId && l.PostId == postId);
+            var row = existingLike != null && reactions
+                ? await _context.PostReactions.FirstOrDefaultAsync(r => r.UserId == userId && r.PostId == postId)
+                : null;
+            var current = existingLike == null ? null : row?.Kind ?? ReactionKinds.Default;
+            var next = kind == null
+                ? (current == null ? ReactionKinds.Default : null)
+                : (kind == current ? null : kind);
+
+            if (next == null)
             {
-                _context.Likes.Remove(existingLike);
-                if (post.LikeCount > 0) post.LikeCount -= 1;
-                liked = false;
+                if (row != null) _context.PostReactions.Remove(row);
+                if (existingLike != null)
+                {
+                    _context.Likes.Remove(existingLike);
+                    if (post.LikeCount > 0) post.LikeCount -= 1;
+                }
             }
             else
             {
-                _context.Likes.Add(new Like { UserId = userId, PostId = postId, CreatedAt = DateTime.UtcNow });
-                post.LikeCount += 1;
-                liked = true;
+                if (existingLike == null)
+                {
+                    _context.Likes.Add(new Like { UserId = userId, PostId = postId, CreatedAt = DateTime.UtcNow });
+                    post.LikeCount += 1;
+                }
+                // The heart needs no row; any other kind is stored on (or replaces) the row.
+                if (reactions)
+                {
+                    if (next == ReactionKinds.Default) { if (row != null) _context.PostReactions.Remove(row); }
+                    else if (row == null) _context.PostReactions.Add(new PostReaction { UserId = userId, PostId = postId, Kind = next });
+                    else { row.Kind = next; row.UpdatedAt = DateTime.UtcNow; }
+                }
             }
             await _context.SaveChangesAsync();
 
-            return Json(new { success = true, liked, likeCount = post.LikeCount });
+            var summary = await PostReactionSummaryAsync(new List<int> { postId });
+            return Json(new
+            {
+                success = true,
+                liked = next != null,
+                kind = next,
+                likeCount = post.LikeCount,
+                reactions = ReactionJson(summary.GetValueOrDefault(postId))
+            });
+        }
+
+        private static object ReactionJson(List<(string Kind, int Count)>? counts) =>
+            (counts ?? new List<(string Kind, int Count)>()).Select(c => new { kind = c.Kind, count = c.Count }).ToList();
+
+        // Per-kind counts, most used first. A like without a reaction row is a heart.
+        private static List<(string Kind, int Count)> MergeKinds(int totalLikes, IEnumerable<(string Kind, int Count)> faces)
+        {
+            var list = faces.Where(f => f.Count > 0 && f.Kind != ReactionKinds.Default).ToList();
+            var hearts = totalLikes - list.Sum(f => f.Count);
+            if (hearts > 0) list.Add((ReactionKinds.Default, hearts));
+            return list.OrderByDescending(f => f.Count).ThenBy(f => Array.IndexOf(ReactionKinds.All, f.Kind)).ToList();
+        }
+
+        private async Task<Dictionary<int, List<(string Kind, int Count)>>> PostReactionSummaryAsync(List<int> postIds)
+        {
+            var result = new Dictionary<int, List<(string Kind, int Count)>>();
+            if (postIds.Count == 0) return result;
+
+            var totals = await _context.Likes
+                .Where(l => postIds.Contains(l.PostId))
+                .GroupBy(l => l.PostId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+            var faces = _featureGate.PostReactions
+                ? (await _context.PostReactions
+                    .Where(r => postIds.Contains(r.PostId))
+                    .GroupBy(r => new { r.PostId, r.Kind })
+                    .Select(g => new { g.Key.PostId, g.Key.Kind, Count = g.Count() })
+                    .ToListAsync())
+                    .ToLookup(x => x.PostId, x => (x.Kind, x.Count))
+                : Enumerable.Empty<(int PostId, string Kind, int Count)>().ToLookup(x => x.PostId, x => (x.Kind, x.Count));
+
+            foreach (var (postId, total) in totals)
+                result[postId] = MergeKinds(total, faces[postId]);
+            return result;
+        }
+
+        private async Task<Dictionary<int, List<(string Kind, int Count)>>> CommentReactionSummaryAsync(List<int> commentIds, IReadOnlyDictionary<int, int> likeCounts)
+        {
+            var faces = _featureGate.PostReactions && commentIds.Count > 0
+                ? (await _context.CommentReactions
+                    .Where(r => commentIds.Contains(r.CommentId))
+                    .GroupBy(r => new { r.CommentId, r.Kind })
+                    .Select(g => new { g.Key.CommentId, g.Key.Kind, Count = g.Count() })
+                    .ToListAsync())
+                    .ToLookup(x => x.CommentId, x => (x.Kind, x.Count))
+                : Enumerable.Empty<(int CommentId, string Kind, int Count)>().ToLookup(x => x.CommentId, x => (x.Kind, x.Count));
+
+            return likeCounts.ToDictionary(kv => kv.Key, kv => MergeKinds(kv.Value, faces[kv.Key]));
+        }
+
+        /// <summary>
+        /// Ai đã thả cảm xúc cho một bài viết hoặc một bình luận (mới nhất trước), kèm số theo từng loại.
+        /// </summary>
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetReactions(int? postId, int? commentId)
+        {
+            if (postId.HasValue == commentId.HasValue) return BadRequest();
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
+            int userId = int.Parse(userIdClaim);
+            const int Max = 300;
+
+            List<(User? User, DateTime At)> likers;
+            Dictionary<int, string> kinds;
+            int total;
+            if (postId.HasValue)
+            {
+                if (!await _context.Posts.AnyAsync(p => p.Id == postId)) return NotFound();
+                var query = _context.Likes.Where(l => l.PostId == postId);
+                total = await query.CountAsync();
+                likers = (await query.Include(l => l.User).ThenInclude(u => u.Profile)
+                        .OrderByDescending(l => l.CreatedAt).Take(Max).AsNoTracking().ToListAsync())
+                    .Select(l => ((User?)l.User, l.CreatedAt)).ToList();
+                kinds = _featureGate.PostReactions
+                    ? await _context.PostReactions.Where(r => r.PostId == postId).ToDictionaryAsync(r => r.UserId, r => r.Kind)
+                    : new Dictionary<int, string>();
+            }
+            else
+            {
+                if (!_featureGate.Enabled) return Json(new { success = true, total = 0, counts = Array.Empty<object>(), people = Array.Empty<object>() });
+                var query = _context.CommentLikes.Where(l => l.CommentId == commentId);
+                total = await query.CountAsync();
+                likers = (await query.Include(l => l.User).ThenInclude(u => u!.Profile)
+                        .OrderByDescending(l => l.CreatedAt).Take(Max).AsNoTracking().ToListAsync())
+                    .Select(l => (l.User, l.CreatedAt)).ToList();
+                kinds = _featureGate.PostReactions
+                    ? await _context.CommentReactions.Where(r => r.CommentId == commentId).ToDictionaryAsync(r => r.UserId, r => r.Kind)
+                    : new Dictionary<int, string>();
+            }
+
+            var counts = MergeKinds(total, kinds.Values.GroupBy(k => k).Select(g => (g.Key, g.Count())));
+            var people = likers.Where(x => x.User != null).Select(x =>
+            {
+                var u = x.User!;
+                var biz = u.Profile as BussinessAccount;
+                return new
+                {
+                    userId = u.Id,
+                    name = ChatController.DisplayName(u),
+                    avatar = string.IsNullOrWhiteSpace(u.Profile?.AvatarUrl) ? "/images/default-avatar.png" : u.Profile!.AvatarUrl,
+                    subtitle = biz != null ? biz.Industry : u.Profile?.JobTitle is { } t && t != "Ứng viên tiềm năng" ? t : null,
+                    href = u.Id == userId ? "/Profile" : biz != null ? $"/Company/Details/{biz.Id}" : $"/Profile/View/{u.Id}",
+                    isCompany = biz != null,
+                    isMe = u.Id == userId,
+                    kind = kinds.TryGetValue(u.Id, out var k) ? k : ReactionKinds.Default
+                };
+            }).ToList();
+
+            return Json(new { success = true, total, counts = ReactionJson(counts), people });
         }
 
         [HttpGet]
@@ -762,6 +921,13 @@ namespace ArisSkyve.Controllers
                 }
             }
 
+            var reactionCounts = await CommentReactionSummaryAsync(commentIds, likeCounts);
+            var myKinds = _featureGate.PostReactions && currentUserId > 0 && myLikes.Count > 0
+                ? await _context.CommentReactions
+                    .Where(r => r.UserId == currentUserId && commentIds.Contains(r.CommentId))
+                    .ToDictionaryAsync(r => r.CommentId, r => r.Kind)
+                : new Dictionary<int, string>();
+
             var postOwnerId = await _context.Posts.Where(p => p.Id == postId).Select(p => (int?)p.UserId).FirstOrDefaultAsync();
             var present = commentIds.ToHashSet();
 
@@ -776,6 +942,8 @@ namespace ArisSkyve.Controllers
                 parentCommentId = ThreadRoot(c.Id, parentMap, present),
                 likeCount = likeCounts.TryGetValue(c.Id, out var lc) ? lc : 0,
                 isLiked = myLikes.Contains(c.Id),
+                myReaction = myLikes.Contains(c.Id) ? myKinds.GetValueOrDefault(c.Id, ReactionKinds.Default) : null,
+                reactions = ReactionJson(reactionCounts.GetValueOrDefault(c.Id)),
                 isMine = currentUserId > 0 && c.UserId == currentUserId,
                 canDelete = currentUserId > 0 && (c.UserId == currentUserId || postOwnerId == currentUserId)
             });
@@ -878,6 +1046,8 @@ namespace ArisSkyve.Controllers
                     parentCommentId = threadRootId,
                     likeCount = 0,
                     isLiked = false,
+                    myReaction = (string?)null,
+                    reactions = Array.Empty<object>(),
                     isMine = true,
                     canDelete = true
                 }
@@ -889,7 +1059,7 @@ namespace ArisSkyve.Controllers
         [Route("Dashboard/ToggleCommentLike/{id?}")]
         [Route("Dashboard/ToggleCommentLike")]
         [Route("Comments/Like/{id}")]
-        public async Task<IActionResult> ToggleCommentLike(int? id, int? commentId)
+        public async Task<IActionResult> ToggleCommentLike(int? id, int? commentId, string? kind = null)
         {
             if (!_featureGate.Enabled)
             {
@@ -903,27 +1073,58 @@ namespace ArisSkyve.Controllers
             if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
             int userId = int.Parse(userIdClaim);
 
+            // Same rules as ToggleLike: no kind toggles the heart, a kind sets it, the same kind again removes it.
+            var reactions = _featureGate.PostReactions;
+            if (string.IsNullOrWhiteSpace(kind)) kind = null;
+            else if (!ReactionKinds.IsKnown(kind)) return Json(new { success = false, message = "Cảm xúc không hợp lệ." });
+            else if (!reactions) kind = ReactionKinds.Default;
+
             var existing = await _context.CommentLikes.FirstOrDefaultAsync(l => l.CommentId == cId && l.UserId == userId);
-            bool liked = false;
-            if (existing != null)
+            var row = existing != null && reactions
+                ? await _context.CommentReactions.FirstOrDefaultAsync(r => r.CommentId == cId && r.UserId == userId)
+                : null;
+            var current = existing == null ? null : row?.Kind ?? ReactionKinds.Default;
+            var next = kind == null
+                ? (current == null ? ReactionKinds.Default : null)
+                : (kind == current ? null : kind);
+
+            if (next == null)
             {
-                _context.CommentLikes.Remove(existing);
-                liked = false;
+                if (row != null) _context.CommentReactions.Remove(row);
+                if (existing != null) _context.CommentLikes.Remove(existing);
             }
             else
             {
-                _context.CommentLikes.Add(new CommentLike
+                if (existing == null)
                 {
-                    CommentId = cId,
-                    UserId = userId,
-                    CreatedAt = DateTime.UtcNow
-                });
-                liked = true;
+                    if (!await _context.Comments.AnyAsync(c => c.Id == cId))
+                        return Json(new { success = false, message = "Bình luận không còn tồn tại." });
+                    _context.CommentLikes.Add(new CommentLike
+                    {
+                        CommentId = cId,
+                        UserId = userId,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                if (reactions)
+                {
+                    if (next == ReactionKinds.Default) { if (row != null) _context.CommentReactions.Remove(row); }
+                    else if (row == null) _context.CommentReactions.Add(new CommentReaction { CommentId = cId, UserId = userId, Kind = next });
+                    else { row.Kind = next; row.UpdatedAt = DateTime.UtcNow; }
+                }
             }
             await _context.SaveChangesAsync();
 
             int count = await _context.CommentLikes.CountAsync(l => l.CommentId == cId);
-            return Json(new { success = true, liked, likeCount = count });
+            var summary = await CommentReactionSummaryAsync(new List<int> { cId }, new Dictionary<int, int> { [cId] = count });
+            return Json(new
+            {
+                success = true,
+                liked = next != null,
+                kind = next,
+                likeCount = count,
+                reactions = ReactionJson(summary.GetValueOrDefault(cId))
+            });
         }
 
         [HttpDelete]

@@ -20,6 +20,9 @@ namespace ArisSkyve.Infrastructure.Services
         // Chat reactions ship in their own migration (AddMessageReactions), so they
         // switch on separately from the V7 social tables.
         bool MessageReactions => Enabled;
+
+        // Post/comment reactions (migration AddPostReactions). Off = plain heart likes.
+        bool PostReactions => Enabled;
     }
 
     public class V7FeatureGate : BackgroundService, IV7FeatureGate
@@ -28,6 +31,7 @@ namespace ArisSkyve.Infrastructure.Services
         private readonly ILogger<V7FeatureGate> _logger;
         private volatile bool _enabled = false;
         private volatile bool _messageReactions = false;
+        private volatile bool _postReactions = false;
         private volatile bool _ephemeralDatabase = false;
 
         public bool Enabled => _enabled;
@@ -35,6 +39,8 @@ namespace ArisSkyve.Infrastructure.Services
         public bool Polls => _enabled;
         public bool SavedJobs => _enabled;
         public bool MessageReactions => _messageReactions;
+        // Comment reactions also need the V7 comment-like table.
+        public bool PostReactions => _postReactions;
 
         public V7FeatureGate(IServiceProvider serviceProvider, ILogger<V7FeatureGate> logger)
         {
@@ -51,6 +57,7 @@ namespace ArisSkyve.Infrastructure.Services
             _ephemeralDatabase = true;
             _enabled = true;
             _messageReactions = true;
+            _postReactions = true;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -85,12 +92,14 @@ namespace ArisSkyve.Infrastructure.Services
                 var appliedMigrations = (await db.Database.GetAppliedMigrationsAsync()).ToList();
                 bool hasV7Social = appliedMigrations.Any(m => m.Contains("V7Social", StringComparison.OrdinalIgnoreCase));
                 bool hasReactions = appliedMigrations.Any(m => m.Contains("AddMessageReactions", StringComparison.OrdinalIgnoreCase));
+                bool hasPostReactions = hasV7Social && appliedMigrations.Any(m => m.Contains("AddPostReactions", StringComparison.OrdinalIgnoreCase));
 
-                if (_enabled != hasV7Social || _messageReactions != hasReactions)
+                if (_enabled != hasV7Social || _messageReactions != hasReactions || _postReactions != hasPostReactions)
                 {
                     _enabled = hasV7Social;
                     _messageReactions = hasReactions;
-                    _logger.LogInformation("V7FeatureGate state changed: Enabled = {State}, MessageReactions = {Reactions}", _enabled, _messageReactions);
+                    _postReactions = hasPostReactions;
+                    _logger.LogInformation("V7FeatureGate state changed: Enabled = {State}, MessageReactions = {Reactions}, PostReactions = {PostReactions}", _enabled, _messageReactions, _postReactions);
                 }
             }
             catch (Exception ex)
@@ -98,6 +107,7 @@ namespace ArisSkyve.Infrastructure.Services
                 // Unreachable remote DB or timeout: fail-safe to false, never crash the app
                 _enabled = false;
                 _messageReactions = false;
+                _postReactions = false;
                 _logger.LogDebug("V7FeatureGate check skipped (database unreachable or error): {Message}", ex.Message);
             }
         }

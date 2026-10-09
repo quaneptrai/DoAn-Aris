@@ -54,6 +54,10 @@ namespace ArisSkyve.Infrastructure.Data.Context
         public DbSet<Mention> Mentions { get; set; }
         public DbSet<PostHashTag> PostHashTags { get; set; }
 
+        // Reactions on post/comment likes (migration AddPostReactions, gated by IV7FeatureGate.PostReactions)
+        public DbSet<PostReaction> PostReactions { get; set; }
+        public DbSet<CommentReaction> CommentReactions { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -428,6 +432,28 @@ namespace ArisSkyve.Infrastructure.Data.Context
                 .WithMany()
                 .HasForeignKey(cl => cl.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // A reaction is an optional face on an existing like: its only FK is the like's key,
+            // cascading, so it disappears with the like (single cascade path, no cycles).
+            modelBuilder.Entity<PostReaction>(e =>
+            {
+                e.HasKey(r => new { r.UserId, r.PostId });
+                e.Property(r => r.Kind).HasMaxLength(16).IsRequired();
+                e.HasOne(r => r.Like)
+                    .WithOne()
+                    .HasForeignKey<PostReaction>(r => new { r.UserId, r.PostId })
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(r => new { r.PostId, r.Kind });
+            });
+            modelBuilder.Entity<CommentReaction>(e =>
+            {
+                e.HasKey(r => new { r.CommentId, r.UserId });
+                e.Property(r => r.Kind).HasMaxLength(16).IsRequired();
+                e.HasOne(r => r.Like)
+                    .WithOne()
+                    .HasForeignKey<CommentReaction>(r => new { r.CommentId, r.UserId })
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
             modelBuilder.Entity<SavedPost>()
                 .HasKey(sp => new { sp.UserId, sp.PostId });
