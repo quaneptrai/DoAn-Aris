@@ -1,6 +1,7 @@
 using ArisSkyve.Application.DTOs;
 using ArisSkyve.Domain.Entities;
 using ArisSkyve.Infrastructure.Data.Context;
+using ArisSkyve.Infrastructure.Presentation;
 using ArisSkyve.Infrastructure.Services;
 using ArisSkyve.Infrastructure.Services.Recruitment;
 using Microsoft.AspNetCore.Authorization;
@@ -112,6 +113,10 @@ namespace ArisSkyve.Controllers
             var job = await _context.JobPostings.FirstOrDefaultAsync(j => j.Id == jobId);
             if (job == null) return NotFound();
 
+            // Aggregated job without an Aris employer: the application must go to the original posting
+            if (JobSourcePresentation.HasNoEmployer(job))
+                return Json(new { success = false, external = true, url = JobSourcePresentation.ApplyUrl(job), source = JobSourcePresentation.SourceName(job.OriginalUrl), message = JobSourcePresentation.NoEmployerMessage(job) });
+
             if (user.Role == "Business")
             {
                 return Json(new { success = false, isBusiness = true, isOwnJob = job.BusinessAccountId == user.Profile.Id });
@@ -155,6 +160,10 @@ namespace ArisSkyve.Controllers
 
             var job = await _context.JobPostings.FirstOrDefaultAsync(j => j.Id == jobId);
             if (job == null) return NotFound();
+
+            // Nobody on Aris would ever receive it (no employer): send the candidate to the original posting
+            if (JobSourcePresentation.HasNoEmployer(job))
+                return Json(new { success = false, external = true, url = JobSourcePresentation.ApplyUrl(job), message = JobSourcePresentation.NoEmployerMessage(job) });
 
             if (!job.isActive)
                 return Json(new { success = false, message = "Tin tuyển dụng này đã hết hạn hoặc ngừng nhận hồ sơ." });

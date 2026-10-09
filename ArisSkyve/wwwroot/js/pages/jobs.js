@@ -693,6 +693,10 @@ let matcherAbortController = null;
 
             const titleEl = jdInner.querySelector('.jd-title');
             if (titleEl && jdCompactTitle) jdCompactTitle.textContent = titleEl.textContent;
+            // The compact bar's button follows the job: "Ứng tuyển trên VietnamWorks" for aggregated jobs
+            const compactApply = jdCompact?.querySelector('[data-apply]');
+            const externalApply = jdInner.querySelector('[data-external-apply]');
+            if (compactApply) compactApply.textContent = externalApply ? externalApply.dataset.label : 'Ứng tuyển';
 
             const logoEl = jdInner.querySelector('.jd-head .a-logo');
             if (logoEl && jdCompactLogo) {
@@ -736,7 +740,7 @@ let matcherAbortController = null;
             rows[prevIdx].scrollIntoView({ block: 'nearest' });
         } else if (k === 'a' && state.selectedId) {
             e.preventDefault();
-            openApplyDialog(state.selectedId);
+            if (!openExternalApply()) openApplyDialog(state.selectedId);
         }
     });
 
@@ -1029,9 +1033,19 @@ let matcherAbortController = null;
 
     
 
+    // Tin tổng hợp từ trang khác (không có NTD trên Aris): ứng tuyển ở tin gốc. Mở ngay trong cú bấm
+    // (không đợi fetch) để trình duyệt không chặn cửa sổ mới.
+    function openExternalApply() {
+        const ext = jdInner?.querySelector('[data-external-apply]');
+        if (!ext) return false;
+        window.open(ext.href, '_blank', 'noopener');
+        return true;
+    }
+
     // Apply Modal
     document.addEventListener('click', (e) => {
         if (e.target.closest('[data-apply]')) {
+            if (openExternalApply()) return;
             if (state.selectedId) openApplyDialog(state.selectedId);
         }
     });

@@ -22,8 +22,9 @@ using (var scope = provider.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ArisDBContext>();
     var owner = new User { Id = 1, Username = "fpt", Email = "fpt@fixture.test", Role = "Business" };
-    var viewer = new User { Id = 2, Username = "viewer", Email = "viewer@fixture.test", Role = "Candidate" };
+    var viewer = new User { Id = 2, Username = "viewer", Email = "viewer@fixture.test", Role = "Employee" };
     db.Users.AddRange(owner, viewer);
+    db.Profiles.Add(new EmployesAccount { Id = 20, UserId = 2, User = viewer, FullName = "Viewer", Location = "Hà Nội" });
     db.BussinessAccounts.Add(new BussinessAccount
     {
         Id = 10, UserId = 1, User = owner, FullName = "FPT", Location = "Hà Nội", CompanyName = "FPT Software", Industry = "Phần mềm"
@@ -100,6 +101,26 @@ using (var scope = provider.CreateScope())
     var redirect = (await controller.Info(2)) as RedirectToActionResult;
     Check(redirect?.ActionName == "Details" && Equals(redirect.RouteValues?["id"], 10), "a crawled duplicate of a registered company redirects to the official page");
     Check(await controller.Info(999) is NotFoundResult, "an unknown id is 404");
+
+    // Applying: an aggregated job has no Aris employer, so the candidate is sent to the original posting
+    var apps = new JobApplicationsController(db)
+    {
+        ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "2")], "fixture")) }
+        }
+    };
+    var modal = JsonOf(await apps.GetApplyModal(100));
+    Check(!modal.GetProperty("success").GetBoolean() && modal.GetProperty("external").GetBoolean()
+        && modal.GetProperty("url").GetString() == "https://www.vietnamworks.com/100-jv"
+        && modal.GetProperty("message").GetString()!.Contains("VietnamWorks"), "the apply form of an aggregated job points to its original posting");
+    var applied = JsonOf(await apps.Apply(100, new SubmitJobApplicationDto { ResumeId = 1, ScreeningAnswers = new() }));
+    Check(!applied.GetProperty("success").GetBoolean() && applied.GetProperty("external").GetBoolean() && !await db.JobApplications.AnyAsync(),
+        "applying to an aggregated job creates no application nobody would receive");
+    Check(JsonOf(await apps.GetApplyModal(104)).GetProperty("success").GetBoolean(), "a job posted by an Aris employer still opens the apply form");
+    Check(ArisSkyve.Infrastructure.Presentation.JobSourcePresentation.SourceName("https://glints.com/vn/en/opportunities/jobs/x/1") == "Glints"
+        && ArisSkyve.Infrastructure.Presentation.JobSourcePresentation.SourceName("https://jobs.example.org/a") == "jobs.example.org",
+        "source names: known boards by name, others by host");
 }
 
 Console.WriteLine("Crawled company checks passed.");
@@ -127,6 +148,8 @@ static CompanyController Controller(ArisDBContext db, ICrawledCompanyDirectory d
         }
     }
 };
+
+static System.Text.Json.JsonElement JsonOf(IActionResult result) => System.Text.Json.JsonSerializer.SerializeToElement(((JsonResult)result).Value);
 
 static void Check(bool passed, string description)
 {

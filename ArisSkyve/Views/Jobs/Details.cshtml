@@ -70,6 +70,10 @@
     var sizeRaw = biz != null ? biz.CompanySize : crawled?.Size;
     var companySub = string.Join(" · ", new[] { industry, string.IsNullOrWhiteSpace(sizeRaw) ? null : (sizeRaw.Contains("nhân") ? sizeRaw : sizeRaw + " nhân sự") }.Where(x => !string.IsNullOrWhiteSpace(x)));
     var companyDesc = biz?.Description ?? crawled?.Description;
+    // Tin tổng hợp từ trang khác (không có nhà tuyển dụng trên Aris): nộp hồ sơ ở tin gốc
+    var noEmployer = JobSourcePresentation.HasNoEmployer(Model);
+    var externalApplyUrl = JobSourcePresentation.ApplyUrl(Model);
+    var sourceName = JobSourcePresentation.SourceName(Model.OriginalUrl);
     if (!string.IsNullOrWhiteSpace(companyDesc) && companyDesc.Length > 220) companyDesc = companyDesc.Substring(0, companyDesc.LastIndexOf(' ', 220) > 60 ? companyDesc.LastIndexOf(' ', 220) : 220) + "…";
 }
 
@@ -84,7 +88,14 @@
             <img src="@companyLogo" alt="" onerror="this.remove()" />
         }</span>
     <div class="jd-compact__title">@Model.Title</div>
-    @if (Model.isActive)
+    @if (Model.isActive && noEmployer)
+    {
+        if (externalApplyUrl != null)
+        {
+            <a class="a-btn a-btn--sunset a-btn--sm" href="@externalApplyUrl" target="_blank" rel="noopener nofollow" tabindex="-1">Ứng tuyển trên @sourceName</a>
+        }
+    }
+    else if (Model.isActive)
     {
         <button class="a-btn a-btn--sunset a-btn--sm" type="button" data-apply tabindex="-1">@(appliedAt == null ? "Ứng tuyển" : "Ứng tuyển lại")</button>
     }
@@ -181,6 +192,13 @@
                     {
                         <span class="a-status a-status--danger">Đã ngừng tuyển</span>
                     }
+                    else if (noEmployer)
+                    {
+                        if (externalApplyUrl != null)
+                        {
+                            <a class="a-btn a-btn--sunset a-btn--lg jd-apply" href="@externalApplyUrl" target="_blank" rel="noopener nofollow" id="mainApplyBtn" data-external-apply data-label="Ứng tuyển trên @sourceName">Ứng tuyển trên @sourceName<i data-lucide="arrow-up-right"></i></a>
+                        }
+                    }
                     else if (appliedAt != null)
                     {
                         <span class="jd-applied"><i data-lucide="check-circle-2"></i>Đã ứng tuyển · @appliedAt.Value.ToLocalTime().ToString("dd/MM/yyyy")</span>
@@ -191,11 +209,17 @@
                         <button class="a-btn a-btn--sunset a-btn--lg jd-apply" type="button" data-apply id="mainApplyBtn">Ứng tuyển ngay<i data-lucide="arrow-right"></i></button>
                     }
                     <button class="a-btn a-btn--secondary a-btn--lg a-btn--icon" type="button" data-share-job="@Model.Id" data-tip="Sao chép liên kết" aria-label="Chia sẻ việc làm"><i data-lucide="share-2"></i></button>
-                    @if (appliedAt != null)
+                    @if (appliedAt != null && !noEmployer)
                     {
                         <a class="a-btn a-btn--ghost a-btn--lg" href="/JobApplications/MyApplications">Theo dõi đơn</a>
                     }
                 </div>
+                @if (Model.isActive && noEmployer)
+                {
+                    <p class="jd-ext-note"><i data-lucide="info"></i><span>@(externalApplyUrl != null
+                        ? $"Tin tổng hợp từ {sourceName}: bạn nộp hồ sơ trên trang của họ, Aris không nhận hồ sơ thay."
+                        : "Tin này chưa có nhà tuyển dụng trên Aris nên chưa nhận hồ sơ trực tuyến.")</span></p>
+                }
 
                 <div class="jd-body">
                     @if (!User.IsInRole("Business"))
