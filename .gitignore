@@ -36,3 +36,9 @@ tests/.artifacts/
 /cookies.txt
 /login.html
 /dashboard.html
+
+## Junk that bloated the repo and the publish before (archived 2026-10-09 to .local/junk-archive-20261009)
+*.bak
+_smoke-*
+**/evidence/
+/*.zip

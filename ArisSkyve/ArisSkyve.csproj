@@ -8,6 +8,8 @@
 		<NoWarn>$(NoWarn);NU1901</NoWarn>
 		<NuGetAuditLevel>moderate</NuGetAuditLevel>
 		<UserSecretsId>6c17849a-0c96-4eee-95d2-d2819a9a2015</UserSecretsId>
+		<!-- Ship only English/Vietnamese resource satellites (drops ~50 language folders from publish). -->
+		<SatelliteResourceLanguages>en;vi</SatelliteResourceLanguages>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -26,11 +28,13 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.4" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.4" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.4">
+		<!-- Design-time only (dotnet ef / VS scaffolding): kept for local tooling, left out of publish
+		     so the Roslyn/MSBuild/Humanizer DLLs never reach the web server. -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.4" Publish="false">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" />
+		<PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" Publish="false" />
 	</ItemGroup>
 
 </Project>
