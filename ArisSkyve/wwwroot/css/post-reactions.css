@@ -2,31 +2,23 @@
    ARIS — Cảm xúc bài viết & bình luận (đi cùng wwwroot/js/post-reactions.js)
    Thanh chọn cảm xúc · hiệu ứng thả · cụm biểu tượng · hộp thoại "Cảm xúc"
    ============================================================================= */
+/* 👍 xanh · ❤️ đỏ tim · 😆 😮 😢 vàng hổ phách · 😡 cam — như bảng màu cảm xúc quen thuộc */
 :root {
   --rx-emoji: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  --rx-thumb: #2563EB;
   --rx-like: var(--like);
-  --rx-celebrate: #7C3AED;
-  --rx-support: #EA580C;
-  --rx-insightful: #0D9488;
-  --rx-haha: #D97706;
-  --rx-wow: #0284C7;
-  --rx-sad: #4F46E5;
+  --rx-face: #D97706;
+  --rx-angry: #EA580C;
 }
 :root[data-theme="dark"] {
-  --rx-celebrate: #A78BFA;
-  --rx-support: #FB923C;
-  --rx-insightful: #2DD4BF;
-  --rx-haha: #FBBF24;
-  --rx-wow: #38BDF8;
-  --rx-sad: #818CF8;
+  --rx-thumb: #60A5FA;
+  --rx-face: #FBBF24;
+  --rx-angry: #FB923C;
 }
+.rx-k--thumb { --rx: var(--rx-thumb); }
 .rx-k--like { --rx: var(--rx-like); }
-.rx-k--celebrate { --rx: var(--rx-celebrate); }
-.rx-k--support { --rx: var(--rx-support); }
-.rx-k--insightful { --rx: var(--rx-insightful); }
-.rx-k--haha { --rx: var(--rx-haha); }
-.rx-k--wow { --rx: var(--rx-wow); }
-.rx-k--sad { --rx: var(--rx-sad); }
+.rx-k--haha, .rx-k--wow, .rx-k--sad { --rx: var(--rx-face); }
+.rx-k--angry { --rx: var(--rx-angry); }
 
 /* ---------- Thanh chọn cảm xúc ---------- */
 .rxd {
@@ -96,13 +88,12 @@
 .rxd__i.is-on::after { content: ""; position: absolute; bottom: 0; left: 50%; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--rx); }
 
 /* Mỗi mặt có một cử động riêng khi được trỏ tới — giống emoji động */
+.rxd__i.is-hot.rx-k--thumb .rxd__e { animation: rx-thumb 800ms ease-in-out infinite; }
 .rxd__i.is-hot.rx-k--like .rxd__e { animation: rx-beat 900ms ease-in-out infinite; }
-.rxd__i.is-hot.rx-k--celebrate .rxd__e { animation: rx-wiggle 700ms ease-in-out infinite; }
-.rxd__i.is-hot.rx-k--support .rxd__e { animation: rx-flex 800ms ease-in-out infinite; }
-.rxd__i.is-hot.rx-k--insightful .rxd__e { animation: rx-glow 1s ease-in-out infinite; }
 .rxd__i.is-hot.rx-k--haha .rxd__e { animation: rx-shake 420ms ease-in-out infinite; }
 .rxd__i.is-hot.rx-k--wow .rxd__e { animation: rx-gasp 1s ease-in-out infinite; }
 .rxd__i.is-hot.rx-k--sad .rxd__e { animation: rx-droop 1.2s ease-in-out infinite; }
+.rxd__i.is-hot.rx-k--angry .rxd__e { animation: rx-rage 600ms ease-in-out infinite; }
 
 .rxd--sm { padding: 4px; }
 .rxd--sm .rxd__i { width: 34px; height: 34px; }
@@ -114,11 +105,10 @@
 @keyframes rxd-in { from { opacity: 0; transform: translateY(10px) scale(.55); } to { opacity: 1; transform: none; } }
 @keyframes rxd-out { to { opacity: 0; transform: translateY(6px) scale(.9); } }
 @keyframes rxd-face-in { from { opacity: 0; transform: translateY(16px) scale(.3); } to { opacity: 1; transform: none; } }
+@keyframes rx-thumb { 0%, 100% { rotate: 0deg; translate: 0 0; } 40% { rotate: -14deg; translate: 0 -2px; } 70% { rotate: 6deg; } }
 @keyframes rx-beat { 0%, 100% { scale: 1; } 25% { scale: 1.14; } 50% { scale: .96; } 70% { scale: 1.08; } }
-@keyframes rx-wiggle { 0%, 100% { rotate: 0deg; } 25% { rotate: -16deg; } 75% { rotate: 14deg; } }
-@keyframes rx-flex { 0%, 100% { rotate: 0deg; scale: 1; } 50% { rotate: -18deg; scale: 1.08; } }
-@keyframes rx-glow { 0%, 100% { filter: drop-shadow(0 0 0 rgb(250 204 21 / 0)); } 50% { filter: drop-shadow(0 0 9px rgb(250 204 21 / .95)); } }
 @keyframes rx-shake { 0%, 100% { translate: 0 0; rotate: 0deg; } 25% { translate: -2px -1px; rotate: -6deg; } 75% { translate: 2px 1px; rotate: 6deg; } }
+@keyframes rx-rage { 0%, 100% { translate: 0 0; scale: 1; } 20% { translate: -2px 0; scale: 1.06; } 40% { translate: 2px 0; } 60% { translate: -1px 0; scale: 1.06; } 80% { translate: 1px 0; } }
 @keyframes rx-gasp { 0%, 100% { scale: 1; } 40% { scale: 1.16 .9; } 60% { scale: .94 1.1; } }
 @keyframes rx-droop { 0%, 100% { translate: 0 0; } 50% { translate: 0 3px; } }
 

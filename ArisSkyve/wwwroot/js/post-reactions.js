@@ -10,15 +10,15 @@
 window.ArisPostReactions = (function () {
     'use strict';
 
-    // Must match ReactionKinds on the server (Domain/Entities/PostReaction.cs).
+    // The quick faces of chat reactions (chat-reactions.js), in the same order. Keys must match
+    // ReactionKinds on the server (Domain/Entities/PostReaction.cs). ❤️ is what the heart button gives.
     const KINDS = [
-        { k: 'like', e: '❤️', label: 'Thích' },
-        { k: 'celebrate', e: '🎉', label: 'Chúc mừng' },
-        { k: 'support', e: '💪', label: 'Cố lên' },
-        { k: 'insightful', e: '💡', label: 'Hữu ích' },
+        { k: 'thumb', e: '👍', label: 'Thích' },
+        { k: 'like', e: '❤️', label: 'Yêu thích' },
         { k: 'haha', e: '😆', label: 'Haha' },
         { k: 'wow', e: '😮', label: 'Wow' },
-        { k: 'sad', e: '😢', label: 'Buồn' }
+        { k: 'sad', e: '😢', label: 'Buồn' },
+        { k: 'angry', e: '😡', label: 'Phẫn nộ' }
     ];
     const BY_KIND = Object.fromEntries(KINDS.map((x) => [x.k, x]));
     const kind = (k) => BY_KIND[k] || BY_KIND.like;

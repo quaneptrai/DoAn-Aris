@@ -29,14 +29,16 @@ namespace ArisSkyve.Domain.Entities
         public virtual CommentLike? Like { get; set; }
     }
 
-    /// <summary>Reaction kinds understood by the server; the UI maps them to emoji and labels.</summary>
+    /// <summary>
+    /// Reaction kinds understood by the server — the quick faces of chat reactions, in their order:
+    /// 👍 ❤️ 😆 😮 😢 😡, stored as short ASCII keys (post-reactions.js maps them to emoji and labels).
+    /// </summary>
     public static class ReactionKinds
     {
+        /// <summary>❤️ — what the heart button gives, and every like that has no reaction row.</summary>
         public const string Default = "like";
 
-        // like ❤️ Thích · celebrate 🎉 Chúc mừng · support 💪 Cố lên · insightful 💡 Hữu ích
-        // haha 😆 Haha · wow 😮 Wow · sad 😢 Buồn
-        public static readonly string[] All = { Default, "celebrate", "support", "insightful", "haha", "wow", "sad" };
+        public static readonly string[] All = { "thumb", Default, "haha", "wow", "sad", "angry" };
 
         public static bool IsKnown(string? kind) => kind != null && Array.IndexOf(All, kind) >= 0;
     }

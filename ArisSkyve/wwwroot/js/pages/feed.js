@@ -136,7 +136,7 @@
         if (mine) {
             who = p.likes > 1
                 ? `Bạn và ${n(p.likes - 1)} người khác${hearts ? ' đã thích' : ''}`
-                : (mine === 'like' || !RX ? 'Bạn đã thích bài này' : `Bạn đã thả “${RX.kind(mine).label}”`);
+                : (mine === 'like' || !RX ? 'Bạn đã thích bài này' : `Bạn đã thả ${RX.kind(mine).e}`);
         } else if (p.friendLikers.length) {
             const names = p.friendLikers.slice(0, 2).map((x) => `<b>${esc(x)}</b>`);
             const rest = p.likes - names.length;
@@ -627,7 +627,8 @@
 
     function cmtHtml(c, isReply) {
         const k = cKind(c);
-        const likeText = !k ? 'Thích' : (k === 'like' || !RX ? 'Đã thích' : RX.kind(k).label);
+        // 👍 is also called "Thích", so a reaction shows its face too: "👍 Thích", "😆 Haha".
+        const likeText = !k ? 'Thích' : (k === 'like' || !RX ? 'Đã thích' : `${RX.kind(k).e} ${RX.kind(k).label}`);
         const menu = RX && RX.enabled() ? ' aria-haspopup="menu" aria-expanded="false"' : '';
         const acts = c.pending ? '<span>Đang gửi…</span>' : (canThread() ? `
               <button type="button" data-clike="${c.id}" class="${k ? `is-liked rx-k--${k}` : ''}" aria-pressed="${!!k}"${menu}>${likeText}</button>
