@@ -8,6 +8,16 @@
 .nf-scroll { max-height: min(520px, 64vh); overflow-y: auto; overscroll-behavior: contain; padding: 4px 6px 8px; gap: 2px; scrollbar-width: thin; }
 .nf-sec { padding: 10px 10px 4px; font: 600 var(--fs-12)/1.2 var(--font); color: var(--text-3); }
 
+/* "Xem thêm": the bell shows 5 rows first, each press reveals 10 more */
+.nf-foot { padding: 6px; border-top: 1px solid var(--line-soft); }
+.nf-more { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 38px; border: 0; border-radius: var(--r-md); background: transparent; color: var(--brand-text); font: 600 var(--fs-13)/1 var(--font); cursor: pointer; transition: background var(--d-1) var(--e-out); }
+.nf-more:hover { background: var(--surface-hover); }
+.nf-more:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.nf-more__n { min-width: 20px; padding: 3px 6px; border-radius: var(--r-full); background: var(--field); color: var(--text-3); font-size: var(--fs-11); text-align: center; }
+.nf-more svg { width: 16px; height: 16px; transition: transform var(--d-2) var(--e-out); }
+.nf-more:hover svg { transform: translateY(2px); }
+@media (prefers-reduced-motion: reduce) { .nf-more svg { transition: none; } }
+
 .a-row.nf-row { position: relative; align-items: flex-start; gap: 12px; min-height: 0; padding: 10px; border-radius: var(--r-md); text-decoration: none; transition: background var(--d-1) var(--e-out); }
 .a-row.nf-row:hover { background: var(--surface-hover); }
 .a-row.nf-row.is-unread { background: color-mix(in srgb, var(--brand-soft) 70%, transparent); }

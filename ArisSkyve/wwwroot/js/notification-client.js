@@ -42,6 +42,9 @@ window.ArisNotifications = (function () {
         EvaluationDue: "clipboard-check", OfferSent: "gift", OfferAccepted: "party-popper", OfferDeclined: "x-circle"
     };
     const MAX_ITEMS = 50;
+    // The bell opens compact: 5 rows, then "Xem thêm" reveals 10 more at a time.
+    const FIRST_PAGE = 5;
+    const MORE_STEP = 10;
 
     function init({ bellBtn, badge, list }) {
         if (!bellBtn || !list) return;
@@ -53,6 +56,7 @@ window.ArisNotifications = (function () {
         let loaded = false;
         let loadedAt = 0;
         let unreadTotal = 0;
+        let visible = FIRST_PAGE;
 
         function updateBadge() {
             if (!badge) return;
@@ -109,12 +113,56 @@ window.ArisNotifications = (function () {
                     ${n.isRead ? "" : '<span class="nf-row__dot" aria-label="Chưa đọc"></span>'}
                 </a>`;
             };
-            const fresh = notifications.filter(n => !n.isRead);
-            const seen = notifications.filter(n => n.isRead);
+            // Unread first, then the rest; only the first `visible` rows are drawn.
+            const ordered = notifications.filter(n => !n.isRead).concat(notifications.filter(n => n.isRead));
+            const shown = ordered.slice(0, visible);
+            const hiddenCount = ordered.length - shown.length;
+            const fresh = shown.filter(n => !n.isRead);
+            const seen = shown.filter(n => n.isRead);
             const section = (title, items) => items.length ? `<div class="nf-sec">${title}</div>${items.map(row).join("")}` : "";
+            const moreHtml = hiddenCount > 0
+                ? `<div class="nf-foot"><button class="nf-more" type="button" data-nf-more>Xem thêm<span class="nf-more__n a-num">${hiddenCount}</span><i data-lucide="chevron-down"></i></button></div>`
+                : "";
 
-            list.innerHTML = headerHtml + `<div class="a-list nf-scroll">${section("Mới", fresh)}${section("Trước đó", seen)}</div>`;
+            list.innerHTML = headerHtml + `<div class="a-list nf-scroll">${section("Mới", fresh)}${section("Trước đó", seen)}</div>` + moreHtml;
             if (window.renderIcons) window.renderIcons();
+        }
+
+        function showMore() {
+            const before = list.querySelectorAll(".nf-row").length;
+            const scroller = list.querySelector(".nf-scroll");
+            const top = scroller ? scroller.scrollTop : 0;
+            visible += MORE_STEP;
+            renderList();
+            const rows = list.querySelectorAll(".nf-row");
+            const next = list.querySelector(".nf-scroll");
+            if (next) next.scrollTop = top;
+            // Ease the newly revealed rows in and bring the first of them into view.
+            const added = Array.from(rows).slice(before);
+            if (added.length) {
+                if (M && M.stagger) M.stagger(added, { max: MORE_STEP });
+                added[0].scrollIntoView({ block: "nearest", behavior: M && M.reduced && M.reduced() ? "auto" : "smooth" });
+            }
+            const btn = list.querySelector("[data-nf-more]");
+            (btn || added[0] || list).focus({ preventScroll: true });
+            keepInViewport();
+        }
+
+        // The popover was placed for its old height (above the mobile tab bar, or under the
+        // bell); once it grows, slide it up so the new rows and the button stay on screen.
+        function keepInViewport() {
+            const pop = list.closest(".a-pop");
+            if (!pop || pop.hidden) return;
+            const r = pop.getBoundingClientRect();
+            const overflow = r.bottom - (window.innerHeight - 8);
+            if (overflow > 0) pop.style.top = Math.max(8, r.top - overflow) + "px";
+        }
+
+        // Every time the bell opens it starts compact again.
+        function resetPage() {
+            if (visible === FIRST_PAGE) return;
+            visible = FIRST_PAGE;
+            if (loaded) renderList();
         }
 
         async function load() {
@@ -134,6 +182,13 @@ window.ArisNotifications = (function () {
         }
 
         list.addEventListener("click", async (e) => {
+            if (e.target.closest("[data-nf-more]")) {
+                e.preventDefault();
+                e.stopPropagation(); // a Bootstrap dropdown bell would otherwise close on this click
+                showMore();
+                return;
+            }
+
             const markAllBtn = e.target.closest(".notif-markall-btn");
             if (markAllBtn) {
                 e.preventDefault();
@@ -164,7 +219,13 @@ window.ArisNotifications = (function () {
         });
 
         bellBtn.addEventListener("click", () => {
+            resetPage();
             if (!loaded || Date.now() - loadedAt > 60000) load();
+        });
+        // The mobile tab bar opens the same popover through its own button.
+        document.addEventListener("click", (e) => {
+            const opener = e.target.closest('[data-action="notifications"]');
+            if (opener && opener !== bellBtn) resetPage();
         });
 
         if (window.ArisChat) {
