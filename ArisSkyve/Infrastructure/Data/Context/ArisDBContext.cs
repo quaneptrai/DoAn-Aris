@@ -165,6 +165,13 @@ namespace ArisSkyve.Infrastructure.Data.Context
                 .HasDiscriminator<string>("Discriminator")
                 .HasValue<EmployesAccount>("EmployesAccount")
                 .HasValue<BussinessAccount>("BussinessAccount");
+            // AccountController.UpgradeToBusiness turns a candidate's Profiles row into a business in place
+            // (same Id, so Resumes / Education / ContactMethods stay attached). EF treats the discriminator
+            // as read-only after the first save and silently left it at "EmployesAccount", so the upgraded
+            // account kept loading as a candidate and /Employer bounced it to /Jobs.
+            modelBuilder.Entity<EmployesAccount>()
+                .Property<string>("Discriminator")
+                .Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Save);
 
             modelBuilder.Entity<Like>()
                 .HasKey(l => new { l.UserId, l.PostId });
