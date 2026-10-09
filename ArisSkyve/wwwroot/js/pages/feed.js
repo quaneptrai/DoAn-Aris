@@ -678,9 +678,9 @@
               <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" data-menu aria-label="Tuỳ chọn bài viết"><i data-lucide="more-horizontal"></i></button>
               <button class="a-btn a-btn--ghost a-btn--icon a-btn--sm" type="button" data-pd-close aria-label="Đóng (Esc)"><i data-lucide="x"></i></button>
             </header>
-            <div class="pd__mhead">Bình luận</div>
+            <div class="pd__mhead">${esc(p.who)}</div>
             <div class="pd__scroll" id="pdScroll">
-              ${(p.text || p.title) ? `<div class="cmt cmt--caption">${face(p.who, p.avatar, 32, p.isCompany)}<div><div class="cmt__body"><span class="cmt__name">${esc(p.who)}</span>${p.title ? `<span class="cmt__title">${esc(p.title)}</span>` : ''}${richText(p.text)}</div><div class="cmt__meta"><span>${timeAgo(p.mins)}</span></div></div><span></span></div>` : ''}
+              ${(p.text || p.title) ? `<div class="pd__caption">${p.title ? `<div class="cmt__title">${esc(p.title)}</div>` : ''}<div class="cmt__body">${richText(p.text)}</div></div>` : ''}
               <div id="pdComments" aria-live="polite" aria-busy="true">${cmtSkel()}</div>
             </div>
             <div class="pd__foot">
