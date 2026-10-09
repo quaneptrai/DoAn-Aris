@@ -201,6 +201,17 @@
 .co-info dt { font: 500 var(--fs-12)/1.2 var(--font); color: var(--text-3); }
 .co-info dd { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: var(--fs-14); line-height: 1.45; color: var(--text); overflow-wrap: anywhere; }
 .co-info dd > span { flex: 1; }
+
+/* Trang công ty tổng hợp từ tin tuyển dụng (/Company/Info) */
+.co-badge--src { border-style: dashed; }
+.co-info dd.co-links { flex-wrap: wrap; gap: 4px 12px; }
+.co-links a, .co-refs a { color: var(--brand-text); text-decoration: none; }
+.co-links a:hover, .co-refs a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.co-note .co-muted { margin: 0 0 12px; }
+.co-note .co-note__ask { margin: 0 0 8px; font-weight: 600; color: var(--text-2); overflow-wrap: anywhere; }
+.co-refs { display: grid; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; font-size: var(--fs-13); }
+.co-refs a { display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.co-refs svg { flex: none; width: 13px; height: 13px; }
 .co-copy { flex: none; display: grid; place-items: center; width: 28px; height: 28px; margin-top: -3px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--text-3); cursor: pointer; }
 .co-copy:hover { background: var(--hover); color: var(--text); }
 .co-copy svg { width: 15px; height: 15px; }

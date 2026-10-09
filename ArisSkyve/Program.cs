@@ -88,6 +88,13 @@ if (!disableE2EBackgroundServices)
 {
     builder.Services.AddHostedService(sp => sp.GetRequiredService<V7FeatureGate>());
 }
+// Hồ sơ công ty do crawler AiCore tổng hợp (bảng dbo.Companies của crawler) — chỉ đọc, làm mới mỗi 10 phút.
+builder.Services.AddSingleton<CrawledCompanyDirectory>();
+builder.Services.AddSingleton<ICrawledCompanyDirectory>(sp => sp.GetRequiredService<CrawledCompanyDirectory>());
+if (!disableE2EBackgroundServices)
+{
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<CrawledCompanyDirectory>());
+}
 // Tuyển dụng: chấm CV đã nộp bằng AiCore ở nền + nhắc lịch phỏng vấn / phiếu đánh giá.
 builder.Services.AddScoped<ApplicationMatchService>();
 builder.Services.AddScoped<SkillGapService>();

@@ -35,14 +35,23 @@ namespace ArisSkyve.Controllers
             IConfiguration config,
             IHttpClientFactory httpClientFactory,
             IV7FeatureGate featureGate,
-            ILogger<JobsController>? logger = null)
+            ILogger<JobsController>? logger = null,
+            ICrawledCompanyDirectory? crawledCompanies = null)
         {
             _context = context;
             _config = config;
             _httpClientFactory = httpClientFactory;
             _featureGate = featureGate;
             _logger = logger;
+            _crawledCompanies = crawledCompanies;
         }
+
+        private readonly ICrawledCompanyDirectory? _crawledCompanies;
+
+        /// <summary>Company logo for a job card: the employer's account, else the crawled company profile.</summary>
+        private string? CompanyLogo(JobPosting job) =>
+            AvatarPresentation.ResolveCompanyAvatar(job.BusinessAccount?.AvatarUrl)
+            ?? (job.BusinessAccount == null ? _crawledCompanies?.Match(job.Company)?.Logo : null);
 
         [HttpPost]
         [Route("Jobs/ToggleSave/{id}")]
@@ -462,7 +471,7 @@ namespace ArisSkyve.Controllers
                                 PostingId = job.Id,
                                 JobTitle = job.Title,
                                 Company = job.Company,
-                                AvatarUrl = AvatarPresentation.ResolveCompanyAvatar(job.BusinessAccount?.AvatarUrl),
+                                AvatarUrl = CompanyLogo(job),
                                 Category = job.Category,
                                 Score = rec.Score ?? payload?.Score ?? (rec.MatchScore > 0 ? rec.MatchScore : null),
                                 Reason = !string.IsNullOrWhiteSpace(rec.Reason) ? rec.Reason : (payload?.Reason ?? string.Empty),
@@ -660,7 +669,7 @@ namespace ArisSkyve.Controllers
                                         rec.PostingId = jobInDb.Id;
                                         rec.JobTitle = jobInDb.Title;
                                         rec.Company = jobInDb.Company;
-                                        rec.AvatarUrl = AvatarPresentation.ResolveCompanyAvatar(jobInDb.BusinessAccount?.AvatarUrl);
+                                        rec.AvatarUrl = CompanyLogo(jobInDb);
                                         rec.Category = jobInDb.Category;
                                         newJobIds.Add(jobInDb.Id);
                                         validRecommendations.Add(rec);

@@ -15,11 +15,13 @@ namespace ArisSkyve.Controllers
     {
         private readonly ArisDBContext _context;
         private readonly IV7FeatureGate _featureGate;
+        private readonly ICrawledCompanyDirectory? _crawled;
 
-        public CompanyController(ArisDBContext context, IV7FeatureGate featureGate)
+        public CompanyController(ArisDBContext context, IV7FeatureGate featureGate, ICrawledCompanyDirectory? crawled = null)
         {
             _context = context;
             _featureGate = featureGate;
+            _crawled = crawled;
         }
 
         private int CurrentUserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -230,7 +232,109 @@ namespace ArisSkyve.Controllers
             Add(tuples);
             model.Suggestions = picked;
 
+            // Công ty có tin crawl (hồ sơ do crawler tổng hợp) — sau công ty đã có tài khoản; trùng tên thì giữ trang chính thức
+            var crawled = await CrawledCompanyItemsAsync(companies);
+            if (crawled.Count > 0)
+            {
+                model.Companies.AddRange(crawled);
+                model.TopIndustries = model.Companies
+                    .Where(c => !string.IsNullOrWhiteSpace(c.Industry))
+                    .GroupBy(c => c.Industry!.Trim())
+                    .OrderByDescending(g => g.Count())
+                    .ThenBy(g => g.Key)
+                    .Select(g => g.Key)
+                    .Take(4)
+                    .ToList();
+            }
+
             return View(model);
+        }
+
+        /// <summary>
+        /// Crawled company profiles as directory cards, with their open crawled jobs (matched by company name).
+        /// A company that already has an Aris account under the same name keeps only its official page.
+        /// </summary>
+        private async Task<List<CompanyListItemViewModel>> CrawledCompanyItemsAsync(IEnumerable<CompanyListItemViewModel> registered)
+        {
+            if (_crawled == null) return new();
+            await _crawled.EnsureFreshAsync();
+            if (_crawled.All.Count == 0) return new();
+
+            var official = registered.Select(c => CrawledCompanyDirectory.NormalizeName(c.CompanyName)).ToHashSet();
+            var items = _crawled.All
+                .Where(c => !c.Names.Any(n => official.Contains(CrawledCompanyDirectory.NormalizeName(n))))
+                .ToDictionary(c => c.Id, c => new CompanyListItemViewModel
+                {
+                    Id = c.Id,
+                    CompanyName = c.Name,
+                    Industry = c.Industry,
+                    CompanyAddress = c.Address,
+                    AvatarUrl = c.Logo,
+                    CompanySize = c.Size,
+                    Description = c.Description,
+                    FoundedYear = c.FoundedYear,
+                    IsCrawled = true
+                });
+
+            // Open crawled jobs, newest first → per company: count + latest one
+            var jobs = await _context.JobPostings.AsNoTracking()
+                .Where(j => j.isActive && j.BusinessAccountId == null && j.Company != "")
+                .OrderByDescending(j => j.CreatedAt)
+                .Select(j => new { j.Id, j.Title, j.Salary, j.Company })
+                .ToListAsync();
+            foreach (var j in jobs)
+            {
+                if (_crawled.Match(j.Company) is not { } card || !items.TryGetValue(card.Id, out var item)) continue;
+                item.OpenJobCount++;
+                if (item.LatestJobId == null)
+                {
+                    item.LatestJobId = j.Id;
+                    item.LatestJobTitle = j.Title;
+                    item.LatestJobSalary = string.IsNullOrWhiteSpace(j.Salary) ? null : j.Salary;
+                }
+            }
+            return items.Values
+                .OrderByDescending(c => c.OpenJobCount)
+                .ThenByDescending(c => c.AvatarUrl != null)
+                .ThenBy(c => c.CompanyName)
+                .ToList();
+        }
+
+        /// <summary>Trang công ty tổng hợp từ tin tuyển dụng (hồ sơ do crawler thu thập, chưa được công ty xác minh).</summary>
+        [HttpGet]
+        [Route("Company/Info/{id:int}")]
+        public async Task<IActionResult> Info(int id)
+        {
+            if (_crawled == null) return NotFound();
+            await _crawled.EnsureFreshAsync();
+            var card = _crawled.Find(id);
+            if (card == null) return NotFound();
+
+            // Already on Aris with an account under the same name → its official page
+            var names = card.Names.Select(CrawledCompanyDirectory.NormalizeName).ToHashSet();
+            var official = (await _context.BussinessAccounts.AsNoTracking()
+                    .Where(b => b.CompanyName != null && b.CompanyName != "")
+                    .Select(b => new { b.Id, b.CompanyName })
+                    .ToListAsync())
+                .FirstOrDefault(b => names.Contains(CrawledCompanyDirectory.NormalizeName(b.CompanyName)));
+            if (official != null) return RedirectToAction(nameof(Details), new { id = official.Id });
+
+            // Same name matching as the directory cards (case/space-insensitive), then load only those jobs
+            var candidates = await _context.JobPostings.AsNoTracking()
+                .Where(j => j.BusinessAccountId == null && j.Company != "")
+                .Select(j => new { j.Id, j.Company })
+                .ToListAsync();
+            var ids = candidates.Where(j => _crawled.Match(j.Company)?.Id == card.Id).Select(j => j.Id).ToList();
+            var jobs = ids.Count == 0
+                ? new List<JobPosting>()
+                : await _context.JobPostings.AsNoTracking()
+                    .Include(j => j.Locations)
+                    .Where(j => ids.Contains(j.Id))
+                    .OrderByDescending(j => j.CreatedAt)
+                    .Take(60)
+                    .ToListAsync();
+
+            return View(new CrawledCompanyPageViewModel { Company = card, Jobs = jobs });
         }
 
         [HttpGet]

@@ -1,0 +1,271 @@
+@model ArisSkyve.Application.DTOs.CrawledCompanyPageViewModel
+@{
+    // Trang công ty tổng hợp từ tin tuyển dụng (bảng Companies của crawler AiCore) — chưa phải trang chính thức.
+    var company = Model.Company;
+    ViewData["Title"] = company.Name + " - Công ty";
+    ViewData["ActiveNav"] = "Companies";
+    Layout = "_AppLayout";
+
+    // Cùng công thức với window.toneOf() / orgInitials() trong aris-shell.js
+    int Tone(string? name)
+    {
+        uint h = 0;
+        foreach (var ch in name ?? "") h = unchecked(h * 31 + ch);
+        return (int)(h % 6) + 1;
+    }
+    string OrgInitials(string? name)
+    {
+        var words = (name ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return "AR";
+        if (words.Length > 1) return (words[0][0].ToString() + words[1][0]).ToUpperInvariant();
+        return words[0].Substring(0, Math.Min(2, words[0].Length)).ToUpperInvariant();
+    }
+    string Ago(DateTime utc)
+    {
+        var d = (int)Math.Max(0, (DateTime.UtcNow - utc).TotalDays);
+        return d == 0 ? "Hôm nay" : d == 1 ? "Hôm qua" : d < 30 ? $"{d} ngày trước" : utc.ToLocalTime().ToString("dd/MM/yyyy");
+    }
+    string Host(string url) => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host.Replace("www.", "") : url;
+
+    var tone = Tone(company.Name);
+    var initials = OrgInitials(company.Name);
+    var size = company.Size == null ? null : (company.Size.Contains("nhân") ? company.Size : company.Size + " nhân sự");
+    var websiteText = company.Website?.Replace("https://", "").Replace("http://", "").TrimEnd('/');
+    var description = company.Description;
+    var tagline = description == null ? null : (description.IndexOf('.') is int dot && dot > 20 && dot < 180 ? description.Substring(0, dot + 1) : (description.Length > 160 ? description.Substring(0, description.LastIndexOf(' ', 160) > 40 ? description.LastIndexOf(' ', 160) : 160) + "…" : description));
+    var openJobs = Model.Jobs.Where(j => j.isActive).ToList();
+    var closedJobs = Model.Jobs.Where(j => !j.isActive).ToList();
+    var sources = company.Sources.Count > 0 ? string.Join(", ", company.Sources) : "các trang tuyển dụng";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/company-profile.css" asp-append-version="true" />
+}
+
+<div class="co co--crawled" id="co">
+    <nav class="co-crumb" aria-label="Đường dẫn">
+        <a asp-controller="Company" asp-action="Index">Khám phá công ty</a>
+        <i data-lucide="chevron-right" aria-hidden="true"></i>
+        <span aria-current="page">@company.Name</span>
+    </nav>
+
+    <header class="co-hero">
+        <div class="co-hero__cover" data-tone="@tone">
+            <span class="co-hero__mono" aria-hidden="true">@initials</span>
+            <div class="co-hero__badges">
+                @if (company.Industry != null)
+                {
+                    <span class="co-badge">@company.Industry</span>
+                }
+                <span class="co-badge co-badge--src">Tổng hợp từ tin tuyển dụng</span>
+            </div>
+            <button class="co-hero__share" type="button" data-co-share data-tip="Sao chép liên kết" aria-label="Chia sẻ trang công ty"><i data-lucide="share-2"></i></button>
+        </div>
+
+        <div class="co-hero__body">
+            <span class="co-hero__logo fx-ring fx-ring--sq"><span class="a-logo" data-tone="@tone">@initials@if (company.Logo != null)
+                {
+                    <img src="@company.Logo" alt="" referrerpolicy="no-referrer" onerror="this.remove()" />
+                }</span></span>
+
+            <div class="co-hero__id">
+                <h1 class="co-hero__name">@company.Name</h1>
+                @if (tagline != null)
+                {
+                    <p class="co-hero__tagline">@tagline</p>
+                }
+                <ul class="co-hero__meta">
+                    @if (company.Address != null)
+                    {
+                        <li><i data-lucide="map-pin"></i>@company.Address</li>
+                    }
+                    @if (size != null)
+                    {
+                        <li><i data-lucide="users"></i>@size</li>
+                    }
+                    @if (company.FoundedYear != null)
+                    {
+                        <li><i data-lucide="calendar"></i>Thành lập @company.FoundedYear</li>
+                    }
+                    @if (company.Website != null)
+                    {
+                        <li><i data-lucide="globe"></i><a href="@company.Website" target="_blank" rel="noopener nofollow">@websiteText</a></li>
+                    }
+                </ul>
+            </div>
+
+            <div class="co-hero__side">
+                <dl class="co-stats">
+                    <div><dt>Việc đang tuyển</dt><dd class="a-num">@openJobs.Count</dd></div>
+                    <div><dt>Nguồn tin</dt><dd class="a-num">@Math.Max(1, company.Sources.Count)</dd></div>
+                </dl>
+                <div class="co-hero__cta">
+                    @if (company.Website != null)
+                    {
+                        <a class="a-btn a-btn--secondary" href="@company.Website" target="_blank" rel="noopener nofollow"><i data-lucide="globe"></i>Website</a>
+                    }
+                    @if (openJobs.Count > 0)
+                    {
+                        <a class="a-btn a-btn--sunset" href="#jobs">Xem @openJobs.Count việc làm<i data-lucide="arrow-down"></i></a>
+                    }
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav class="co-tabs" id="coTabs" aria-label="Mục trên trang">
+        <span class="co-tabs__ind" aria-hidden="true"></span>
+        <a href="#about" class="co-tab" aria-current="true">Tổng quan</a>
+        <a href="#jobs" class="co-tab">Việc đang tuyển <span class="co-tab__n">@openJobs.Count</span></a>
+    </nav>
+
+    <div class="co-grid">
+        <main class="co-main">
+            <section class="fx-card co-sec" id="about" aria-labelledby="aboutTitle">
+                <h2 class="co-sec__title" id="aboutTitle">Giới thiệu</h2>
+                @if (description != null)
+                {
+                    <div class="co-about">@description</div>
+                }
+                else
+                {
+                    <p class="co-muted">Chưa có phần giới thiệu về @company.Name. Bên dưới là các vị trí công ty đang tuyển, tổng hợp từ @sources.</p>
+                }
+                <dl class="co-facts">
+                    <div class="co-fact"><dt><i data-lucide="layers"></i>Lĩnh vực</dt><dd>@(company.Industry ?? "Chưa cập nhật")</dd></div>
+                    <div class="co-fact"><dt><i data-lucide="users"></i>Quy mô</dt><dd>@(size ?? "Chưa cập nhật")</dd></div>
+                    <div class="co-fact"><dt><i data-lucide="calendar"></i>Thành lập</dt><dd>@(company.FoundedYear?.ToString() ?? "Chưa cập nhật")</dd></div>
+                    <div class="co-fact"><dt><i data-lucide="badge-check"></i>Xác minh</dt><dd>Chưa xác minh</dd></div>
+                </dl>
+            </section>
+
+            <section class="co-sec co-sec--plain" id="jobs" aria-labelledby="jobsTitle">
+                <header class="co-sec__head">
+                    <h2 class="co-sec__title" id="jobsTitle">Việc đang tuyển</h2>
+                    <span class="co-sec__count a-num">@openJobs.Count</span>
+                </header>
+                @if (openJobs.Any())
+                {
+                    <div class="co-jobs">
+                        @foreach (var job in openJobs)
+                        {
+                            var city = job.Locations?.FirstOrDefault()?.City;
+                            var isNew = job.CreatedAt >= DateTime.UtcNow.AddDays(-3);
+                            <article class="co-job">
+                                <div class="co-job__main">
+                                    <h3 class="co-job__title"><a href="/Jobs?job=@job.Id">@job.Title</a>@if (isNew)
+                                        {
+                                            <span class="co-job__new">Mới</span>
+                                        }</h3>
+                                    <div class="co-job__tags">
+                                        <span class="co-job__salary">@(string.IsNullOrWhiteSpace(job.Salary) ? "Thoả thuận" : job.Salary)</span>
+                                        @if (!string.IsNullOrWhiteSpace(city))
+                                        {
+                                            <span>@city</span>
+                                        }
+                                        <span>@(string.IsNullOrWhiteSpace(job.WorkTime) ? "Toàn thời gian" : job.WorkTime)</span>
+                                        @if (!string.IsNullOrWhiteSpace(job.Category))
+                                        {
+                                            <span>@job.Category</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="co-job__side">
+                                    <span class="co-job__time">Đăng @Ago(job.CreatedAt).ToLower()</span>
+                                    <a class="a-btn a-btn--ink a-btn--sm" href="/Jobs?job=@job.Id">Xem tin</a>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="fx-card a-empty co-empty">
+                        <i data-lucide="briefcase"></i>
+                        <div class="a-empty__title">Hiện chưa có vị trí đang mở</div>
+                        <div class="a-empty__text">Tin mới của công ty sẽ hiện ở đây khi có đợt tuyển tiếp theo.</div>
+                    </div>
+                }
+                @if (closedJobs.Any())
+                {
+                    <details class="co-closed">
+                        <summary>Đã ngừng tuyển (@closedJobs.Count)</summary>
+                        <ul>
+                            @foreach (var job in closedJobs)
+                            {
+                                <li><a href="/Jobs/Details/@job.Id">@job.Title</a><span>@job.CreatedAt.ToLocalTime().ToString("MM/yyyy")</span></li>
+                            }
+                        </ul>
+                    </details>
+                }
+            </section>
+        </main>
+
+        <aside class="co-side" aria-label="Thông tin nhanh">
+            <section class="fx-card co-card">
+                <h2 class="co-card__title">Thông tin nhanh</h2>
+                <dl class="co-info">
+                    @if (company.Address != null)
+                    {
+                        <div>
+                            <dt>Trụ sở</dt>
+                            <dd><span id="coAddress">@company.Address</span><button class="co-copy" type="button" data-co-copy data-tip="Sao chép địa chỉ" aria-label="Sao chép địa chỉ"><i data-lucide="copy"></i></button></dd>
+                        </div>
+                    }
+                    @if (company.Website != null)
+                    {
+                        <div><dt>Website</dt><dd><a href="@company.Website" target="_blank" rel="noopener nofollow">@websiteText</a></dd></div>
+                    }
+                    @if (company.CareersUrl != null)
+                    {
+                        <div><dt>Trang tuyển dụng</dt><dd><a href="@company.CareersUrl" target="_blank" rel="noopener nofollow">@Host(company.CareersUrl)</a></dd></div>
+                    }
+                    @if (company.TaxCode != null)
+                    {
+                        <div><dt>Mã số thuế</dt><dd class="a-num">@company.TaxCode</dd></div>
+                    }
+                    @if (company.FoundedYear != null)
+                    {
+                        <div><dt>Thành lập</dt><dd>@company.FoundedYear</dd></div>
+                    }
+                    @if (size != null)
+                    {
+                        <div><dt>Quy mô</dt><dd>@size</dd></div>
+                    }
+                    @if (company.Socials.Count > 0)
+                    {
+                        <div>
+                            <dt>Mạng xã hội</dt>
+                            <dd class="co-links">
+                                @foreach (var s in company.Socials)
+                                {
+                                    <a href="@s.Url" target="_blank" rel="noopener nofollow">@s.Network</a>
+                                }
+                            </dd>
+                        </div>
+                    }
+                </dl>
+            </section>
+
+            <section class="fx-card co-card co-note">
+                <h2 class="co-card__title">Về trang này</h2>
+                <p class="co-muted">Thông tin được tổng hợp tự động từ tin tuyển dụng trên @sources và các nguồn công khai, cập nhật ngày @company.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy"). Công ty chưa xác minh nên có thể còn thiếu hoặc chưa chính xác.</p>
+                @if (company.ReferencePages.Count > 0)
+                {
+                    <ul class="co-refs">
+                        @foreach (var link in company.ReferencePages)
+                        {
+                            <li><a href="@link" target="_blank" rel="noopener nofollow"><i data-lucide="external-link"></i>@Host(link)</a></li>
+                        }
+                    </ul>
+                }
+                <p class="co-muted co-note__ask">Bạn đại diện cho @company.Name?</p>
+                <a class="a-btn a-btn--secondary a-btn--block" asp-controller="Account" asp-action="BecomeEmployer"><i data-lucide="building-2"></i>Tạo trang chính thức</a>
+            </section>
+        </aside>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/company.js" asp-append-version="true"></script>
+}

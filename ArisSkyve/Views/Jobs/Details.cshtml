@@ -2,10 +2,13 @@
 @using ArisSkyve.Infrastructure.Presentation
 @using ArisSkyve.Infrastructure.Services
 @model ArisSkyve.Domain.Entities.JobPosting
+@inject ICrawledCompanyDirectory CrawledCompanies
 
 @{
     Layout = "_AppLayout";
     var biz = Model.BusinessAccount;
+    // Tin crawl: hồ sơ công ty do crawler tổng hợp (khớp theo tên công ty trên tin)
+    var crawled = biz == null ? CrawledCompanies.Match(Model.Company) : null;
     var companyDisplayName = biz?.CompanyName ?? (string.IsNullOrWhiteSpace(Model.Company) ? "Doanh nghiệp" : Model.Company);
     ViewData["Title"] = $"{Model.Title} - {companyDisplayName}";
     ViewData["ActiveNav"] = "Jobs";
@@ -42,7 +45,7 @@
         return d == 0 ? "hôm nay" : d == 1 ? "hôm qua" : $"{d} ngày trước";
     }
 
-    var companyLogo = AvatarPresentation.ResolveCompanyAvatar(biz?.AvatarUrl);
+    var companyLogo = AvatarPresentation.ResolveCompanyAvatar(biz?.AvatarUrl) ?? crawled?.Logo;
     var resList = ParseList(Model.Responsibilities);
     var reqList = ParseList(Model.Requirements);
     var benList = ParseList(Model.Benefits);
@@ -61,9 +64,12 @@
     var companyJobs = ViewBag.CompanyJobs as List<ArisSkyve.Domain.Entities.JobPosting> ?? new List<ArisSkyve.Domain.Entities.JobPosting>();
     var similarJobs = ViewBag.SimilarJobs as List<ArisSkyve.Domain.Entities.JobPosting> ?? new List<ArisSkyve.Domain.Entities.JobPosting>();
     var companyOpenJobs = (int)(ViewBag.CompanyOpenJobs ?? 0);
-    var companyHref = Model.BusinessAccountId.HasValue ? $"/Company/Details/{Model.BusinessAccountId}" : null;
-    var companySub = string.Join(" · ", new[] { biz?.Industry, string.IsNullOrWhiteSpace(biz?.CompanySize) ? null : (biz!.CompanySize!.Contains("nhân") ? biz.CompanySize : biz.CompanySize + " nhân sự") }.Where(x => !string.IsNullOrWhiteSpace(x)));
-    var companyDesc = biz?.Description;
+    var companyHref = Model.BusinessAccountId.HasValue ? $"/Company/Details/{Model.BusinessAccountId}"
+        : crawled != null ? $"/Company/Info/{crawled.Id}" : null;
+    var industry = biz?.Industry ?? crawled?.Industry;
+    var sizeRaw = biz != null ? biz.CompanySize : crawled?.Size;
+    var companySub = string.Join(" · ", new[] { industry, string.IsNullOrWhiteSpace(sizeRaw) ? null : (sizeRaw.Contains("nhân") ? sizeRaw : sizeRaw + " nhân sự") }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    var companyDesc = biz?.Description ?? crawled?.Description;
     if (!string.IsNullOrWhiteSpace(companyDesc) && companyDesc.Length > 220) companyDesc = companyDesc.Substring(0, companyDesc.LastIndexOf(' ', 220) > 60 ? companyDesc.LastIndexOf(' ', 220) : 220) + "…";
 }
 
@@ -309,7 +315,7 @@
                                 {
                                     <i data-lucide="badge-check" class="fx-verified" aria-label="Đã xác minh"></i>
                                 }</span>
-                            <span class="jd-company-card__sub">@(string.IsNullOrWhiteSpace(companySub) ? "Doanh nghiệp trên Aris" : companySub)</span>
+                            <span class="jd-company-card__sub">@(string.IsNullOrWhiteSpace(companySub) ? (crawled != null ? "Tổng hợp từ tin tuyển dụng" : "Doanh nghiệp trên Aris") : companySub)</span>
                             @if (!string.IsNullOrWhiteSpace(companyDesc))
                             {
                                 <span class="jd-company-card__desc">@companyDesc</span>
@@ -387,7 +393,7 @@
                         var jc = j.BusinessAccount?.CompanyName ?? (string.IsNullOrWhiteSpace(j.Company) ? "Doanh nghiệp" : j.Company);
                         var relatedLogo = AvatarPresentation.HasImage(j.BusinessAccount?.AvatarUrl)
                             ? PublicMediaDeliveryUrl.ToDeliveryUrl(j.BusinessAccount!.AvatarUrl)
-                            : null;
+                            : (j.BusinessAccount == null ? CrawledCompanies.Match(j.Company)?.Logo : null);
                         <a class="jd-mini jd-mini--co" href="/Jobs/Details/@j.Id">
                             <span class="a-logo a-logo--36" data-tone="@Tone(jc)">@OrgInitials(jc)@if (relatedLogo != null)
                                 {

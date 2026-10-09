@@ -1,6 +1,7 @@
 @model IEnumerable<ArisSkyve.Domain.Entities.JobPosting>
 @using ArisSkyve.Infrastructure.Presentation
 @using ArisSkyve.Infrastructure.Services
+@inject ICrawledCompanyDirectory CrawledCompanies
 @{
     // Cùng công thức với window.toneOf() / orgInitials() trong aris-shell.js (GetHashCode() đổi mỗi lần chạy app)
     int Tone(string? name)
@@ -24,7 +25,9 @@
     {
         var isNew = job.CreatedAt >= DateTime.UtcNow.AddDays(-3);
         var companyName = job.BusinessAccount?.CompanyName ?? (string.IsNullOrWhiteSpace(job.Company) ? "Doanh nghiệp" : job.Company);
-        var avatarUrl = AvatarPresentation.ResolveCompanyAvatar(job.BusinessAccount?.AvatarUrl);
+        // Tin crawl (không có tài khoản công ty): logo từ hồ sơ công ty mà crawler tổng hợp
+        var avatarUrl = AvatarPresentation.ResolveCompanyAvatar(job.BusinessAccount?.AvatarUrl)
+            ?? (job.BusinessAccount == null ? CrawledCompanies.Match(job.Company)?.Logo : null);
         var location = job.Locations?.FirstOrDefault()?.City ?? job.Locations?.FirstOrDefault()?.Address ?? "Toàn quốc";
         var workMode = string.IsNullOrWhiteSpace(job.WorkTime) ? "Toàn thời gian" : job.WorkTime;
         var salary = string.IsNullOrWhiteSpace(job.Salary) ? "Thoả thuận" : job.Salary;

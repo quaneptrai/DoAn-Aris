@@ -168,6 +168,8 @@
 .cx-card__job-salary { font-size: var(--fs-12); color: var(--text-3); }
 .cx-card__foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line-soft); }
 .cx-stat { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--text-3); }
+/* Hồ sơ do crawler tổng hợp từ tin tuyển dụng (thẻ không có theo dõi / nhắn tin) */
+.cx-stat--src { color: var(--text-4); }
 .cx-stat svg { width: 15px; height: 15px; }
 .cx-stat b { color: var(--text); font-weight: 700; }
 .cx-stat.is-hot, .cx-stat.is-hot b { color: var(--emerald-text); }

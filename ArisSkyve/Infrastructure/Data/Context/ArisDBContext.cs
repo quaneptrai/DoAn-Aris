@@ -58,6 +58,9 @@ namespace ArisSkyve.Infrastructure.Data.Context
         public DbSet<PostReaction> PostReactions { get; set; }
         public DbSet<CommentReaction> CommentReactions { get; set; }
 
+        // Company profiles written by the AiCore crawler (its own dbo.Companies) — read-only here
+        public DbSet<CrawledCompany> CrawledCompanies { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -453,6 +456,14 @@ namespace ArisSkyve.Infrastructure.Data.Context
                     .WithOne()
                     .HasForeignKey<CommentReaction>(r => new { r.CommentId, r.UserId })
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // The crawler owns dbo.Companies (vn_job_crawler/migrations/001_create_companies.sql):
+            // Aris only reads it, so EF must never create or alter the table.
+            modelBuilder.Entity<CrawledCompany>(e =>
+            {
+                e.ToTable("Companies", t => t.ExcludeFromMigrations());
+                e.HasKey(c => c.Id);
             });
 
             modelBuilder.Entity<SavedPost>()

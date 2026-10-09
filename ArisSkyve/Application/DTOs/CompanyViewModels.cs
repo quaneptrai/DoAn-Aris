@@ -25,6 +25,17 @@ namespace ArisSkyve.Application.DTOs
         /// <summary>Số người theo dõi thật (bảng CompanyFollows); 0 khi tính năng chưa bật.</summary>
         public int FollowerCount { get; set; }
         public bool IsFollowing { get; set; }
+
+        /// <summary>Hồ sơ do crawler tổng hợp từ tin tuyển dụng: chưa có tài khoản Aris, không theo dõi / nhắn tin được.</summary>
+        public bool IsCrawled { get; set; }
+        public string Href => IsCrawled ? $"/Company/Info/{Id}" : $"/Company/Details/{Id}";
+    }
+
+    /// <summary>Trang /Company/Info/{id}: công ty tổng hợp từ tin tuyển dụng.</summary>
+    public class CrawledCompanyPageViewModel
+    {
+        public ArisSkyve.Infrastructure.Services.CrawledCompanyCard Company { get; set; } = default!;
+        public List<JobPosting> Jobs { get; set; } = new();
     }
 
     /// <summary>Trang Khám phá công ty (thiết kế "Aris Kinetic" theo mẫu Stitch, 26/09/2026).</summary>
