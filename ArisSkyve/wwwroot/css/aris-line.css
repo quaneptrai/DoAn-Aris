@@ -164,6 +164,8 @@
   --fs-18: 18px;
   --fs-22: 22px;
   --fs-28: 28px;
+  --fs-34: 34px;
+  --fs-40: 40px;
 
   /* Space (lưới 4px) */
   --s-1: 4px;
@@ -325,7 +327,12 @@ body {
 }
 
 h1, h2, h3, h4, p { margin: 0; }
-h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: -.018em; line-height: 1.28; color: var(--text); }
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: -.022em; line-height: 1.24; color: var(--text); }
+/* Display: tiêu đề lớn có cá tính — tracking khít dần theo cỡ chữ */
+.a-display { font-family: var(--font-display); font-weight: 800; letter-spacing: -.032em; line-height: 1.08; color: var(--text); text-wrap: balance; }
+.a-display--grad { background: var(--grad-sunset); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* Chữ gradient sunset cho con số / từ khóa cần nhấn */
+.a-grad-text { background: var(--grad-sunset); -webkit-background-clip: text; background-clip: text; color: transparent; }
 a { color: var(--brand-text); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 2px; }
 img { max-width: 100%; display: block; }
@@ -1198,9 +1205,20 @@ svg.lucide .ai-knock { stroke: var(--ring, var(--surface)); fill: none; }
   text-align: center;
 }
 .a-empty > svg { width: 24px; height: 24px; margin-bottom: 6px; color: var(--text-4); }
-.a-empty__title { font: 600 var(--fs-15)/1.4 var(--font); color: var(--text); }
+.a-empty__title { font: 700 var(--fs-18)/1.35 var(--font-display); letter-spacing: -.02em; color: var(--text); }
 .a-empty__text { font: 400 var(--fs-13)/1.5 var(--font); color: var(--text-3); max-width: 42ch; text-wrap: balance; }
 .a-empty .a-btn { margin-top: 10px; }
+/* Minh họa cho empty state: quầng gradient mềm sau icon, thay icon xám đơn điệu */
+.a-empty__art {
+  display: grid; place-items: center;
+  width: 76px; height: 76px; margin-bottom: 12px;
+  border-radius: 50%; border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 32% 28%, rgb(124 58 237 / .32), transparent 62%),
+    radial-gradient(circle at 68% 72%, rgb(234 88 12 / .22), transparent 60%),
+    var(--surface);
+}
+.a-empty__art > svg { width: 30px; height: 30px; color: var(--text-2); }
 
 .a-collapse {
   display: grid;
