@@ -575,7 +575,9 @@
 .cmt__like:hover { color: var(--text-3); }
 .cmt__like[aria-pressed="true"] { color: var(--like); }
 .cmt__like[aria-pressed="true"] svg { fill: currentColor; }
-.cmt--caption { padding-bottom: 14px; border-bottom: 1px solid var(--line-soft); margin-bottom: 6px; }
+.pd__caption { padding: 2px 0 14px; border-bottom: 1px solid var(--line-soft); margin-bottom: 8px; }
+.pd__caption .cmt__title { font: 700 var(--fs-15)/1.4 var(--font-display); letter-spacing: -.01em; margin-bottom: 2px; }
+.pd__caption .cmt__body { font: 400 var(--fs-14)/1.55 var(--font); color: var(--text); }
 .cmt--reply { padding: 6px 0; }
 .cmt__more { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 0; border: 0; background: none; color: var(--text-3); font: 600 var(--fs-12)/1 var(--font); cursor: pointer; }
 .cmt__more::before { content: ""; width: 24px; height: 1px; background: var(--text-4); }
