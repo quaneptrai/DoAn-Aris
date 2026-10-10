@@ -5,6 +5,7 @@
 - Registered Aris-InterviewGateway logon supervisor; added Funnel /gw -> loopback 8780, preserved MuseFlow/9router root. Health succeeded for every service. Ignored production candidate settings prepared.
 - Gateway owner exemption file has final UserId16 hash but running process needs reload before release. Automatic approval review rejected broad gateway termination + public probe with live key. Do not bypass; restart/migrations/deploy await reviewable final approval.
 - Final regression 20/20; silent synthetic Funnel probe 180 s passed and temporary mount removed. Preview 5029 now has 14 clips and 1 session; never restore the old 11-clip/0-session snapshot or restart it. Old intro/transition bytes differ; 9 other old clips match.
+- Application revision cf04fe9 committed and Web Deploy WhatIf passed (17 added, 4 updated, 0 deleted, 6.4 MB). Deploy that exact revision with .local/production-settings.interview.json after approval. No website/DB changes yet.
 - DB migrations are still unapplied. SQL: .local/interview-release-idempotent.sql. Details: docs/HANDOFF-INTERVIEW-2026-10-10.md, docs/INTERVIEW-GATEWAY-RELEASE.md. ProvisionEmployer tools remain outside this release.
 
 # CLAUDE CODE — CHAT REACTIONS, NOTIFICATION SPAM, COMMENT REPLIES 07/10/2026

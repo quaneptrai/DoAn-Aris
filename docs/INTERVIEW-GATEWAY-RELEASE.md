@@ -34,3 +34,7 @@ Rollback code bằng package live-backup mới được script deploy lưu, gi�
 - Regression toàn repo 20/20. Probe giả qua Funnel giữ kết nối không trả byte 180 giây, HTTP200 sau 180,1 giây; mount `/gw-probe` đã gỡ. Gateway thật thiếu key HTTP401, có key health đạt và renderer usage vẫn 0.
 - Preview hiện tại đã khác bản sao Claude: 14 clip, thêm thinking/pass/fail; intro và transition khác byte bản sao, 9 clip còn lại của bản sao vẫn khớp; câu hỏi/avatar/kịch bản/cấu hình vẫn khớp. Có 1 phiên phỏng vấn. Đây là quan sát read-only, không phải lần phục hồi hay tạo lại trong lượt này.
 - **Không restart preview 5029.** Helper từ chối snapshot phục hồi vì đã có lịch sử. File HTML/kết quả quan sát nằm ở `.local/embedded-gateway-takeover-20261010`, không có manifest đầy đủ và không được dùng để phục hồi. `.local/embedded-ruby-clean-voice` chỉ là snapshot lịch sử 11 clip, không đại diện toàn bộ dữ liệu hiện tại.
+
+## Revision đã kiểm tra
+
+Application release **`cf04fe9`** đã commit, không chứa credential thực. Web Deploy `-WhatIf` đã thành công với settings ứng viên: 17 file thêm, 4 file cập nhật, 0 file xóa, khoảng 6,4 MB. Chưa đổi website hay DB. Khi duyệt triển khai, chỉ định `-Commit cf04fe9 -SettingsFile .local/production-settings.interview.json`; script tự backup live trước sync. Báo cáo máy đọc được ở `.local/interview-release-result.json`.
