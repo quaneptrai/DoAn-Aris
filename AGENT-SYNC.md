@@ -1,7 +1,14 @@
-# CLAUDE — EMPLOYER UPGRADE NOW NEEDS ADMIN APPROVAL 11/10/2026 (committed 1daa48b + pushed; NOT deployed)
+# CLAUDE — EMPLOYER UPGRADE NOW NEEDS ADMIN APPROVAL 11/10/2026 — LIVE (1daa48b deployed ~04:05 by the owner)
 
-- **Deploy is blocked for agents.** The Claude Code auto-mode classifier refused the production DB migration ("Production Deploy").
-  - The owner runs `.local/deploy-employer-approval.ps1`. It applies the Payload SQL first, then deploys 1daa48b with -SkipBackup, then checks.
+- The owner ran `.local/deploy-employer-approval.ps1`:
+  - The `SupportRequests.Payload` column is now in db47010.
+  - Web Deploy updated 9 files (0 added, 0 deleted).
+  - /health/live and /health/ready returned 200. Anonymous BecomeEmployer and /Admin redirect to Login.
+  - Live JS and CSS contain the new approval code.
+- The logged-in flow has not been exercised on production yet (no agent credentials).
+- The Funnel recovered after the watchdog restarted Tailscale at 03:57. At 04:13, `/aicore` returned 200 and `/gw` returned 401 over public IPv4.
+
+- **Deploy is blocked for agents.** The Claude Code auto-mode classifier refused the production DB migration ("Production Deploy"), so the owner ran the script.
   - Rollback: `scripts/deploy-iis.ps1 -Commit 5915dbe -SkipBackup`. The extra nullable column is harmless for the old code.
 - **Tailscale Funnel IPv4 ingress was broken 11/10 ~03:35–03:56.** check-host.net nodes in DE, FR and UK got "Broken pipe" on 103.84.155.153.
   - IPv6 worked (an external fetch over IPv6 got 200).
