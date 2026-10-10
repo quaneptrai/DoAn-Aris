@@ -60,6 +60,10 @@ check('designated admin protected from suspension',(await first.form('/Admin/Acc
 check('protected second admin still authenticated',(await second('/Admin')).status===200);
 check('account downgrade accepted',(await first.form('/Admin/Accounts/2/Role',{role:'Employee'},t)).status===302);
 check('downgraded employer loses employer API access',denied(await other('/Employer/InterviewFlow/Support')));
+check('downgraded account cannot open employer dashboard',(await other('/Employer')).headers.get('location')?.includes('/Jobs'));
+check('downgraded account cannot edit company profile',(await other('/Company/Edit')).headers.get('location')?.includes('/Jobs'));
+check('downgraded account cannot invoke job editing',!(await other.json('/Jobs/GetJobPostingForEdit?id=1')).success);
+
 check('account restored to business without deleting profile',(await first.form('/Admin/Accounts/2/Role',{role:'Business'},t)).status===302);
 check('restored account can view existing support history',(await other.html('/Employer/InterviewFlow/Support')).includes('fixture bug'));
 check('suspension accepted',(await first.form('/Admin/Accounts/2/State',{suspended:'true'},t)).status===302);

@@ -40,7 +40,7 @@ namespace ArisSkyve.Controllers
         public async Task<IActionResult> Index()
         {
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
-            if (user?.Profile is not BussinessAccount business)
+            if (user?.Role is not ("Business" or "Admin") || user.Profile is not BussinessAccount business)
                 return RedirectToAction("Index", "Jobs");
 
             var jobs = await _context.JobPostings
@@ -103,7 +103,7 @@ namespace ArisSkyve.Controllers
         public async Task<IActionResult> GetInterviews(DateTime? from = null, DateTime? to = null)
         {
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
-            if (user?.Profile is not BussinessAccount business)
+            if (user?.Role is not ("Business" or "Admin") || user.Profile is not BussinessAccount business)
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới xem được lịch phỏng vấn." });
 
             var start = from.HasValue ? VnTime.NormalizeToUtc(from.Value) : DateTime.UtcNow.Date.AddDays(-7);

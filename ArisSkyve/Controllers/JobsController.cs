@@ -1374,7 +1374,7 @@ namespace ArisSkyve.Controllers
             int userId = int.Parse(userIdClaim);
 
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
-            if (user?.Profile is not BussinessAccount business)
+            if (user?.Role is not ("Business" or "Admin") || user.Profile is not BussinessAccount business)
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có thể sửa tin." });
 
             var job = await _context.JobPostings.Include(j => j.Locations).FirstOrDefaultAsync(j => j.Id == id);
@@ -1420,7 +1420,7 @@ namespace ArisSkyve.Controllers
             int userId = int.Parse(userIdClaim);
 
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
-            if (user?.Profile is not BussinessAccount business)
+            if (user?.Role is not ("Business" or "Admin") || user.Profile is not BussinessAccount business)
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có thể sửa tin." });
 
             var job = await _context.JobPostings.Include(j => j.Locations).FirstOrDefaultAsync(j => j.Id == id);
@@ -1497,7 +1497,7 @@ namespace ArisSkyve.Controllers
             int userId = int.Parse(userIdClaim);
 
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
-            if (user?.Profile is not BussinessAccount business)
+            if (user?.Role is not ("Business" or "Admin") || user.Profile is not BussinessAccount business)
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có thể thao tác." });
 
             var job = await _context.JobPostings.FirstOrDefaultAsync(j => j.Id == id);
@@ -1524,7 +1524,7 @@ namespace ArisSkyve.Controllers
             int userId = int.Parse(userIdClaim);
 
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
-            if (user?.Profile is not BussinessAccount business)
+            if (user?.Role is not ("Business" or "Admin") || user.Profile is not BussinessAccount business)
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có thể chia sẻ tin." });
 
             var job = await _context.JobPostings.Include(j => j.Locations).FirstOrDefaultAsync(j => j.Id == id);
@@ -1561,7 +1561,7 @@ namespace ArisSkyve.Controllers
             int userId = int.Parse(userIdClaim);
 
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
-            if (user?.Profile is not BussinessAccount business)
+            if (user?.Role is not ("Business" or "Admin") || user.Profile is not BussinessAccount business)
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có thể chia sẻ tin." });
 
             var job = await _context.JobPostings.Include(j => j.Locations).FirstOrDefaultAsync(j => j.Id == dto.JobId);

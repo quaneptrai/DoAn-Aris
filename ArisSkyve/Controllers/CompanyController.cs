@@ -442,7 +442,7 @@ namespace ArisSkyve.Controllers
         public async Task<IActionResult> Edit()
         {
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
-            if (user?.Profile is not BussinessAccount business)
+            if (user?.Role is not ("Business" or "Admin") || user.Profile is not BussinessAccount business)
                 return RedirectToAction("Index", "Jobs");
 
             return View(business);
@@ -453,7 +453,7 @@ namespace ArisSkyve.Controllers
         public async Task<IActionResult> Edit([FromForm] UpdateCompanyProfileDto dto)
         {
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
-            if (user?.Profile is not BussinessAccount business)
+            if (user?.Role is not ("Business" or "Admin") || user.Profile is not BussinessAccount business)
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có thể sửa hồ sơ công ty." });
 
             if (dto == null || string.IsNullOrWhiteSpace(dto.CompanyName))
