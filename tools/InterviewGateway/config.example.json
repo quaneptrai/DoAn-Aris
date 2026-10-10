@@ -1,0 +1,35 @@
+{
+  "key": "REPLACE_WITH_RANDOM_32_BYTE_KEY",
+  "host": "127.0.0.1",
+  "port": 8780,
+  "prefix": "/gw",
+  "dataDir": "../../.local/interview-gateway-data",
+  "ffmpegPath": "../../.local/interview-tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe",
+  "mediaConcurrency": 2,
+  "budget": {
+    "dailyCredits": null,
+    "monthlyCredits": null,
+    "perAccountDailyCredits": 300,
+    "unlimitedAccounts": [],
+    "unknownCostCredits": null,
+    "timeZone": "Asia/Ho_Chi_Minh"
+  },
+  "upstreams": {
+    "llm": {
+      "baseUrl": "http://127.0.0.1:20128/v1",
+      "apiKey": ""
+    },
+    "video": {
+      "baseUrl": "http://127.0.0.1:8000/v1",
+      "apiKey": ""
+    },
+    "tts": {
+      "baseUrl": "https://YOUR-VOICE-ENDPOINT",
+      "apiKey": ""
+    }
+  },
+  "windows": {
+    "videoWorkingDirectory": "D:/F2A/flow2api",
+    "videoPython": "D:/F2A/flow2api/venv/Scripts/python.exe"
+  }
+}

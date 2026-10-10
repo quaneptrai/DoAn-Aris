@@ -1,0 +1,92 @@
+@model ArisSkyve.Application.DTOs.InterviewPlayerViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Phỏng vấn · " + Model.Title;
+    ViewData["ActiveNav"] = Model.IsEmployerTest ? "InterviewFlow" : "";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/interview-flow.css" asp-append-version="true" />
+}
+<section class="ivp" id="interviewPlayer" data-endpoint="@Model.Endpoint" data-test="@(Model.IsEmployerTest ? "true" : "false")">
+    @Html.AntiForgeryToken()
+    <header class="ivp-head">
+        <div>
+            @if (Model.BackUrl != null)
+            {
+                <a class="ivf-back" href="@Model.BackUrl"><i data-lucide="arrow-left"></i> Về bộ phỏng vấn</a>
+            }
+            <h1>@Model.Title</h1>
+            <p>@Model.CompanyName · @Model.QuestionCount câu hỏi@(Model.IsEmployerTest ? " · Phỏng vấn thử (hiện điểm từng câu)" : "")</p>
+        </div>
+        <span class="ivp-phase" data-phase role="status" aria-live="polite"></span>
+    </header>
+
+    <div class="ivp-stage">
+        <video data-video playsinline preload="auto"></video>
+        <div class="ivp-stage__fallback" data-fallback hidden></div>
+        <span class="ivp-timer" data-timer aria-live="off"></span>
+    </div>
+
+    <div class="ivp-panel">
+        <div data-screen="start" class="ivp-screen">
+            @if (Model.AlreadyCompleted)
+            {
+                <h2>Bạn đã hoàn thành buổi phỏng vấn này</h2>
+                <p class="ivf-muted">Kết quả đã được gửi tới nhà tuyển dụng.</p>
+            }
+            else
+            {
+                <h2>Sẵn sàng phỏng vấn?</h2>
+                <ul class="ivp-tips">
+                    <li>Người phỏng vấn đọc từng câu hỏi; bạn có vài giây chuẩn bị rồi trả lời trong thời gian quy định.</li>
+                    <li>Trả lời bằng giọng nói (cho phép micro khi trình duyệt hỏi) hoặc gõ vào ô trả lời. Chrome nhận giọng nói tiếng Việt tốt nhất.</li>
+                    <li>Chọn nơi yên tĩnh và mở loa hoặc tai nghe.</li>
+                </ul>
+                <button type="button" class="a-btn a-btn--primary" data-start><i data-lucide="play"></i> Bắt đầu</button>
+                <div class="ivf-row"><label class="a-field"><span class="a-label">Micro</span><select class="a-input" data-microphone><option value="">Micro mặc định</option></select></label><button type="button" class="a-btn a-btn--secondary a-btn--sm" data-check-mic>Kiểm tra micro</button></div>
+                <div class="ivp-meter" role="meter" aria-label="Âm lượng micro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-meter><span></span></div>
+                <p class="ivf-muted" data-mic-status role="status"></p>
+                <p class="ivf-muted" data-start-status role="status"></p>
+            }
+        </div>
+
+        <div data-screen="question" class="ivp-screen" hidden>
+            <p class="ivp-qno" data-qno></p>
+            <p class="ivp-question" data-question></p>
+            <button type="button" class="a-btn a-btn--ghost a-btn--sm" data-replay-question>Nghe lại câu hỏi</button>
+            <div class="ivp-answer" data-answer hidden>
+                <textarea class="a-input a-textarea" data-transcript rows="3" placeholder="Câu trả lời của bạn (nói hoặc gõ)…"></textarea>
+                <p class="ivp-interim" data-interim></p>
+                <div class="ivp-meter" role="meter" aria-label="Âm lượng micro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-meter><span></span></div>
+                <label class="a-field"><span class="a-label">Hoặc tải âm thanh câu trả lời (tối đa 10 MB)</span><input class="a-input" type="file" accept="audio/*,.webm" data-answer-file /></label>
+                <div class="ivf-row"><audio controls data-answer-audio hidden></audio><button class="a-btn a-btn--ghost a-btn--sm" type="button" data-transcribe>Chép lời từ âm thanh</button></div>
+                <p class="ivf-muted" data-recording-status role="status"></p>
+                <div class="ivf-row">
+                    <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-mic hidden><i data-lucide="mic"></i> <span>Tắt micro</span></button>
+                    <button type="button" class="a-btn a-btn--ghost a-btn--sm" data-retake hidden><i data-lucide="rotate-ccw"></i> Làm lại</button>
+                    <button type="button" class="a-btn a-btn--primary a-btn--sm" data-done><i data-lucide="check"></i> Trả lời xong</button>
+                </div>
+            </div>
+            <div class="ivf-row" data-prep hidden>
+                <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-skip-prep>Trả lời ngay</button>
+            </div>
+            <div data-decision hidden>
+                <p class="ivf-muted" data-decision-note> Bạn có thể bổ sung câu trả lời hoặc chuyển sang câu tiếp theo.</p>
+                <div class="ivf-row"><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-supplement>Bổ sung câu trả lời</button><button class="a-btn a-btn--primary a-btn--sm" type="button" data-next>Chuyển câu</button><button class="a-btn a-btn--ghost a-btn--sm" type="button" data-finish-early>Kết thúc buổi phỏng vấn</button></div>
+            </div>
+        </div>
+
+        <div data-screen="end" class="ivp-screen" hidden>
+            <h2>Cảm ơn bạn đã hoàn thành buổi phỏng vấn</h2>
+            <p class="ivf-muted" data-end-note>Câu trả lời đã được gửi tới nhà tuyển dụng.</p>
+            <div data-summary></div>
+            @if (Model.BackUrl != null)
+            {
+                <a class="a-btn a-btn--secondary a-btn--sm" href="@Model.BackUrl">Xem kết quả trong bộ phỏng vấn</a>
+            }
+        </div>
+    </div>
+</section>
+@section Scripts {
+    <script src="~/js/pages/interview-player.js" asp-append-version="true"></script>
+}

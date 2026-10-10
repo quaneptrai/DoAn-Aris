@@ -12,6 +12,13 @@ using ArisSkyve.Infrastructure.Services.Recruitment;
 using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
+// Development-only interview service settings (git-ignored, never published);
+// environment variables and the command line keep precedence.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.InterviewEngine.local.json", optional: true, reloadOnChange: true)
+        .AddEnvironmentVariables().AddCommandLine(args);
+}
 var useEphemeralE2E = builder.Configuration.GetValue<bool>("E2E:UseInMemoryDatabase");
 if (useEphemeralE2E && !builder.Environment.IsDevelopment())
 {
@@ -72,6 +79,18 @@ builder.Services.AddRateLimiter(AuthRateLimits.Configure);
 // unload request. No runtime fallback writes them below the application root.
 builder.Services.AddScoped<IPrivateResumeOriginalStore, GoogleDrivePrivateResumeStore>();
 builder.Services.AddScoped<ResumeOriginalLifecycle>();
+builder.Services.AddScoped<InterviewKitStore>();
+// Video interviews reach their services only through IInterviewEngine (section InterviewEngine).
+builder.Services.Configure<InterviewEngineOptions>(builder.Configuration.GetSection("InterviewEngine"));
+builder.Services.AddHttpClient(InterviewEngine.HttpClientName, client => client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddSingleton<IInterviewEngine, InterviewEngine>();
+builder.Services.AddSingleton<InterviewAvatarEngine>();
+builder.Services.AddSingleton<InterviewSpeech>();
+builder.Services.AddSingleton<InterviewVideoProduction>();
+builder.Services.AddSingleton<InterviewVideoJobs>();
+builder.Services.AddScoped<InterviewSessions>();
+builder.Services.AddScoped<InterviewRecordingStore>();
 if (!disableE2EBackgroundServices)
 {
     builder.Services.AddHostedService<ResumeOriginalCleanupWorker>();
@@ -165,6 +184,19 @@ if (!string.IsNullOrWhiteSpace(facebook["ClientId"]) && !string.IsNullOrWhiteSpa
 }
 builder.Services.AddAuthorization();
 var app = builder.Build();
+// Test fixtures are explicitly opt-in and can only reach the already guarded ephemeral database.
+if (useEphemeralE2E && builder.Configuration.GetValue<bool>("E2E:SeedInterviewAccounts"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ArisDBContext>();
+    foreach (var name in new[] { "port.owner", "port.other" })
+        db.Users.Add(new ArisSkyve.Domain.Entities.User
+        {
+            Email = name + "@example.test", Username = name, Role = "Business", PrivacyAcceptedAt = DateTime.UtcNow,
+            Profile = new ArisSkyve.Domain.Entities.BussinessAccount { FullName = name, CompanyName = "Interview fixture", Industry = "IT", Location = "Test" }
+        });
+    await db.SaveChangesAsync();
+}
 
 var connection = builder.Configuration.GetConnectionString("DefaultConnection");
 string serverName = "unknown";

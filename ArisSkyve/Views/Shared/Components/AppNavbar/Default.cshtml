@@ -52,6 +52,9 @@
                 <a class="a-side__item" asp-controller="Jobs" asp-action="Index" aria-current="@Cur("Jobs")" data-label="Tin đã đăng">
                     <i data-lucide="briefcase"></i><span class="a-side__item-label">Tin đã đăng</span>
                 </a>
+                <a class="a-side__item" href="/Employer/InterviewFlow" aria-current="@Cur("InterviewFlow")" data-label="Phỏng vấn video AI">
+                    <i data-lucide="video"></i><span class="a-side__item-label">Phỏng vấn video AI</span>
+                </a>
             }
         </div>
 
@@ -202,6 +205,7 @@
     else
     {
         <a class="a-tabbar__item" asp-controller="Employer" asp-action="Index" aria-current="@Cur("Employer", "Dashboard")"><i data-lucide="gauge"></i><span>Tuyển dụng</span></a>
+        <a class="a-tabbar__item" href="/Employer/InterviewFlow" aria-current="@Cur("InterviewFlow")"><i data-lucide="video"></i><span>Phỏng vấn AI</span></a>
     }
     <a class="a-tabbar__item" asp-controller="Chat" asp-action="Index" aria-current="@Cur("Network")">
         <i data-lucide="message-circle"></i><span>Tin nhắn</span>

@@ -1,0 +1,34 @@
+{
+  "_comment": "Gateway in front of fake-services.mjs for start-test-server.ps1 -Gateway. Test key only, no real service.",
+  "key": "gateway-e2e-key-0123456789abcdef",
+  "host": "127.0.0.1",
+  "port": 5310,
+  "prefix": "/gw",
+  "dataDir": "../../.local/gateway-e2e-data",
+  "ffmpegPath": "../../.local/interview-tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe",
+  "budget": {
+    "dailyCredits": 100000,
+    "monthlyCredits": 1000000,
+    "unknownCostCredits": 0,
+    "perAccountDailyCredits": 300,
+    "unlimitedAccounts": [
+      "af21b525367e7a8e2e94387a6e3a99ed039da9a90aa82ac16a11c3c76d5852b5"
+    ]
+  },
+  "upstreams": {
+    "llm": {
+      "baseUrl": "http://127.0.0.1:5301/v1",
+      "apiKey": "llm-test"
+    },
+    "video": {
+      "baseUrl": "http://127.0.0.1:5302/v1",
+      "apiKey": "video-test"
+    },
+    "tts": {
+      "baseUrl": "http://127.0.0.1:5303"
+    },
+    "stt": {
+      "baseUrl": "http://127.0.0.1:5303"
+    }
+  }
+}

@@ -61,6 +61,13 @@ namespace ArisSkyve.Infrastructure.Data.Context
         // Company profiles written by the AiCore crawler (its own dbo.Companies) — read-only here
         public DbSet<CrawledCompany> CrawledCompanies { get; set; }
 
+        // Video interviews (parameters, clips, candidate sessions); services sit behind IInterviewEngine
+        public DbSet<InterviewKit> InterviewKits { get; set; }
+        public DbSet<InterviewKitQuestion> InterviewKitQuestions { get; set; }
+        public DbSet<InterviewKitVideo> InterviewKitVideos { get; set; }
+        public DbSet<InterviewKitSession> InterviewKitSessions { get; set; }
+        public DbSet<InterviewKitRecording> InterviewKitRecordings { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -576,6 +583,57 @@ namespace ArisSkyve.Infrastructure.Data.Context
                 .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<CompanyProfileView>()
                 .HasIndex(view => new { view.BusinessAccountId, view.ViewedAtUtc });
+
+            modelBuilder.Entity<InterviewKit>(kit =>
+            {
+                kit.HasOne(k => k.BusinessAccount)
+                    .WithMany()
+                    .HasForeignKey(k => k.BusinessAccountId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                kit.HasIndex(k => new { k.BusinessAccountId, k.UpdatedAtUtc });
+                kit.HasIndex(k => k.InviteCode).IsUnique().HasFilter("[InviteCode] IS NOT NULL");
+            });
+            modelBuilder.Entity<InterviewKitQuestion>(question =>
+            {
+                question.HasOne(q => q.Kit)
+                    .WithMany(k => k.Questions)
+                    .HasForeignKey(q => q.KitId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                question.HasIndex(q => new { q.KitId, q.Position });
+            });
+            modelBuilder.Entity<InterviewKitVideo>(video =>
+            {
+                video.HasOne(v => v.Kit)
+                    .WithMany(k => k.Videos)
+                    .HasForeignKey(v => v.KitId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                // A second cascade path (kit → question → video) is not allowed by SQL Server;
+                // InterviewKitStore deletes a removed question's clips itself.
+                video.HasOne(v => v.Question)
+                    .WithMany()
+                    .HasForeignKey(v => v.QuestionId)
+                    .OnDelete(DeleteBehavior.NoAction);
+                video.HasIndex(v => new { v.KitId, v.QuestionId, v.Kind });
+            });
+            modelBuilder.Entity<InterviewKitSession>(session =>
+            {
+                session.HasOne(s => s.Kit)
+                    .WithMany(k => k.Sessions)
+                    .HasForeignKey(s => s.KitId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                // Users → Profiles → kits already cascades here; a second path is not allowed.
+                session.HasOne(s => s.User)
+                    .WithMany()
+                    .HasForeignKey(s => s.UserId)
+                    .OnDelete(DeleteBehavior.NoAction);
+                session.HasIndex(s => new { s.KitId, s.StartedAtUtc });
+            });
+            modelBuilder.Entity<InterviewKitRecording>(recording =>
+            {
+                recording.HasOne(r => r.Session).WithMany().HasForeignKey(r => r.SessionId).OnDelete(DeleteBehavior.Cascade);
+                recording.HasIndex(r => new { r.SessionId, r.QuestionId });
+            });
+
 
             modelBuilder.Entity<HiddenPost>()
                 .HasKey(hp => new { hp.UserId, hp.PostId });

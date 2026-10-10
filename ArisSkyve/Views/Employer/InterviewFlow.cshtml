@@ -1,0 +1,72 @@
+@model ArisSkyve.Application.DTOs.InterviewFlowIndexViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Phỏng vấn video AI";
+    ViewData["ActiveNav"] = "InterviewFlow";
+    string Local(DateTime utc) => ArisSkyve.Infrastructure.Services.Recruitment.VnTime.Format(utc);
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/interview-flow.css" asp-append-version="true" />
+}
+<section class="ivf-page">
+    <header class="ivf-head">
+        <div>
+            <a class="ivf-back" href="/Employer"><i data-lucide="arrow-left"></i> Bảng tuyển dụng</a>
+            <h1>Phỏng vấn video AI</h1>
+            <p>@Model.CompanyName · Soạn câu hỏi và đáp án, tạo video người phỏng vấn, rồi gửi link cho ứng viên phỏng vấn ngay trên Aris.</p>
+        </div>
+        <a class="a-btn a-btn--primary a-btn--sm" href="/Employer/InterviewFlow/New"><i data-lucide="plus"></i> Bộ phỏng vấn mới</a>
+    </header>
+
+    @if (Model.Error != null)
+    {
+        <div class="ivf-alert ivf-alert--error" role="alert"><i data-lucide="circle-alert"></i> @Model.Error</div>
+    }
+
+    <div class="ivf-grid">
+        <section class="ivf-kits" aria-label="Các bộ phỏng vấn">
+            @if (Model.Kits.Count == 0)
+            {
+                <div class="a-card ivf-empty">
+                    <i data-lucide="clapperboard"></i>
+                    <h2>Chưa có bộ phỏng vấn</h2>
+                    <p>Tạo một bộ với câu hỏi và đáp án đúng, hoặc nhập gói video đã dựng sẵn.</p>
+                    <a class="a-btn a-btn--secondary a-btn--sm" href="/Employer/InterviewFlow/New">Tạo bộ đầu tiên</a>
+                </div>
+            }
+            else
+            {
+                <ul class="ivf-kit-list">
+                    @foreach (var kit in Model.Kits)
+                    {
+                        <li>
+                            <a class="a-card a-card--interactive ivf-kit" href="/Employer/InterviewFlow/@kit.Id">
+                                <span class="ivf-kit__title">@kit.Title</span>
+                                <span class="ivf-kit__meta">
+                                    <span><i data-lucide="list-checks"></i> @kit.QuestionCount câu hỏi</span>
+                                    <span><i data-lucide="film"></i> @kit.VideoCount video</span>
+                                    <span><i data-lucide="users"></i> @kit.SessionCount lượt phỏng vấn</span>
+                                    @if (kit.InviteOpen)
+                                    {
+                                        <span class="ivf-tag">Đang nhận ứng viên</span>
+                                    }
+                                    <span>Cập nhật @Local(kit.UpdatedAtUtc)</span>
+                                </span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <aside class="a-card ivf-side" aria-labelledby="importTitle">
+            <h2 id="importTitle"><i data-lucide="package-open"></i> Nhập gói video</h2>
+            <p>Đã dựng video bằng công cụ riêng? Tải gói <code>.zip</code> (câu hỏi, đáp án và video) lên để tạo bộ phỏng vấn mới.</p>
+            <form method="post" action="/Employer/InterviewFlow/Import" enctype="multipart/form-data" class="ivf-import">
+                @Html.AntiForgeryToken()
+                <input class="a-input" type="file" name="package" accept=".zip,application/zip" required />
+                <button type="submit" class="a-btn a-btn--secondary a-btn--sm"><i data-lucide="upload"></i> Nhập gói</button>
+            </form>
+        </aside>
+    </div>
+</section>

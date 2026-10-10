@@ -571,6 +571,244 @@ namespace ArisSkyve.Migrations
                     b.ToTable("InterviewEvaluations");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AvatarContentType")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<byte[]>("AvatarImage")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<int>("BusinessAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InviteCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int>("PassPercent")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Persona")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Scene")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ScriptApprovedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ScriptJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SettingsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InviteCode")
+                        .IsUnique()
+                        .HasFilter("[InviteCode] IS NOT NULL");
+
+                    b.HasIndex("BusinessAccountId", "UpdatedAtUtc");
+
+                    b.ToTable("InterviewKits");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKitQuestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AnswerKey")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<int>("AnswerSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("KeyPoints")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("KitId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PointWeights")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PrepSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("Retakes")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Weight")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KitId", "Position");
+
+                    b.ToTable("InterviewKitQuestions");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKitRecording", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<byte[]>("Bytes")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("QuestionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SessionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId", "QuestionId");
+
+                    b.ToTable("InterviewKitRecordings");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKitSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AnswersJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsEmployerTest")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("KitId")
+                        .HasColumnType("int");
+
+                    b.Property<double?>("Score")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("KitId", "StartedAtUtc");
+
+                    b.ToTable("InterviewKitSessions");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKitVideo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int>("KitId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("QuestionId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("StorageFileId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionId");
+
+                    b.HasIndex("KitId", "QuestionId", "Kind");
+
+                    b.ToTable("InterviewKitVideos");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.JobApplication", b =>
                 {
                     b.Property<int>("Id")
@@ -2005,6 +2243,76 @@ namespace ArisSkyve.Migrations
                     b.Navigation("JobApplication");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKit", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.BussinessAccount", "BusinessAccount")
+                        .WithMany()
+                        .HasForeignKey("BusinessAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessAccount");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKitQuestion", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.InterviewKit", "Kit")
+                        .WithMany("Questions")
+                        .HasForeignKey("KitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Kit");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKitRecording", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.InterviewKitSession", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKitSession", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.InterviewKit", "Kit")
+                        .WithMany("Sessions")
+                        .HasForeignKey("KitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ArisSkyve.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Kit");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKitVideo", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.InterviewKit", "Kit")
+                        .WithMany("Videos")
+                        .HasForeignKey("KitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ArisSkyve.Domain.Entities.InterviewKitQuestion", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Kit");
+
+                    b.Navigation("Question");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.JobApplication", b =>
                 {
                     b.HasOne("ArisSkyve.Domain.Entities.EmployesAccount", "Applicant")
@@ -2477,6 +2785,15 @@ namespace ArisSkyve.Migrations
                     b.Navigation("Education");
 
                     b.Navigation("Resumes");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.InterviewKit", b =>
+                {
+                    b.Navigation("Questions");
+
+                    b.Navigation("Sessions");
+
+                    b.Navigation("Videos");
                 });
 
             modelBuilder.Entity("ArisSkyve.Domain.Entities.JobApplication", b =>

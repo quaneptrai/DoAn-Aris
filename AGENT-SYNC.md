@@ -1,3 +1,12 @@
+# CODEX — INTERVIEW GATEWAY RELEASE PREP 10/10/2026
+
+- Continued Claude's interview gateway; test flow/credits/stop/Chrome through gateway passed 61/13/32/29; quota passed 8 after stable DB UserId identity. Gateway 18, voice 41. No real generation, no restart of Embedded 5029.
+- User policy: xuanthangmuoi@gmail.com (DB UserId16) unlimited; other accounts 300 credits/day in Vietnam time, no monthly cap. Durable gateway ledger; browser identity ignored.
+- Registered Aris-InterviewGateway logon supervisor; added Funnel /gw -> loopback 8780, preserved MuseFlow/9router root. Health succeeded for every service. Ignored production candidate settings prepared.
+- Gateway owner exemption file has final UserId16 hash but running process needs reload before release. Automatic approval review rejected broad gateway termination + public probe with live key. Do not bypass; restart/migrations/deploy await reviewable final approval.
+- Final regression 20/20; silent synthetic Funnel probe 180 s passed and temporary mount removed. Preview 5029 now has 14 clips and 1 session; never restore the old 11-clip/0-session snapshot or restart it. Old intro/transition bytes differ; 9 other old clips match.
+- DB migrations are still unapplied. SQL: .local/interview-release-idempotent.sql. Details: docs/HANDOFF-INTERVIEW-2026-10-10.md, docs/INTERVIEW-GATEWAY-RELEASE.md. ProvisionEmployer tools remain outside this release.
+
 # CLAUDE CODE — CHAT REACTIONS, NOTIFICATION SPAM, COMMENT REPLIES 07/10/2026
 
 - **Migration NOT applied** (shared DB): `ArisSkyve/Migrations/20261007051229_AddMessageReactions` creates only table `MessageReactions` (PK MessageId+UserId, FK Message Cascade, FK User Restrict). Idempotent script: `.local/migration-AddMessageReactions.sql`. `V7FeatureGate.MessageReactions` turns on by itself once it is applied; until then reactions are hidden and `ToggleReaction` returns false.

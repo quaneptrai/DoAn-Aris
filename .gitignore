@@ -42,3 +42,7 @@ tests/.artifacts/
 _smoke-*
 **/evidence/
 /*.zip
+
+# Interview gateway credentials and durable local credit ledger
+/tools/InterviewGateway/config.local.json
+/tools/InterviewGateway/data/

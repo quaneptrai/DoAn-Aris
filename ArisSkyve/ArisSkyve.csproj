@@ -14,6 +14,8 @@
 
 	<ItemGroup>
 		<Folder Include="Infrastructure\Data\Configuration\" />
+		<!-- Local service settings hold keys: never copied to bin or a publish (git-ignored too). -->
+		<Content Update="appsettings.*.local.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
 		<Content Remove="resume-engine\**" />
 		<!-- Historical visual experiments are source references, never public assets. -->
 		<Content Remove="wwwroot\**\*.bak" />

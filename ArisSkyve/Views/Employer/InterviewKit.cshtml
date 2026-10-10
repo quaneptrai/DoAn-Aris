@@ -1,0 +1,438 @@
+@model ArisSkyve.Application.DTOs.InterviewKitEditViewModel
+@using ArisSkyve.Domain.Entities
+@{
+    Layout = "_AppLayout";
+    var form = Model.Form;
+    var isNew = form.Id == null;
+    ViewData["Title"] = isNew ? "Bộ phỏng vấn mới" : form.Title;
+    ViewData["ActiveNav"] = "InterviewFlow";
+    var saved = TempData["InterviewFlowSaved"] as string;
+    string Local(DateTime utc) => ArisSkyve.Infrastructure.Services.Recruitment.VnTime.Format(utc);
+    InterviewKitVideo? ClipFor(string kind, int? questionId) => Model.Videos.FirstOrDefault(v => v.Kind == kind && v.QuestionId == questionId);
+    var labels = new Dictionary<string, (string Label, string Hint)>
+    {
+        [InterviewKitVideo.KindIntro] = ("Mở đầu", "Chào và giới thiệu công ty"),
+        [InterviewKitVideo.KindListening] = ("Đang lắng nghe", "Lặp lại khi ứng viên trả lời"),
+        [InterviewKitVideo.KindThinking] = ("Đang suy nghĩ", "Lặp lại trong lúc chấm"),
+        [InterviewKitVideo.KindTransition] = ("Chuyển câu", "Dẫn sang câu tiếp theo"),
+        [InterviewKitVideo.KindPass] = ("Phản ứng · trả lời tốt", "Mỉm cười, gật đầu"),
+        [InterviewKitVideo.KindFail] = ("Phản ứng · cần cố gắng", "Thông cảm, khích lệ"),
+        [InterviewKitVideo.KindOutro] = ("Kết thúc", "Cảm ơn và hướng dẫn bước tiếp theo")
+    };
+    var kitSlots = new[] { InterviewKitVideo.KindIntro, InterviewKitVideo.KindListening, InterviewKitVideo.KindThinking, InterviewKitVideo.KindTransition, InterviewKitVideo.KindPass, InterviewKitVideo.KindFail, InterviewKitVideo.KindOutro };
+    // One render per kit at a time: while a batch runs, the single-clip buttons stay hidden.
+    var canGenerate = Model.CanRenderVideo && Model.ScriptApproved && Model.RunningBatchId == null && Model.RunningVideoJobId == null && Model.RunningAvatarJobId == null;
+    var missing = Math.Max(0, Model.SlotCount - Model.Videos.Where(v => InterviewKitVideo.Kinds.Contains(v.Kind)).Select(v => (v.Kind, v.QuestionId)).Distinct().Count());
+    var questionNumber = form.Questions.Select((q, i) => (q.Id, i + 1)).Where(p => p.Id != null).ToDictionary(p => p.Id!.Value, p => p.Item2);
+    string StatusLabel(string status) => status switch { "covered" => "Đúng", "partial" => "Một phần", _ => "Sai" };
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/pages/interview-flow.css" asp-append-version="true" />
+}
+<section class="ivf-page" data-kit="@form.Id" data-auto-approve="@(form.Production.AutoApprove ? "true" : "false")" data-credit-limit="@form.Production.MaximumCredits" data-total-credit-limit="@form.Production.MaximumTotalCredits" data-video-job="@Model.RunningVideoJobId" data-render-allowed="@((Model.CanRenderVideo && Model.ScriptApproved).ToString().ToLowerInvariant())">
+    <header class="ivf-head">
+        <div>
+            <a class="ivf-back" href="/Employer/InterviewFlow"><i data-lucide="arrow-left"></i> Các bộ phỏng vấn</a>
+            <h1>@(isNew ? "Bộ phỏng vấn mới" : form.Title)</h1>
+            <p>@Model.CompanyName · Tham số → kịch bản → video → gửi link cho ứng viên.</p>
+        </div>
+        @if (!isNew)
+        {
+            <div class="ivf-head__actions">
+                <a class="a-btn a-btn--secondary a-btn--sm" href="/Employer/InterviewFlow/@form.Id/Try"><i data-lucide="play"></i> Phỏng vấn thử</a>
+                <form method="post" action="/Employer/InterviewFlow/@form.Id/Delete" data-confirm="Xóa bộ phỏng vấn này cùng toàn bộ video và kết quả?">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="a-btn a-btn--ghost a-btn--sm"><i data-lucide="trash-2"></i> Xóa bộ</button>
+                </form>
+            </div>
+        }
+    </header>
+
+    @if (!isNew)
+    {
+        <div class="ivf-video-controls a-card" data-video-controls>
+            <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-video-stop disabled="@(Model.RunningBatchId == null && Model.RunningVideoJobId == null)"><i data-lucide="square"></i> Dừng tạo video</button>
+            <span class="ivf-muted" data-video-status role="status" aria-live="polite">@(Model.RunningBatchId != null || Model.RunningVideoJobId != null ? "Đang tạo video…" : "Không có video đang tạo.")</span>
+        </div>
+    }
+
+    @if (Model.Error != null)
+    {
+        <div class="ivf-alert ivf-alert--error" role="alert"><i data-lucide="circle-alert"></i> @Model.Error</div>
+    }
+    @if (saved != null)
+    {
+        <div class="ivf-alert" role="status"><i data-lucide="check"></i> @saved</div>
+    }
+
+    @if (!isNew)
+    {
+        <nav class="ivf-steps" aria-label="Các phần">
+            <a href="#params">1 · Tham số</a><a href="#script">2 · Kịch bản@(Model.ScriptApproved ? " ✓" : "")</a><a href="#videos">3 · Video (@Model.Videos.Count)</a><a href="#candidates">4 · Ứng viên (@Model.Sessions.Count(s => !s.IsEmployerTest))</a>
+        </nav>
+    }
+
+    <form method="post" action="/Employer/InterviewFlow/Save" id="kitForm" class="ivf-form" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+        @if (!isNew)
+        {
+            <input type="hidden" name="Id" value="@form.Id" />
+        }
+
+        <section class="a-card ivf-section" id="params" aria-labelledby="paramsTitle">
+            <h2 id="paramsTitle">Tham số chung</h2>
+            <div class="ivf-fields">
+                <label class="a-field ivf-span-2">
+                    <span class="a-label">Tên bộ phỏng vấn</span>
+                    <input class="a-input" name="Title" value="@form.Title" maxlength="200" required placeholder="VD: Thực tập sinh Backend .NET — vòng 1" />
+                </label>
+                <label class="a-field ivf-span-2">
+                    <span class="a-label">Nhân vật phỏng vấn</span>
+                    <textarea class="a-input a-textarea" name="Persona" rows="3" maxlength="2000" placeholder="Ngoại hình, trang phục, phong thái, giọng nói…">@form.Persona</textarea>
+                </label>
+                <label class="a-field ivf-span-2">
+                    <span class="a-label">Bối cảnh</span>
+                    <input class="a-input" name="Scene" value="@form.Scene" maxlength="1000" placeholder="VD: phòng họp sáng, tường trắng có logo công ty, bàn gỗ" />
+                </label>
+                <div class="a-field">
+                    <span class="a-label">Avatar nhân vật</span>
+                    <div class="ivf-avatar">
+                        @if (Model.AvatarDataUrl != null)
+                        {
+                            <img src="@Model.AvatarDataUrl" alt="Ảnh nhân vật" data-avatar-preview />
+                        }
+                        <div class="ivf-avatar__controls">
+                            <input class="a-input" type="file" name="avatar" accept="image/png,image/jpeg,image/webp" data-avatar-upload />
+                            <label class="ivf-check"><input type="checkbox" name="UseDefaultAvatar" value="true" checked="@form.UseDefaultAvatar" data-avatar-default /> Dùng avatar mặc định (miễn phí)</label>
+                            @if (Model.AvatarDataUrl != null)
+                            {
+                                <label class="ivf-check"><input type="checkbox" name="RemoveAvatar" value="true" /> Bỏ ảnh</label>
+                            }
+                            <small class="ivf-muted">JPEG/PNG/WEBP, tối đa 4 MB. Bấm Lưu tham số để áp dụng ảnh. Bộ mới dùng avatar hoạt hình mặc định. Đổi avatar cần duyệt lại kịch bản; video đã có giữ ảnh cũ cho đến khi bạn tạo lại.</small>
+                        </div>
+                    </div>
+                </div>
+                <label class="a-field">
+                    <span class="a-label">Điểm đạt cho mỗi câu (%)</span>
+                    <input class="a-input" type="number" name="PassPercent" min="10" max="100" value="@form.PassPercent" />
+                    <small class="ivf-muted">Từ mức này trở lên, nhân vật phản ứng "trả lời tốt".</small>
+                </label>
+                @await Html.PartialAsync("~/Views/Employer/_InterviewProductionOptions.cshtml", Model)
+            </div>
+        </section>
+
+        <section class="a-card ivf-section" id="questions" aria-labelledby="questionsTitle">
+            <div class="ivf-section__head">
+                <h2 id="questionsTitle">Câu hỏi &amp; đáp án</h2>
+                <span class="ivf-muted" id="questionCount">@form.Questions.Count câu</span>
+            </div>
+            <ol class="ivf-questions" id="questionList">
+                @for (var i = 0; i < form.Questions.Count; i++)
+                {
+                    var q = form.Questions[i];
+                    <li class="ivf-question" data-question>
+                        @if (q.Id != null)
+                        {
+                            <input type="hidden" data-name="Id" value="@q.Id" />
+                        }
+                        <div class="ivf-question__head">
+                            <span class="ivf-question__no" data-no>Câu @(i + 1)</span>
+                            <button type="button" class="a-btn a-btn--ghost a-btn--sm" data-remove aria-label="Xóa câu hỏi"><i data-lucide="x"></i></button>
+                        </div>
+                        <label class="a-field"><span class="a-label">Câu hỏi</span><textarea class="a-input a-textarea" data-name="Question" rows="2" maxlength="2000" required>@q.Question</textarea></label>
+                        <label class="a-field"><span class="a-label">Đáp án đúng</span><textarea class="a-input a-textarea" data-name="AnswerKey" rows="2" maxlength="4000" required placeholder="Câu trả lời mẫu dùng để chấm điểm">@q.AnswerKey</textarea></label>
+                        <label class="a-field"><span class="a-label">Ý chính (ngăn cách bằng ;)</span><input class="a-input" data-name="KeyPoints" value="@q.KeyPoints" maxlength="2000" placeholder="bối cảnh;vai trò;kết quả" /></label>
+                        <div class="ivf-question__nums">
+                            <label class="a-field"><span class="a-label">Mã câu</span><input class="a-input" data-name="Code" value="@(q.Code ?? $"q{i + 1}")" maxlength="80" /></label>
+                            <label class="a-field"><span class="a-label">Trọng số câu</span><input class="a-input" data-name="Weight" value="@q.Weight.ToString(System.Globalization.CultureInfo.InvariantCulture)" type="number" min="0.01" max="1000" step="0.01" /></label>
+                            <label class="a-field"><span class="a-label">Trọng số từng ý (;)</span><input class="a-input" data-name="PointWeights" value="@q.PointWeights" maxlength="2000" placeholder="1;2;1 (trống = bằng nhau)" /></label>
+                        </div>
+                        <div class="ivf-question__nums">
+                            <label class="a-field"><span class="a-label">Chuẩn bị (giây)</span><input class="a-input" type="number" min="0" max="120" data-name="PrepSeconds" value="@q.PrepSeconds" /></label>
+                            <label class="a-field"><span class="a-label">Trả lời (giây)</span><input class="a-input" type="number" min="15" max="600" data-name="AnswerSeconds" value="@q.AnswerSeconds" /></label>
+                            <label class="a-field"><span class="a-label">Số lần làm lại</span><input class="a-input" type="number" min="0" max="3" data-name="Retakes" value="@q.Retakes" /></label>
+                        </div>
+                    </li>
+                }
+            </ol>
+            <button type="button" class="a-btn a-btn--secondary a-btn--sm" id="addQuestion"><i data-lucide="plus"></i> Thêm câu hỏi</button>
+            <div class="ivf-row ivf-import">
+                <label class="a-field"><span class="a-label">Nhập câu hỏi CSV/JSON/TXT</span><input class="a-input" type="file" accept=".csv,.tsv,.json,.txt" data-import-questions /></label>
+                <label class="a-field"><span class="a-label">Ghép đáp án theo mã câu</span><input class="a-input" type="file" accept=".csv,.tsv,.json,.txt" data-import-answers /></label>
+                <button class="a-btn a-btn--ghost a-btn--sm" type="button" data-question-sample>Bộ mẫu</button>
+                <button class="a-btn a-btn--ghost a-btn--sm" type="button" data-download-questions>Tải mẫu JSON</button>
+            </div>
+            <div class="ivf-row">
+                <label class="a-field"><span class="a-label">Chuẩn bị hàng loạt (giây)</span><input class="a-input" type="number" min="0" max="120" value="10" data-bulk-prep /></label>
+                <label class="a-field"><span class="a-label">Trả lời hàng loạt (giây)</span><input class="a-input" type="number" min="15" max="600" value="90" data-bulk-answer /></label>
+                <label class="a-field"><span class="a-label">Làm lại hàng loạt</span><input class="a-input" type="number" min="0" max="3" value="1" data-bulk-retakes /></label>
+                <button class="a-btn a-btn--secondary a-btn--sm" type="button" data-bulk-timing>Áp dụng mọi câu</button>
+            </div>
+            <p class="ivf-muted" data-import-status role="status"></p>
+        </section>
+
+        <div class="ivf-savebar">
+            <button type="submit" class="a-btn a-btn--primary"><i data-lucide="save"></i> Lưu tham số</button>
+        </div>
+    </form>
+
+    @if (!isNew)
+    {
+        <section class="a-card ivf-section" id="avatar" aria-labelledby="avatarTitle" data-avatar-job="@Model.RunningAvatarJobId">
+            <h2 id="avatarTitle">Tạo avatar</h2>
+            @if (Model.CanRenderAvatar)
+            {
+                <p class="ivf-muted">Tạo từ mô tả hoặc ảnh tham chiếu. Bạn sẽ xem và duyệt credit trước khi tạo; ảnh mới thay avatar của bộ này.</p>
+                <label class="a-field"><span class="a-label">Mô tả ảnh cần tạo</span><textarea class="a-input a-textarea" rows="3" maxlength="2000" data-avatar-prompt placeholder="VD: nhân vật hoạt hình 2D thân thiện, mặc trang phục công sở, ngồi trong phòng họp sáng…">@form.Persona</textarea></label>
+                <label class="ivf-check"><input type="checkbox" data-avatar-use-current /> Dùng avatar đã lưu làm ảnh tham chiếu</label>
+                <label class="a-field"><span class="a-label">Hoặc chọn ảnh tham chiếu riêng</span><input class="a-input" type="file" accept="image/png,image/jpeg,image/webp" data-avatar-reference /></label>
+                <div class="ivf-row"><button type="button" class="a-btn a-btn--secondary a-btn--sm" data-avatar-generate disabled="@(Model.RunningAvatarJobId != null || Model.RunningBatchId != null)"><i data-lucide="sparkles"></i> Xem chi phí tạo avatar</button></div>
+            }
+            else
+            {
+                <p class="ivf-muted">Tạo avatar tự động chưa được bật. Bạn có thể chọn avatar mặc định hoặc tải ảnh lên ở Tham số chung.</p>
+            }
+            <p class="ivf-muted" data-avatar-status role="status" aria-live="polite">@(Model.RunningAvatarJobId == null ? "" : "Đang tạo avatar…")</p>
+        </section>
+
+        <section class="a-card ivf-section" id="script" aria-labelledby="scriptTitle">
+            <div class="ivf-section__head">
+                <h2 id="scriptTitle">Kịch bản</h2>
+                @if (Model.Script.Count > 0)
+                {
+                    <span class="ivf-tag @(Model.ScriptApproved ? "ivf-tag--ok" : "")">@(Model.ScriptApproved ? "Đã duyệt" : "Chưa duyệt")</span>
+                }
+            </div>
+            <p class="ivf-muted">Giọng trong video cần lời ngắn vừa thời lượng clip; TTS đọc đủ lời và tự kéo dài/cắt video. Duyệt kịch bản rồi mới tạo video tự động.</p>
+            <div class="ivf-row">
+                <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-write-script><i data-lucide="wand-sparkles"></i> @(Model.Script.Count == 0 ? "Viết kịch bản" : "Viết lại kịch bản")</button>
+                <span class="ivf-muted" data-script-status role="status"></span>
+            </div>
+            @if (Model.Script.Count > 0)
+            {
+                <form method="post" action="/Employer/InterviewFlow/@form.Id/Script/Save" class="ivf-script">
+                    @Html.AntiForgeryToken()
+                    @{ var lineIndex = 0; }
+                    @foreach (var clip in Model.Script)
+                    {
+                        var title = clip.Kind == InterviewKitVideo.KindQuestion
+                            ? $"Câu {(clip.QuestionId is int qid && questionNumber.TryGetValue(qid, out var n) ? n : 0)}"
+                            : labels.GetValueOrDefault(clip.Kind).Label;
+                        <div class="ivf-script__row">
+                            <span class="ivf-script__label">@title</span>
+                            @if (InterviewKitVideo.SilentKinds.Contains(clip.Kind))
+                            {
+                                <span class="ivf-muted">Không lời · @labels.GetValueOrDefault(clip.Kind).Hint</span>
+                            }
+                            else
+                            {
+                                <input type="hidden" name="lines[@lineIndex].Kind" value="@clip.Kind" />
+                                @if (clip.QuestionId != null)
+                                {
+                                    <input type="hidden" name="lines[@lineIndex].QuestionId" value="@clip.QuestionId" />
+                                }
+                                <textarea class="a-input a-textarea" name="lines[@lineIndex].Line" rows="2" maxlength="2400">@clip.Line</textarea>
+                                lineIndex++;
+                            }
+                        </div>
+                    }
+                    <div class="ivf-row">
+                        <button type="submit" class="a-btn a-btn--secondary a-btn--sm" name="approve" value="false">Lưu</button>
+                        <button type="submit" class="a-btn a-btn--primary a-btn--sm" name="approve" value="true"><i data-lucide="check"></i> Lưu &amp; duyệt kịch bản</button>
+                    </div>
+                </form>
+            }
+        </section>
+
+        <section class="a-card ivf-section" id="videos" aria-labelledby="videosTitle">
+            <div class="ivf-section__head">
+                <h2 id="videosTitle">Video</h2>
+                <span class="ivf-muted">@(Model.SlotCount - missing)/@Model.SlotCount ô có video</span>
+            </div>
+            <p class="ivf-muted">Bộ này có @form.Questions.Count video câu hỏi + @kitSlots.Length video trạng thái dùng chung = @Model.SlotCount ô. Thêm câu hỏi sẽ thêm ô video. Đây là số clip cần chuẩn bị; thời gian trả lời của buổi phỏng vấn được đặt riêng cho từng câu. Clip lắng nghe và suy nghĩ được lặp trong lúc ứng viên trả lời.</p>
+            <p class="ivf-muted">
+                @if (!Model.CanRenderVideo)
+                {
+                    @:Tạo video tự động chưa bật trên hệ thống. Tải video lên từng ô hoặc nhập gói video.
+                }
+                else if (!Model.ScriptApproved)
+                {
+                    @:Duyệt kịch bản để tạo video tự động. Bạn vẫn có thể tải video lên từng ô.
+                }
+                else
+                {
+                    @:Mọi lần tạo, một video hay tất cả, đều hiện số credit để bạn duyệt trước. Tạo lại cùng ô sẽ thay video cũ.
+                }
+            </p>
+            @if (Model.CanRenderVideo && Model.ScriptApproved)
+            {
+                <div class="ivf-row">
+                    <button type="button" class="a-btn a-btn--primary a-btn--sm" data-generate-all data-replace="@(missing == 0 ? "true" : "false")" disabled="@(Model.RunningBatchId != null || Model.RunningVideoJobId != null)">
+                        <i data-lucide="sparkles"></i> @(missing == 0 ? "Tạo lại tất cả video" : missing == Model.SlotCount ? $"Tạo tất cả {missing} video" : $"Tạo {missing} video còn thiếu")
+                    </button>
+                    <span class="ivf-muted" data-batch-quote role="status"></span>
+                </div>
+            }
+            <div class="ivf-batch" data-batch="@Model.RunningBatchId" hidden="@(Model.RunningBatchId == null)">
+                <div class="ivf-batch__track" aria-hidden="true"><span data-batch-progress></span></div>
+                <div class="ivf-row">
+                    <span class="ivf-batch__status" data-batch-status role="status">Đang tạo video…</span>
+                    <button type="button" class="a-btn a-btn--ghost a-btn--sm" data-batch-stop>Dừng tạo video</button>
+                </div>
+            </div>
+            <div class="ivf-clips">
+                @foreach (var kind in kitSlots)
+                {
+                    @await Html.PartialAsync("~/Views/Employer/_InterviewClipSlot.cshtml", new ArisSkyve.Application.DTOs.InterviewClipSlotModel(ClipFor(kind, null), labels[kind].Label, labels[kind].Hint, kind, null, form.Id!.Value, canGenerate))
+                }
+                @for (var i = 0; i < form.Questions.Count; i++)
+                {
+                    var q = form.Questions[i];
+                    @await Html.PartialAsync("~/Views/Employer/_InterviewClipSlot.cshtml", new ArisSkyve.Application.DTOs.InterviewClipSlotModel(ClipFor(InterviewKitVideo.KindQuestion, q.Id), $"Câu {i + 1}", q.Question ?? "", InterviewKitVideo.KindQuestion, q.Id, form.Id!.Value, canGenerate))
+                }
+            </div>
+            @if (form.Production.VisualMode != "independent")
+            {
+                <h3>Video gốc dùng chung</h3>
+                <p class="ivf-muted">Tạo từng video gốc hoặc tải lên. Các đoạn có lời thoại dùng lại hình ảnh này và ghép giọng TTS, không tốn thêm credit tạo hình.</p>
+                <div class="ivf-clips">
+                    @foreach (var kind in form.Production.VisualMode == "shared" ? new[] { "base-master" } : InterviewKitVideo.BaseKinds.Where(k => k != "base-master"))
+                    {
+                        @await Html.PartialAsync("~/Views/Employer/_InterviewClipSlot.cshtml", new ArisSkyve.Application.DTOs.InterviewClipSlotModel(ClipFor(kind, null), kind switch { "base-talk" => "Nói", "base-listen" => "Nghe", "base-think" => "Suy nghĩ", "base-happy" => "Cười", "base-concerned" => "Nhíu mày", _ => "Một video gốc" }, "Dùng chung trong bộ phỏng vấn", kind, null, form.Id!.Value, canGenerate))
+                    }
+                </div>
+            }
+            <div class="ivf-row"><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-export-demo>Xuất video demo (MP4)</button><span class="ivf-muted" data-demo-status role="status"></span></div>
+            <form method="post" action="/Employer/InterviewFlow/Import" enctype="multipart/form-data" class="ivf-import ivf-import--inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="kitId" value="@form.Id" />
+                <span class="ivf-muted">Nhập gói video (.zip) có cùng bộ câu hỏi:</span>
+                <input class="a-input" type="file" name="package" accept=".zip,application/zip" required />
+                <button type="submit" class="a-btn a-btn--ghost a-btn--sm"><i data-lucide="upload"></i> Nhập vào bộ này</button>
+            </form>
+        </section>
+
+        <section class="a-card ivf-section" id="candidates" aria-labelledby="candidatesTitle">
+            <div class="ivf-section__head">
+                <h2 id="candidatesTitle">Ứng viên</h2>
+                <a class="a-btn a-btn--ghost a-btn--sm" href="/Employer/InterviewFlow/@form.Id/Try"><i data-lucide="play"></i> Phỏng vấn thử</a>
+            </div>
+            <div class="ivf-row"><a class="a-btn a-btn--ghost a-btn--sm" href="/Employer/InterviewFlow/@form.Id/Results/Export?format=csv">Xuất CSV</a><a class="a-btn a-btn--ghost a-btn--sm" href="/Employer/InterviewFlow/@form.Id/Results/Export?format=json">Xuất JSON</a></div>
+            @if (Model.InviteUrl != null)
+            {
+                <div class="ivf-invite">
+                    <code id="inviteUrl">@Model.InviteUrl</code>
+                    <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-copy="#inviteUrl"><i data-lucide="copy"></i> Sao chép link</button>
+                    <form method="post" action="/Employer/InterviewFlow/@form.Id/Invite">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="open" value="false" />
+                        <button type="submit" class="a-btn a-btn--ghost a-btn--sm">Đóng link</button>
+                    </form>
+                </div>
+                <p class="ivf-muted">Ứng viên đăng nhập Aris rồi mở link để phỏng vấn. Mỗi tài khoản làm một lần.</p>
+            }
+            else
+            {
+                <form method="post" action="/Employer/InterviewFlow/@form.Id/Invite" class="ivf-row">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="open" value="true" />
+                    <button type="submit" class="a-btn a-btn--secondary a-btn--sm"><i data-lucide="link"></i> Tạo link phỏng vấn</button>
+                    <span class="ivf-muted">Chưa nhận ứng viên.</span>
+                </form>
+            }
+
+            @if (Model.Sessions.Count == 0)
+            {
+                <p class="ivf-muted">Chưa có lượt phỏng vấn nào.</p>
+            }
+            else
+            {
+                <ul class="ivf-sessions">
+                    @foreach (var session in Model.Sessions)
+                    {
+                        <li>
+                            <details>
+                                <summary>
+                                    <span class="ivf-sessions__who">@(session.IsEmployerTest ? "Phỏng vấn thử" : session.CandidateName) <small>@session.CandidateEmail</small></span>
+                                    <span class="ivf-sessions__when">@Local(session.StartedAtUtc)</span>
+                                    <span class="ivf-score">@(session.CompletedAtUtc == null ? "Đang làm" : $"{session.Score:0.#}/100")</span>
+                                </summary>
+                                @foreach (var answer in session.Answers)
+                                {
+                                    <div class="ivf-answer">
+                                        <div class="ivf-answer__head">
+                                            <strong>Câu @(questionNumber.GetValueOrDefault(answer.QuestionId))</strong>
+                                            <span class="ivf-score @(answer.Passed ? "is-pass" : "is-fail")">@answer.Score.ToString("0.#")/100</span>
+                                            <span class="ivf-tag">@(answer.Score >= 100 ? "Đúng" : answer.Score > 0 ? "Một phần" : "Sai")</span>
+                                        </div>
+                                        <p class="ivf-answer__text">@(string.IsNullOrWhiteSpace(answer.Transcript) ? "(không trả lời)" : answer.Transcript)</p>
+                                        @foreach (var recordingId in answer.RecordingIds ?? (answer.RecordingId is int lastRecordingId ? new[] { lastRecordingId } : Array.Empty<int>()))
+                                        {
+                                            <audio controls preload="none" src="/Employer/InterviewFlow/@form.Id/Recordings/@recordingId"></audio>
+                                        }
+                                        @if (session.CompletedAtUtc != null)
+                                        {
+                                            <button class="a-btn a-btn--ghost a-btn--sm" type="button" data-regrade data-session="@session.Id" data-question-id="@answer.QuestionId">Chấm lại câu này</button>
+                                            <span class="ivf-muted" data-regrade-status role="status"></span>
+                                        }
+                                        <ul class="ivf-points">
+                                            @foreach (var point in answer.Points)
+                                            {
+                                                <li class="is-@point.Status"><span>@StatusLabel(point.Status)</span> @point.Text@(string.IsNullOrEmpty(point.Evidence) ? "" : $" — “{point.Evidence}”")</li>
+                                            }
+                                        </ul>
+                                        @if (!string.IsNullOrWhiteSpace(answer.Feedback))
+                                        {
+                                            <p class="ivf-muted">@answer.Feedback</p>
+                                        }
+                                    </div>
+                                }
+                            </details>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    }
+</section>
+
+<template id="questionTemplate">
+    <li class="ivf-question" data-question>
+        <div class="ivf-question__head">
+            <span class="ivf-question__no" data-no></span>
+            <button type="button" class="a-btn a-btn--ghost a-btn--sm" data-remove aria-label="Xóa câu hỏi"><i data-lucide="x"></i></button>
+        </div>
+        <label class="a-field"><span class="a-label">Câu hỏi</span><textarea class="a-input a-textarea" data-name="Question" rows="2" maxlength="2000" required></textarea></label>
+        <label class="a-field"><span class="a-label">Đáp án đúng</span><textarea class="a-input a-textarea" data-name="AnswerKey" rows="2" maxlength="4000" required placeholder="Câu trả lời mẫu dùng để chấm điểm"></textarea></label>
+        <label class="a-field"><span class="a-label">Ý chính (ngăn cách bằng ;)</span><input class="a-input" data-name="KeyPoints" maxlength="2000" placeholder="bối cảnh;vai trò;kết quả" /></label>
+        <div class="ivf-question__nums">
+            <label class="a-field"><span class="a-label">Mã câu</span><input class="a-input" data-name="Code" maxlength="80" /></label>
+            <label class="a-field"><span class="a-label">Trọng số câu</span><input class="a-input" data-name="Weight" value="1" type="number" min="0.01" max="1000" step="0.01" /></label>
+            <label class="a-field"><span class="a-label">Trọng số từng ý (;)</span><input class="a-input" data-name="PointWeights" maxlength="2000" placeholder="1;2;1" /></label>
+        </div>
+        <div class="ivf-question__nums">
+            <label class="a-field"><span class="a-label">Chuẩn bị (giây)</span><input class="a-input" type="number" min="0" max="120" data-name="PrepSeconds" value="10" /></label>
+            <label class="a-field"><span class="a-label">Trả lời (giây)</span><input class="a-input" type="number" min="15" max="600" data-name="AnswerSeconds" value="90" /></label>
+            <label class="a-field"><span class="a-label">Số lần làm lại</span><input class="a-input" type="number" min="0" max="3" data-name="Retakes" value="1" /></label>
+        </div>
+    </li>
+</template>
+
+<div class="ivf-modal" id="renderModal" hidden>
+    <div class="ivf-modal__panel a-card" role="dialog" aria-modal="true" aria-labelledby="renderTitle">
+        <h2 id="renderTitle">Tạo video</h2>
+        <p data-render-body></p>
+        <ul class="ivf-modal__items" data-render-items hidden></ul>
+        <div class="ivf-row ivf-row--end">
+            <button type="button" class="a-btn a-btn--ghost a-btn--sm" data-render-cancel>Hủy</button>
+            <button type="button" class="a-btn a-btn--primary a-btn--sm" data-render-approve>Duyệt &amp; tạo</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>window.ArisInterviewKit = { maxQuestions: @ArisSkyve.Controllers.EmployerInterviewFlowController.MaxQuestions };</script>
+    <script src="~/js/pages/interview-kit.js" asp-append-version="true"></script>
+    <script src="~/js/pages/interview-data.js" asp-append-version="true"></script>
+    <script src="~/js/pages/interview-production.js" asp-append-version="true"></script>
+}

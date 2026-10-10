@@ -1,0 +1,49 @@
+@model ArisSkyve.Application.DTOs.InterviewClipSlotModel
+@{
+    var video = Model.Video;
+    string Size(long bytes) => bytes >= 1024 * 1024 ? $"{bytes / 1024d / 1024:0.#} MB" : $"{bytes / 1024d:0} KB";
+    var source = video?.Source switch { "auto" => "Tạo tự động", "package" => "Từ gói", "upload" => "Tải lên", _ => "" };
+}
+<article class="ivf-clip@(video == null ? " is-empty" : "")" data-slot data-kind="@Model.Kind" data-question="@(Model.QuestionId?.ToString() ?? "")">
+    <div class="ivf-clip__media">
+        @if (video != null)
+        {
+            <video src="@video.Url" controls preload="metadata" playsinline></video>
+        }
+        else
+        {
+            <span class="ivf-clip__placeholder"><i data-lucide="film"></i> Chưa có video</span>
+        }
+    </div>
+    <div class="ivf-clip__body">
+        <strong>@Model.Label</strong>
+        <span class="ivf-clip__hint" title="@Model.Hint">@Model.Hint</span>
+        @if (video != null)
+        {
+            <span class="ivf-clip__meta">@source · @Size(video.SizeBytes) · @ArisSkyve.Infrastructure.Services.Recruitment.VnTime.Format(video.CreatedAtUtc)</span>
+        }
+        <span class="ivf-clip__status" data-slot-status role="status"></span>
+        <div class="ivf-clip__actions">
+            @if (Model.CanGenerate)
+            {
+                <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-generate><i data-lucide="sparkles"></i> @(video == null ? "Tạo video" : "Tạo lại")</button>
+            }
+            <form method="post" action="/Employer/InterviewFlow/@Model.KitId/Videos/Upload" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="kind" value="@Model.Kind" />
+                @if (Model.QuestionId != null)
+                {
+                    <input type="hidden" name="questionId" value="@Model.QuestionId" />
+                }
+                <label class="a-btn a-btn--ghost a-btn--sm ivf-upload"><i data-lucide="upload"></i> Tải lên<input type="file" name="file" accept="video/mp4,video/webm,video/quicktime" data-autosubmit hidden /></label>
+            </form>
+            @if (video != null)
+            {
+                <form method="post" action="/Employer/InterviewFlow/Videos/@video.Id/Delete" data-confirm="Xóa video này?">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="a-btn a-btn--ghost a-btn--sm" aria-label="Xóa video"><i data-lucide="trash-2"></i></button>
+                </form>
+            }
+        </div>
+    </div>
+</article>

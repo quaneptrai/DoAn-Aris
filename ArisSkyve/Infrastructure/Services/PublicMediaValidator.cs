@@ -589,6 +589,8 @@ public static class PublicMediaStorage
     public const string Avatars = "avatars";
     public const string Covers = "covers";
     public const string Chat = "chat";
+    /// <summary>Finished interviewer clips pushed by an employer's local studio.</summary>
+    public const string Interviews = "interviews";
 
     public static bool IsSupportedCollection(string? collection) =>
         TryGetCanonicalCollection(collection, out _);
@@ -601,6 +603,7 @@ public static class PublicMediaStorage
         else if (string.Equals(collection, Avatars, StringComparison.OrdinalIgnoreCase)) canonicalCollection = Avatars;
         else if (string.Equals(collection, Covers, StringComparison.OrdinalIgnoreCase)) canonicalCollection = Covers;
         else if (string.Equals(collection, Chat, StringComparison.OrdinalIgnoreCase)) canonicalCollection = Chat;
+        else if (string.Equals(collection, Interviews, StringComparison.OrdinalIgnoreCase)) canonicalCollection = Interviews;
 
         return canonicalCollection.Length > 0;
     }
