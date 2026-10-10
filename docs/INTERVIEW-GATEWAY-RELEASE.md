@@ -50,3 +50,13 @@ Revision `0ac45de` thêm `AsSplitQuery()` tại ba truy vấn có cả Questions
 Build 0 lỗi; flow qua gateway chạy lại đạt 61/61. Bản sửa đã deploy: 3 file cập nhật, 0 thêm/xóa; live/ready HTTP200. Backup application trước sửa ở `.local/deploy-backups/interview-before-query-fix-20261010-213036.zip`; để rollback đầy đủ cả static endpoint metadata, dùng package live đầy đủ hoặc redeploy committed `cf04fe9` với production settings hiện tại.
 
 Xác minh public: 14/14 video HTTP200, SHA256 khớp nguồn; request tua một đoạn HTTP206; avatar khớp. Link mời chuyển tới Login và giữ ReturnUrl. Production sample chưa có session tại thời điểm kiểm tra; thử giọng/ghi âm/chấm trên máy khác là bước nghiệm thu của người thử.
+
+## Khôi phục Funnel khi tạo lại video (10/10/2026)
+
+Nút tạo lại tất cả báo “Bộ xử lý âm thanh/video tạm thời không phản hồi” do đường Internet của Tailscale Funnel đóng kết nối ngay trong TLS handshake. IIS ghi SSL unexpected EOF; gateway không nhận được request. Gateway và FFmpeg trên máy vẫn hoạt động. Probe HTTPS thông thường từ chính máy đã đi qua MagicDNS/tailnet, nên bỏ sót lỗi đường công khai.
+
+Đã restart riêng dịch vụ Windows Tailscale bằng quyền Administrator. Giữ nguyên hai mount root → 20128 và `/gw` → 8780. Sau restart, hai IP DNS công khai đều trả401 khi không có key; health có key200; tải video trống cùng âm thanh sine để ghép thật qua đường Internet trả200/MP420.086 byte trong644ms. Không dùng media người dùng hay nhà cung cấp trả phí cho bài kiểm tra này.
+
+Xác minh từ chính IIS sau khi khôi phục web.config bình thường: Credits200/ok (22 tài khoản), Voices200/ok (89 giọng), QuoteAll200/ok cho10 clip/tổng10 renderer credit. Chỉ báo giá; chưa khởi động lượt render thay người dùng. Temporary stdout logging đã tắt bằng bản web.config gốc từ backup. Không sửa application, DB hoặc clip.
+
+Báo cáo ignored: `.local/interview-media-outage-diagnostic.json` và `.local/interview-public-funnel-recovery.json`. Khi kiểm tra lần sau, dùng request từ hosting hoặc ép kết nối tới IP từ DNS công khai với đúng SNI; không dùng kết quả HTTPS qua MagicDNS trên máy này để kết luận Funnel Internet hoạt động. Probe im lặng180s trước đây chỉ xác minh đường tailnet, chưa chứng minh timeout đường Internet.

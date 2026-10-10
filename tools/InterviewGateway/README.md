@@ -50,3 +50,16 @@ powershell -NoProfile -File tests/InterviewFlowTests/run-gateway-e2e.ps1
 ```
 
 Run the fake-services command in a separate terminal. The E2E runner uses a fresh ephemeral database for each suite on port 5030, starts its own gateway on 5311 with a fresh test ledger, checks readiness and cleans only its own processes. It tests flow, credit selection, stop, browser interactions and per-account allowance. Build Aris to `.local/gateway-continuation-build` first (or pass `-AppDll`). No paid API or shared database is involved.
+
+## Public connectivity failures
+
+A successful HTTPS call from the gateway PC does not prove Internet Funnel connectivity: Tailscale MagicDNS can resolve the hostname to its private tailnet IP. Verify from the Aris hosting, or resolve through a public DNS server and connect to that address while retaining the original hostname for TLS SNI.
+
+On 10 October 2026, IIS media/voice/video preflight failed with SSL unexpected EOF before any request reached the gateway, while tailnet calls succeeded. Restarting the Windows Tailscale service restored public ingress without changing mounts. Run the following in an Administrator PowerShell only when diagnosing this condition:
+
+```powershell
+Restart-Service -Name Tailscale
+& 'C:\Program Files\Tailscale\tailscale.exe' funnel status
+```
+
+Check both `/` → `127.0.0.1:20128` and `/gw` → `127.0.0.1:8780` still exist, then verify media health and the employer quote from the hosting. A service restart briefly interrupts Tailscale connectivity. Local gateway health alone and the historical 180-second tailnet probe do not verify public ingress or its long-request timeout.
