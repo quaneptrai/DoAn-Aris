@@ -37,7 +37,7 @@ public sealed partial class EmployerInterviewFlowController(
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)) return null;
         return await context.BussinessAccounts.AsNoTracking().Include(b => b.User)
-            .FirstOrDefaultAsync(b => b.UserId == id && b.User.Role == "Business", cancellationToken);
+            .FirstOrDefaultAsync(b => b.UserId == id && (b.User.Role == "Business" || b.User.Role == "Admin"), cancellationToken);
     }
 
     private Task<InterviewKit?> KitAsync(int id, int businessId, CancellationToken cancellationToken) =>

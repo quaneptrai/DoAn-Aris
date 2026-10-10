@@ -1,0 +1,38 @@
+@model ArisSkyve.Application.DTOs.SupportViewModel
+@using ArisSkyve.Infrastructure.Services
+@{
+    Layout="_AppLayout"; ViewData["Title"]="Yêu cầu quản trị viên"; ViewData["ActiveNav"]="InterviewFlow";
+    string Status(string value)=>value switch {"pending"=>"Chờ tiếp nhận","processing"=>"Đang xử lý","granting"=>"Chờ xác nhận credit","resolved"=>"Đã xử lý","rejected"=>"Từ chối",_=>value};
+    string Kind(string value)=>value switch {"credits"=>"Xin thêm credit","bug"=>"Báo lỗi",_=>"Hỗ trợ khác"};
+}
+@section Styles {<link rel="stylesheet" href="~/css/pages/admin.css" asp-append-version="true" />}
+<section class="adm-page">
+    <header class="adm-head"><div><a href="/Employer/InterviewFlow">← Bộ phỏng vấn</a><h1>Gửi yêu cầu quản trị viên</h1><p>Xin thêm credit trong ngày, báo lỗi hoặc nhờ hỗ trợ. Phản hồi sẽ xuất hiện tại đây và trong thông báo của bạn.</p></div></header>
+    @if(Model.Error!=null){<div class="adm-alert adm-alert--error" role="alert">@Model.Error</div>}
+    @if(TempData["SupportSaved"] is string saved){<div class="adm-alert" role="status">@saved</div>}
+    <div class="adm-columns">
+        <section class="a-card adm-card"><h2>Yêu cầu mới</h2>
+            <form action="/Employer/InterviewFlow/Support" method="post" class="adm-form">
+                @Html.AntiForgeryToken()
+                <label for="kind">Loại yêu cầu</label><select id="kind" name="Kind" class="a-input">
+                    <option value="support" selected="@(Model.Form.Kind=="support")">Hỗ trợ khác</option><option value="credits" selected="@(Model.Form.Kind=="credits")">Xin thêm credit</option><option value="bug" selected="@(Model.Form.Kind=="bug")">Báo lỗi</option>
+                </select>
+                <label for="credits">Số credit muốn bổ sung (khi xin credit)</label><input id="credits" class="a-input" name="Credits" type="number" min="1" max="10000" value="@Model.Form.Credits" />
+                <p class="adm-hint">Credit được duyệt thêm chỉ dùng trong ngày được duyệt, hết hạn lúc 00:00 giờ Việt Nam. Hạn mức mặc định vẫn là 300 credit/ngày.</p>
+                <label for="message">Nội dung</label><textarea class="a-input" id="message" name="Message" minlength="10" maxlength="2000" rows="7" required placeholder="Mô tả nhu cầu hoặc lỗi, bộ phỏng vấn liên quan và các bước bạn đã thử.">@Model.Form.Message</textarea>
+                <button class="a-btn a-btn--primary" type="submit"><i data-lucide="send"></i> Gửi yêu cầu</button>
+            </form>
+        </section>
+        <section class="adm-history"><h2>Yêu cầu gần đây của bạn</h2>
+            @if(Model.Requests.Count==0){<div class="a-card adm-card"><p>Bạn chưa gửi yêu cầu nào.</p></div>}
+            @foreach(var request in Model.Requests){
+                <article class="a-card adm-card"><div class="adm-row"><h3>#@request.Id · @Kind(request.Kind)</h3><span class="adm-tag">@Status(request.Status)</span></div>
+                    <p class="adm-hint">@ArisSkyve.Infrastructure.Services.Recruitment.VnTime.Format(request.CreatedAtUtc)</p><p class="adm-message">@request.Message</p>
+                    @if(request.RequestedCredits!=null){<p>Đề nghị @request.RequestedCredits credit.</p>}
+                    @if(request.AdminReply.Length>0){<div class="adm-reply"><strong>Phản hồi quản trị viên</strong><p class="adm-message">@request.AdminReply</p></div>}
+                    @if(request.Status=="resolved" && request.GrantedCredits!=null){<p>Đã bổ sung <strong>@request.GrantedCredits credit</strong> cho ngày @request.CreditDay.</p>}
+                </article>
+            }
+        </section>
+    </div>
+</section>

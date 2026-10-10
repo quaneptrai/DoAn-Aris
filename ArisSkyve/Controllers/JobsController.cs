@@ -263,7 +263,7 @@ namespace ArisSkyve.Controllers
                 RecommendedJobs = new List<JobRecommendationDTO>()
             };
 
-            if (user?.Profile != null && user.Role == "Business")
+            if (user?.Profile != null && (user.Role == "Business" || user.Role == "Admin" && user.Profile is BussinessAccount))
             {
                 model.MyJobPostings = await _context.JobPostings
                     .Include(j => j.Locations)
@@ -1275,7 +1275,7 @@ namespace ArisSkyve.Controllers
             int userId = int.Parse(userIdClaim);
 
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
-            if (user == null || user.Role != "Business" || user.Profile is not BussinessAccount business)
+            if (user == null || (user.Role != "Business" && user.Role != "Admin") || user.Profile is not BussinessAccount business)
             {
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có thể đăng tin tuyển dụng." });
             }

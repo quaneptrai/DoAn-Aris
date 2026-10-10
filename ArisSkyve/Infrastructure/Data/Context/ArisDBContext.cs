@@ -68,9 +68,23 @@ namespace ArisSkyve.Infrastructure.Data.Context
         public DbSet<InterviewKitSession> InterviewKitSessions { get; set; }
         public DbSet<InterviewKitRecording> InterviewKitRecordings { get; set; }
 
+        public DbSet<SupportRequest> SupportRequests { get; set; }
+        public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<SupportRequest>(e => {
+                e.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(r => r.HandledByUser).WithMany().HasForeignKey(r => r.HandledByUserId).OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(r => new { r.UserId, r.CreatedAtUtc });
+                e.HasIndex(r => new { r.Status, r.CreatedAtUtc });
+            });
+            modelBuilder.Entity<AdminAuditLog>(e => {
+                e.HasOne(r => r.ActorUser).WithMany().HasForeignKey(r => r.ActorUserId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(r => r.TargetUser).WithMany().HasForeignKey(r => r.TargetUserId).OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(r => r.CreatedAtUtc);
+            });
 
             // Usernames must be unique so people can actually be told apart (Id already
             // differentiates accounts internally, but Username is the human-facing

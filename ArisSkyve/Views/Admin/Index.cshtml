@@ -1,0 +1,100 @@
+@model ArisSkyve.Application.DTOs.AdminIndexViewModel
+@using ArisSkyve.Infrastructure.Services
+@{
+    Layout="_AppLayout"; ViewData["Title"]="Quản trị Aris"; ViewData["ActiveNav"]="Admin";
+    string Status(string value)=>value switch {"pending"=>"Chờ tiếp nhận","processing"=>"Đang xử lý","granting"=>"Chờ xác nhận credit","resolved"=>"Đã xử lý","rejected"=>"Từ chối",_=>value};
+    string Kind(string value)=>value switch {"credits"=>"Xin thêm credit","bug"=>"Báo lỗi",_=>"Hỗ trợ khác"};
+    string Role(string value)=>value switch {"Admin"=>"Admin","Business"=>"Nhà tuyển dụng",_=>"Ứng viên"};
+}
+@section Styles {<link rel="stylesheet" href="~/css/pages/admin.css" asp-append-version="true" />}
+<section class="adm-page" data-admin-page>
+    <header class="adm-head"><div><h1>Quản trị Aris</h1><p>Tiếp nhận yêu cầu, quản lý tài khoản và theo dõi dịch vụ phỏng vấn.</p></div><a class="a-btn a-btn--secondary" href="/Employer/InterviewFlow">Bộ phỏng vấn của tôi</a></header>
+    <div class="adm-stats"><div class="a-card"><strong>@Model.Users</strong><span>Tài khoản</span></div><div class="a-card"><strong>@Model.Businesses</strong><span>Nhà tuyển dụng</span></div><div class="a-card"><strong>@Model.Kits</strong><span>Bộ phỏng vấn</span></div><div class="a-card"><strong>@Model.Pending</strong><span>Yêu cầu cần xử lý</span></div></div>
+    <nav class="adm-tabs" aria-label="Các mục quản trị">
+        @foreach(var tab in new[]{("requests","Yêu cầu"),("accounts","Tài khoản"),("interviews","Phỏng vấn"),("system","Dịch vụ"),("audit","Lịch sử quản trị")}){
+            <a href="/Admin?tab=@tab.Item1" aria-current="@(Model.Tab==tab.Item1?"page":null)">@tab.Item2</a>
+        }
+    </nav>
+    @if(TempData["AdminError"] is string error){<div class="adm-alert adm-alert--error" role="alert">@error</div>}
+    @if(TempData["AdminSaved"] is string saved){<div class="adm-alert" role="status">@saved</div>}
+    @if(Model.Tab is "requests" or "accounts" or "interviews"){
+        <form method="get" action="/Admin" class="adm-search"><input type="hidden" name="tab" value="@Model.Tab" /><label class="adm-search__label" for="search">Tìm kiếm</label><input class="a-input" type="search" name="search" id="search" value="@Model.Search" maxlength="100" placeholder="Email, tên hoặc nội dung" />
+            @if(Model.Tab=="requests"){
+                <label for="filter">Trạng thái</label><select name="filter" id="filter" class="a-input"><option value="">Tất cả</option>@foreach(var state in new[]{"pending","processing","granting","resolved","rejected"}){<option value="@state" selected="@(Model.Filter==state)">@Status(state)</option>}</select>
+            }
+            @if(Model.Tab=="accounts"){
+                <label for="filter">Loại tài khoản</label><select name="filter" id="filter" class="a-input"><option value="">Tất cả</option>@foreach(var role in new[]{"Admin","Business","Employee","suspended"}){<option value="@role" selected="@(Model.Filter==role)">@(role=="suspended"?"Đang tạm khóa":Role(role))</option>}</select>
+            }
+            <button class="a-btn a-btn--secondary" type="submit">Lọc</button>
+        </form>
+    }
+    @if(Model.Tab=="requests"){
+        @if(Model.Requests.Count==0){<p class="adm-empty">Chưa có yêu cầu phù hợp.</p>}
+        <div class="adm-history">
+        @foreach(var request in Model.Requests){
+            <article class="a-card adm-card"><div class="adm-row"><h2>#@request.Id · @Kind(request.Kind)</h2><span class="adm-tag">@Status(request.Status)</span></div>
+                <p class="adm-hint">@request.User.Email · @ArisSkyve.Infrastructure.Services.Recruitment.VnTime.Format(request.CreatedAtUtc)</p><p class="adm-message">@request.Message</p>
+                @if(request.RequestedCredits!=null){<p>Xin thêm <strong>@request.RequestedCredits credit</strong>.</p>}
+                @if(request.Status is "resolved" or "rejected"){
+                    <div class="adm-reply"><strong>Phản hồi đã gửi</strong><p class="adm-message">@request.AdminReply</p>@if(request.GrantedCredits!=null){<p>@request.GrantedCredits credit · ngày @request.CreditDay</p>}</div>
+                }else{
+                    <form method="post" action="/Admin/Requests/@request.Id" class="adm-form">
+                        @Html.AntiForgeryToken()<input type="hidden" name="version" value="@request.Version" />
+                        <label for="reply-@request.Id">Phản hồi cho người gửi</label><textarea class="a-input" id="reply-@request.Id" name="reply" minlength="3" maxlength="2000" required rows="3">@request.AdminReply</textarea>
+                        @if(request.Kind=="credits"){
+                            <label for="credits-@request.Id">Credit bổ sung cho ngày duyệt</label><input class="a-input" id="credits-@request.Id" type="number" name="credits" min="1" max="10000" value="@(request.GrantedCredits??request.RequestedCredits)" readonly="@(request.Status=="granting")" />
+                            <p class="adm-hint">Hết hạn lúc 00:00 giờ Việt Nam. Duyệt lại một yêu cầu không cộng credit lần thứ hai.</p>
+                        }
+                        <div class="adm-actions">
+                            @if(request.Status!="granting") {<button class="a-btn a-btn--secondary" type="submit" name="status" value="processing">Đang xử lý</button>}
+                            <button class="a-btn a-btn--primary" type="submit" name="status" value="resolved">@(request.Status=="granting"?"Duyệt lại":request.Kind=="credits"?"Duyệt credit":"Hoàn tất")</button>
+                            @if(request.Status!="granting"){<button class="a-btn a-btn--secondary" type="submit" name="status" value="rejected">Từ chối</button>}
+                        </div>
+                    </form>
+                }
+            </article>
+        }
+        </div>
+    }
+    @if(Model.Tab=="accounts"){
+        <p class="adm-hint">Quyền Admin dành cho hai tài khoản đã chỉ định. Đổi loại hoặc tạm khóa giữ nguyên hồ sơ, CV, tin tuyển dụng và kết quả.</p>
+        <div class="adm-history">@foreach(var account in Model.Accounts){
+            <article class="a-card adm-card"><div class="adm-row"><div><h2>@account.Username</h2><p>@account.Email · #@account.Id</p></div><span class="adm-tag">@Role(account.Role) @(account.IsSuspended?"· Tạm khóa":"")</span></div>
+                <p>@(account.CompanyName??"Chưa có hồ sơ công ty") · @account.Kits bộ phỏng vấn</p>
+                <div class="adm-actions"><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-allowance="@account.Id">Xem hạn mức hôm nay</button><span role="status" data-allowance-result="@account.Id"></span></div>
+                @if(!AdminAccess.IsDesignated(account.Email)){
+                    <form method="post" action="/Admin/Accounts/@account.Id/Role" class="adm-search">@Html.AntiForgeryToken()<label for="role-@account.Id">Loại tài khoản</label><select class="a-input" id="role-@account.Id" name="role"><option value="Employee" selected="@(account.Role=="Employee")">Ứng viên</option><option value="Business" selected="@(account.Role=="Business")">Nhà tuyển dụng</option></select><label for="company-@account.Id">Tên công ty</label><input class="a-input" id="company-@account.Id" name="companyName" value="@account.CompanyName" maxlength="160" placeholder="Cần khi chuyển sang nhà tuyển dụng" /><button class="a-btn a-btn--secondary" type="submit">Lưu loại</button></form>
+                    <form method="post" action="/Admin/Accounts/@account.Id/State" data-admin-confirm="@(account.IsSuspended?"Mở lại tài khoản này?":"Tạm khóa tài khoản này và từ chối các phiên đăng nhập?")">@Html.AntiForgeryToken()<input type="hidden" name="suspended" value="@((!account.IsSuspended).ToString().ToLowerInvariant())" /><button class="a-btn a-btn--secondary a-btn--sm" type="submit">@(account.IsSuspended?"Mở lại tài khoản":"Tạm khóa tài khoản")</button></form>
+                }
+            </article>
+        }</div>
+    }
+    @if(Model.Tab=="interviews"){
+        <div class="adm-history">@foreach(var kit in Model.Interviews){
+            <article class="a-card adm-card"><div class="adm-row"><h2>#@kit.Id · @kit.Title</h2><span class="adm-tag">@(kit.InviteOpen?"Đang nhận ứng viên":"Link đã đóng")</span></div><p>@kit.Company · @kit.Questions câu · @kit.Videos clip · @kit.Sessions lượt</p>
+                <div class="adm-actions">
+                    <form method="post" action="/Admin/Interviews/@kit.Id/Stop" data-admin-confirm="Dừng lượt tạo video của bộ này?">@Html.AntiForgeryToken()<button class="a-btn a-btn--secondary a-btn--sm" type="submit">Dừng tạo video</button></form>
+                    @if(kit.InviteOpen){<form method="post" action="/Admin/Interviews/@kit.Id/Close" data-admin-confirm="Đóng link nhận ứng viên của bộ này?">@Html.AntiForgeryToken()<button class="a-btn a-btn--secondary a-btn--sm" type="submit">Đóng link nhận ứng viên</button></form>}
+                </div>
+            </article>
+        }</div>
+    }
+    @if(Model.Tab=="system"){
+        <section class="a-card adm-card"><h2>Dịch vụ phỏng vấn</h2><p role="status" id="adminServices">Đang kiểm tra…</p><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-service-refresh>Kiểm tra lại</button>
+            <div class="adm-actions">
+                <form action="/Admin/Services/Pause" method="post" data-admin-confirm="Tạm dừng gửi lượt dựng ảnh/video mới?">@Html.AntiForgeryToken()<input type="hidden" name="paused" value="true" /><button class="a-btn a-btn--secondary" type="submit">Tạm dừng tạo ảnh/video</button></form>
+                <form action="/Admin/Services/Pause" method="post">@Html.AntiForgeryToken()<input type="hidden" name="paused" value="false" /><button class="a-btn a-btn--primary" type="submit">Mở lại tạo ảnh/video</button></form>
+            </div><p class="adm-hint">Lượt đã gửi có thể hoàn tất và tính credit. Máy xử lý cần bật và có kết nối Internet.</p>
+        </section>
+    }
+    @if(Model.Tab=="audit"){
+        <div class="a-card adm-card adm-table-wrap"><table class="adm-table"><thead><tr><th>Thời gian</th><th>Quản trị viên</th><th>Thao tác</th><th>Chi tiết</th></tr></thead><tbody>@foreach(var entry in Model.Audit){<tr><td>@ArisSkyve.Infrastructure.Services.Recruitment.VnTime.Format(entry.CreatedAtUtc)</td><td>@entry.ActorUser.Email</td><td>@entry.Action</td><td class="adm-message">@entry.Detail</td></tr>}</tbody></table></div>
+    }
+    @if(Model.Tab!="system"){
+        <nav class="adm-actions adm-pager" aria-label="Phân trang">
+            @if(Model.Page>1){<a class="a-btn a-btn--secondary a-btn--sm" href="@Url.Action("Index","Admin",new{tab=Model.Tab,search=Model.Search,filter=Model.Filter,page=Model.Page-1})">Trang trước</a>}
+            <span>Trang @Model.Page</span>@if(Model.HasNext){<a class="a-btn a-btn--secondary a-btn--sm" href="@Url.Action("Index","Admin",new{tab=Model.Tab,search=Model.Search,filter=Model.Filter,page=Model.Page+1})">Trang sau</a>}
+        </nav>
+    }
+</section>
+@section Scripts {<script src="~/js/pages/admin.js" asp-append-version="true"></script>}

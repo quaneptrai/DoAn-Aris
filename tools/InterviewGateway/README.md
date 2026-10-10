@@ -63,3 +63,20 @@ Restart-Service -Name Tailscale
 ```
 
 Check both `/` → `127.0.0.1:20128` and `/gw` → `127.0.0.1:8780` still exist, then verify media health and the employer quote from the hosting. A service restart briefly interrupts Tailscale connectivity. Local gateway health alone and the historical 180-second tailnet probe do not verify public ingress or its long-request timeout.
+
+## Admin portal connection
+
+The website's `/Admin` area is restricted to DB users with role `Admin` and one of the two explicitly designated emails. The sidebar, account menu and mobile navigation use the same decision. The two protected admins cannot be suspended or downgraded from the portal; employer permissions remain available when they have a business profile.
+
+Set a second random `adminKey` in ignored gateway configuration. Supply it only in `InterviewEngine__Administration__ApiKey` with `InterviewEngine__Administration__BaseUrl=https://<gateway-host>/gw/admin`. The normal application key cannot use `/admin/status`, `/admin/pause`, `/admin/resume` or `/admin/credit-grants`. Keys are never rendered to a page.
+
+Approved credit requests add to the requesting user's daily allowance until midnight in Vietnam. The grant journal shares the durable ledger and uses the support request ID to reject conflicting grants and deduplicate retries, even across restart. Granting is persisted before the remote call; if acknowledgment is lost, the portal offers Duyệt lại for the same amount/day instead of creating a second grant. Global spending caps still apply. This allowance is permission to consume provider credits, not a purchase or provider balance top-up.
+
+Run the admin HTTP and Chrome suites separately with the isolated gateway runner and fake providers:
+
+```powershell
+powershell -NoProfile -File tests/InterviewFlowTests/run-gateway-e2e.ps1 -AppDll ArisSkyve/bin/AdminPortal/net10.0/ArisSkyve.dll -Suites admin-e2e.mjs
+powershell -NoProfile -File tests/InterviewFlowTests/run-gateway-e2e.ps1 -AppDll ArisSkyve/bin/AdminPortal/net10.0/ArisSkyve.dll -Suites admin-browser.cjs
+```
+
+Admin fixtures exist only in the explicitly enabled Development/InMemory seeding mode; they do not create or modify production accounts. The tests cover notifications, ticket privacy, CSRF, role management, suspended sessions, service controls and real browser forms.

@@ -25,6 +25,12 @@
 
         <div class="a-side__group">
             <div class="a-side__label">Chính</div>
+            @if (Model.IsAdmin)
+            {
+                <a class="a-side__item" href="/Admin" aria-current="@Cur("Admin")" data-label="Quản trị">
+                    <i data-lucide="shield-check"></i><span class="a-side__item-label">Quản trị</span>
+                </a>
+            }
             <a class="a-side__item" asp-controller="Dashboard" asp-action="Index" aria-current="@Cur("Home")" data-label="Trang chủ">
                 <i data-lucide="home"></i><span class="a-side__item-label">Trang chủ</span>
             </a>
@@ -197,7 +203,11 @@
 
 @* ================= THANH TAB (mobile) ================= *@
 <nav class="a-tabbar" aria-label="Điều hướng chính">
-    <a class="a-tabbar__item" asp-controller="Dashboard" asp-action="Index" aria-current="@Cur("Home")"><i data-lucide="home"></i><span>Trang chủ</span></a>
+    @if (Model.IsAdmin) {
+        <a class="a-tabbar__item" href="/Admin" aria-current="@Cur("Admin")"><i data-lucide="shield-check"></i><span>Quản trị</span></a>
+    } else {
+        <a class="a-tabbar__item" asp-controller="Dashboard" asp-action="Index" aria-current="@Cur("Home")"><i data-lucide="home"></i><span>Trang chủ</span></a>
+    }
     @if (!isBusiness)
     {
         <a class="a-tabbar__item" asp-controller="Jobs" asp-action="Index" aria-current="@Cur("Jobs")"><i data-lucide="briefcase"></i><span>Việc làm</span></a>
@@ -238,10 +248,11 @@
         </span>
         <div style="min-width:0; overflow:hidden;">
             <div style="font-weight:600; font-size:13px; color:var(--text); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">@Model.FullName</div>
-            <div style="font-size:11px; color:var(--text-3); font-weight:400; letter-spacing:0; text-transform:none;">@(isBusiness ? "Tài khoản doanh nghiệp" : "Tài khoản ứng viên")</div>
+            <div style="font-size:11px; color:var(--text-3); font-weight:400; letter-spacing:0; text-transform:none;">@(Model.IsAdmin ? "Tài khoản quản trị" : isBusiness ? "Tài khoản doanh nghiệp" : "Tài khoản ứng viên")</div>
         </div>
     </div>
     <div class="a-menu__sep"></div>
+    @if (Model.IsAdmin) { <a class="a-menu__item" href="/Admin" role="menuitem"><i data-lucide="shield-check"></i><span>Quản trị</span></a> }
     <a class="a-menu__item" asp-controller="Profile" asp-action="Index" role="menuitem"><i data-lucide="circle-user"></i><span>Hồ sơ của tôi</span></a>
     @if (!isBusiness)
     {

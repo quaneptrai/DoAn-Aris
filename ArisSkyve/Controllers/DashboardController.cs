@@ -160,7 +160,7 @@ namespace ArisSkyve.Controllers
 
             // ---- Cột phải: việc cần làm (chỉ từ dữ liệu thật) ----
             var todos = new List<ArisSkyve.Application.DTOs.FeedTodoItem>();
-            if (user?.Role == "Business" && user.Profile != null)
+            if (user?.Profile != null && (user.Role == "Business" || user.Role == "Admin" && user.Profile is BussinessAccount))
             {
                 var bizId = user.Profile.Id;
                 var since = DateTime.UtcNow.AddDays(-7);

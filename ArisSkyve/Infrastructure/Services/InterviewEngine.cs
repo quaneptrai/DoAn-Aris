@@ -86,6 +86,7 @@ public sealed class InterviewEngineOptions
     public SpeechOptions Tts { get; set; } = new();
     public SpeechOptions Stt { get; set; } = new();
     public MediaOptions Media { get; set; } = new();
+    public MediaOptions Administration { get; set; } = new();
     public string FfmpegPath { get; set; } = "ffmpeg";
 
     /// <summary>Audio/video processing (voice mixing, demo, speech conversion) on another machine instead of a local FFmpeg.</summary>

@@ -90,6 +90,8 @@ builder.Services.AddSingleton<InterviewSpeech>();
 builder.Services.AddSingleton<InterviewVideoProduction>();
 builder.Services.AddSingleton<InterviewVideoJobs>();
 builder.Services.AddScoped<InterviewSessions>();
+builder.Services.AddScoped<AdminAccess>();
+builder.Services.AddScoped<InterviewAdministration>();
 builder.Services.AddScoped<InterviewRecordingStore>();
 if (!disableE2EBackgroundServices)
 {
@@ -150,6 +152,14 @@ var authentication = builder.Services.AddAuthentication(options =>
     options.LoginPath = "/Account/Login";
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.SlidingExpiration = true;
+    options.Events.OnValidatePrincipal = async validation => {
+        var idText = validation.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var db = validation.HttpContext.RequestServices.GetRequiredService<ArisDBContext>();
+        if (!int.TryParse(idText, out var id) || !await db.Users.AsNoTracking().AnyAsync(u => u.Id == id && !u.IsSuspended, validation.HttpContext.RequestAborted)) {
+            validation.RejectPrincipal();
+            await Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions.SignOutAsync(validation.HttpContext, CookieAuthenticationDefaults.AuthenticationScheme);
+        }
+    };
 });
 
 authentication.AddCookie("Aris.External", options =>
@@ -195,6 +205,12 @@ if (useEphemeralE2E && builder.Configuration.GetValue<bool>("E2E:SeedInterviewAc
             Email = name + "@example.test", Username = name, Role = "Business", PrivacyAcceptedAt = DateTime.UtcNow,
             Profile = new ArisSkyve.Domain.Entities.BussinessAccount { FullName = name, CompanyName = "Interview fixture", Industry = "IT", Location = "Test" }
         });
+    if (builder.Configuration.GetValue<bool>("E2E:SeedAdminAccounts")) {
+        foreach (var email in AdminAccess.Emails) db.Users.Add(new ArisSkyve.Domain.Entities.User {
+            Email = email, Username = "admin.fixture." + email.Split('@')[0], Role = "Admin", PrivacyAcceptedAt = DateTime.UtcNow,
+            Profile = email == AdminAccess.Emails[0] ? new ArisSkyve.Domain.Entities.BussinessAccount {FullName="Admin fixture", CompanyName="Admin fixture", Location="Test"} : new ArisSkyve.Domain.Entities.EmployesAccount {FullName="Admin fixture", Location="Test"}
+        });
+    }
     await db.SaveChangesAsync();
 }
 

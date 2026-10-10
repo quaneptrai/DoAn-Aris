@@ -251,7 +251,7 @@ namespace ArisSkyve.Controllers
 
             ViewBag.UserId = user.Id;
             ViewBag.Username = user.Username;
-            ViewBag.Intent = user.Role == "Business" ? "done-business"
+            ViewBag.Intent = (user.Role == "Business" || user.Role == "Admin") ? "done-business"
                 : (NormalizeIntent(Request.Query["intent"]) ?? NormalizeIntent(Request.Cookies[IntentCookie]) ?? "candidate");
 
             var dto = new NewUserInforDTO
@@ -354,7 +354,7 @@ namespace ArisSkyve.Controllers
             await _context.SaveChangesAsync();
             await SignInUserAsync(user);
             // Đăng ký với ý định "nhà tuyển dụng" → đi tiếp sang bước tạo hồ sơ công ty.
-            if (NormalizeIntent(Request.Cookies[IntentCookie]) == "business" && user.Role != "Business")
+            if (NormalizeIntent(Request.Cookies[IntentCookie]) == "business" && (user.Role != "Business" && user.Role != "Admin"))
             {
                 Response.Cookies.Delete(IntentCookie);
                 return RedirectToAction("BecomeEmployer");
@@ -371,7 +371,7 @@ namespace ArisSkyve.Controllers
                 return Challenge();
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return NotFound();
-            if (user.Role == "Business") return RedirectToAction("Index", "Employer");
+            if (user.Role == "Business" || user.Role == "Admin" && user.Profile is BussinessAccount) return RedirectToAction("Index", "Employer");
 
             var profileId = user.Profile?.Id ?? 0;
             var model = new BecomeEmployerViewModel
@@ -561,6 +561,7 @@ namespace ArisSkyve.Controllers
 
         private async Task SignInUserAsync(User user)
         {
+            if (user.IsSuspended) { TempData["LoginError"] = "Tài khoản đang bị tạm khóa. Liên hệ quản trị viên."; return; }
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -832,12 +833,12 @@ namespace ArisSkyve.Controllers
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null) return Json(new { success = false, message = "Không tìm thấy người dùng." });
-            if (user.Role == "Business") return Json(new { success = true, redirectUrl = Url.Action("Index", "Employer") });
+            if (user.Role == "Business" || user.Role == "Admin" && user.Profile is BussinessAccount) return Json(new { success = true, redirectUrl = Url.Action("Index", "Employer") });
 
             try
             {
                 // 3. Cập nhật Role cho User
-                user.Role = "Business";
+                if (user.Role != "Admin") user.Role = "Business";
 
                 // 4. EmployesAccount/BussinessAccount dùng chung 1 bảng (TPH, phân biệt bằng cột
                 // Discriminator), nên EF không cho đổi "type" của 1 row đang track trực tiếp.

@@ -6,7 +6,7 @@
     var submittedEmail = ViewBag.SubmittedEmail as string;
     var hasSentLink = !string.IsNullOrEmpty(ViewBag.Message as string);
     var returnUrl = ViewBag.ReturnUrl as string;
-    var error = ViewBag.Error as string;
+    var error = ViewBag.Error as string ?? TempData["LoginError"] as string;
 }
 
 @if (hasSentLink)

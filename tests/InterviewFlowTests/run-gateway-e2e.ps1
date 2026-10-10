@@ -1,4 +1,4 @@
-﻿param([string]$AppDll, [string[]]$Suites = @('flow-e2e.mjs','credit-e2e.mjs','stop-e2e.mjs','browser-e2e.cjs','quota-e2e.mjs'))
+param([string]$AppDll, [string[]]$Suites = @('flow-e2e.mjs','credit-e2e.mjs','stop-e2e.mjs','browser-e2e.cjs','quota-e2e.mjs'))
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 if (-not $AppDll) { $AppDll = Join-Path $repo '.local/gateway-continuation-build/ArisSkyve.dll' }
@@ -9,6 +9,8 @@ $config = Get-Content (Join-Path $PSScriptRoot 'gateway-e2e.json') -Raw -Encodin
 $runDir = Join-Path $repo ('.local/gateway-e2e-run-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $runDir | Out-Null
 $config.port = 5311
+if ($Suites.Count -eq 1 -and $Suites[0] -in @('admin-e2e.mjs','admin-browser.cjs')) { $config.budget.unlimitedAccounts = @() }
+$config | Add-Member -NotePropertyName adminKey -NotePropertyValue "gateway-admin-e2e-key-0123456789abcdef" -Force
 $config.dataDir = Join-Path $runDir 'data'
 $config.ffmpegPath = Join-Path $repo '.local/interview-tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe'
 $configFile = Join-Path $runDir 'config.json'
@@ -27,7 +29,7 @@ try {
         $listener = Get-NetTCPConnection -State Listen -LocalPort 5030 -ErrorAction SilentlyContinue
         if ($listener) { throw '5030 is occupied; do not stop an unidentified process.' }
         $log = 'gateway-' + [IO.Path]::GetFileNameWithoutExtension($suite)
-        $launch = & (Join-Path $PSScriptRoot 'start-test-server.ps1') -Port 5030 -Gateway -AppDll $AppDll -LogName $log -GatewayUrl http://127.0.0.1:5311/gw
+        $launch = & (Join-Path $PSScriptRoot 'start-test-server.ps1') -Port 5030 -Gateway -AdminFixtures:($suite -in @('admin-e2e.mjs','admin-browser.cjs')) -AppDll $AppDll -LogName $log -GatewayUrl http://127.0.0.1:5311/gw
         $launch | Write-Output
         $testPid = [int]([regex]::Match(($launch -join ' '),'PID (\d+)').Groups[1].Value)
         if (-not $testPid) { throw 'No test server PID returned.' }

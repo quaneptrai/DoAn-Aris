@@ -22,6 +22,44 @@ namespace ArisSkyve.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.AdminAuditLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("ActorUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int?>("TargetUserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("TargetUserId");
+
+                    b.ToTable("AdminAuditLogs");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.ApplicationEvent", b =>
                 {
                     b.Property<int>("Id")
@@ -1787,6 +1825,73 @@ namespace ArisSkyve.Migrations
                     b.ToTable("StoryViews");
                 });
 
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.SupportRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminReply")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreditDay")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int?>("GrantedCredits")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("HandledByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int?>("RequestedCredits")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HandledByUserId");
+
+                    b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.HasIndex("UserId", "CreatedAtUtc");
+
+                    b.ToTable("SupportRequests");
+                });
+
             modelBuilder.Entity("ArisSkyve.Domain.Entities.Tags", b =>
                 {
                     b.Property<int>("Id")
@@ -1818,6 +1923,9 @@ namespace ArisSkyve.Migrations
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsSuspended")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime?>("PrivacyAcceptedAt")
                         .HasColumnType("datetime2");
@@ -2006,6 +2114,24 @@ namespace ArisSkyve.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasDiscriminator().HasValue("BussinessAccount");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.AdminAuditLog", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.User", "ActorUser")
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArisSkyve.Domain.Entities.User", "TargetUser")
+                        .WithMany()
+                        .HasForeignKey("TargetUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ActorUser");
+
+                    b.Navigation("TargetUser");
                 });
 
             modelBuilder.Entity("ArisSkyve.Domain.Entities.ApplicationEvent", b =>
@@ -2717,6 +2843,24 @@ namespace ArisSkyve.Migrations
                     b.Navigation("Story");
 
                     b.Navigation("Viewer");
+                });
+
+            modelBuilder.Entity("ArisSkyve.Domain.Entities.SupportRequest", b =>
+                {
+                    b.HasOne("ArisSkyve.Domain.Entities.User", "HandledByUser")
+                        .WithMany()
+                        .HasForeignKey("HandledByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ArisSkyve.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("HandledByUser");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ArisSkyve.Domain.Entities.UserSessionVersion", b =>

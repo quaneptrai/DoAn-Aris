@@ -172,3 +172,5 @@
     /* Sit above the fixed mobile tab bar. */
     .ivf-savebar { bottom: calc(var(--tabbar-h, 60px) + env(safe-area-inset-bottom)); }
 }
+
+.ivf-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}

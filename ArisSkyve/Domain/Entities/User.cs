@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace ArisSkyve.Domain.Entities
 {
@@ -13,6 +13,8 @@ namespace ArisSkyve.Domain.Entities
         public string Role { get; set; } = "Employee";
 
         public bool ShowActiveStatus { get; set; } = true;
+
+        public bool IsSuspended { get; set; } = false;
 
         // Thời điểm người dùng đồng ý Chính sách quyền riêng tư (bước NewUserInfor). Null = chưa ghi nhận.
         public DateTime? PrivacyAcceptedAt { get; set; }

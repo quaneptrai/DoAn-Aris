@@ -27,6 +27,7 @@ export function loadConfig(file) {
     upstreams: {}, ...raw,
     budget: { dailyCredits: null, monthlyCredits: null, unknownCostCredits: null, perAccountDailyCredits: null, unlimitedAccounts: [], timeZone: 'Asia/Ho_Chi_Minh', ...raw.budget },
   };
+  if (config.adminKey != null && (typeof config.adminKey !== 'string' || config.adminKey.length < 24)) throw new Error('config.adminKey needs at least 24 characters');
   if (typeof config.key !== 'string' || config.key.length < 24) throw new Error('config.key needs at least 24 characters');
   for (const name of ['dailyCredits', 'monthlyCredits', 'unknownCostCredits', 'perAccountDailyCredits']) {
     const value = config.budget[name];
@@ -48,7 +49,9 @@ export class Ledger {
     this.file = path.join(dataDir, 'ledger.json');
     this.budget = budget;
     this.now = now;
-    this.entries = fs.existsSync(this.file) ? JSON.parse(fs.readFileSync(this.file, 'utf8')).entries ?? [] : [];
+    const stored = fs.existsSync(this.file) ? JSON.parse(fs.readFileSync(this.file, 'utf8')) : {};
+    this.entries = stored.entries ?? [];
+    this.grants = stored.grants ?? [];
   }
   day(date) {
     return new Intl.DateTimeFormat('en-CA', { timeZone: this.budget.timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
@@ -62,7 +65,8 @@ export class Ledger {
       if (when === today) day += entry.credits;
       if (when.startsWith(month)) total += entry.credits;
     }
-    return { day: { used: day, cap: account == null ? this.budget.dailyCredits : this.budget.unlimitedAccounts?.includes(account) ? null : this.budget.perAccountDailyCredits }, month: { used: total, cap: account == null ? this.budget.monthlyCredits : null } };
+    const bonus = account == null ? 0 : this.grants.filter(g => g.account === account && g.day === today).reduce((sum, g) => sum + g.credits, 0);
+    return { day: { used: day, cap: account == null ? this.budget.dailyCredits : this.budget.unlimitedAccounts?.includes(account) ? null : (this.budget.perAccountDailyCredits == null ? null : this.budget.perAccountDailyCredits + bonus) }, month: { used: total, cap: account == null ? this.budget.monthlyCredits : null } };
   }
   /** Null when `credits` more still fit today's and this month's caps; otherwise the refusal. */
   refusal(credits, account = null) {
@@ -82,11 +86,22 @@ export class Ledger {
     const entry = this.entries.find(e => e.id === id);
     if (entry) { entry.state = state; this.save(); }
   }
+  grant({ id, account, actor, credits, day }) {
+    if (typeof id !== 'string' || !/^support-[1-9]\d{0,9}$/.test(id) || !/^[a-f0-9]{64}$/.test(account ?? '') || !/^[a-f0-9]{64}$/.test(actor ?? '') || !Number.isInteger(credits) || credits < 1 || credits > 10000 || !/^\d{4}-\d{2}-\d{2}$/.test(day ?? '') || !Number.isFinite(Date.parse(day + 'T00:00:00Z')) || new Date(day + 'T00:00:00Z').toISOString().slice(0,10) !== day || day > this.day(this.now()))
+      throw new GatewayError(400, 'invalid_grant', 'Khoản credit bổ sung không hợp lệ.');
+    const existing = this.grants.find(g => g.id === id);
+    if (existing) {
+      if (existing.account !== account || existing.actor !== actor || existing.credits !== credits || existing.day !== day) throw new GatewayError(409, 'grant_conflict', 'Yêu cầu này đã có khoản credit khác.');
+      return existing;
+    }
+    const grant = { id, account, actor, credits, day, at: this.now().toISOString() };
+    this.grants.push(grant); this.save(); return grant;
+  }
   save() {
     const cutoff = this.now().getTime() - 40 * 24 * 3600 * 1000;
     this.entries = this.entries.filter(e => new Date(e.at).getTime() >= cutoff);
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file + '.tmp', JSON.stringify({ entries: this.entries }, null, 1));
+    fs.writeFileSync(this.file + '.tmp', JSON.stringify({ entries: this.entries, grants: this.grants }, null, 1));
     fs.renameSync(this.file + '.tmp', this.file);
   }
 }
@@ -396,9 +411,24 @@ export function createGateway(config) {
     const suffix = url.search;
     let status = 500;
     try {
-      if (!authorized(req, config.key)) throw new GatewayError(401, 'unauthorized', 'Thiếu hoặc sai khóa.');
+      if (!authorized(req, route.startsWith('/admin/') ? (config.adminKey ?? '') : config.key)) throw new GatewayError(401, 'unauthorized', 'Thiếu hoặc sai khóa.');
       const is = (method, pattern) => req.method === method && (typeof pattern === 'string' ? route === pattern : pattern.test(route));
-      if (is('GET', '/health')) { send(res, 200, await health()); status = 200; }
+      if (is('GET', '/admin/status')) { send(res, 200, await health()); status = 200; }
+      else if (is('POST', '/admin/pause') || is('POST', '/admin/resume')) {
+        const file = path.join(config.dataDir, 'PAUSE');
+        if (route.endsWith('/pause')) fs.writeFileSync(file, new Date().toISOString());
+        else { if (config.paused === true) throw new GatewayError(409, 'config_paused', 'Cần bỏ chế độ tạm dừng trong cấu hình trước.'); if (fs.existsSync(file)) fs.unlinkSync(file); }
+        log({ admin: route.endsWith('/pause') ? 'pause' : 'resume' });
+        send(res, 200, { ok: true, paused: paused() }); status = 200;
+      }
+      else if (is('POST', '/admin/credit-grants')) {
+        let value; try { value = JSON.parse((await readAll(limited(req, 4096))).toString('utf8')); } catch { throw new GatewayError(400, 'invalid_grant', 'Dữ liệu credit không hợp lệ.'); }
+        if (!value || typeof value !== 'object') throw new GatewayError(400, 'invalid_grant', 'Dữ liệu credit không hợp lệ.');
+        const grant = ledger.grant(value);
+        log({ admin: 'credit-grant', grant: grant.id, credits: grant.credits });
+        send(res, 200, { ok: true, id: grant.id, day: grant.day, credits: grant.credits }); status = 200;
+      }
+      else if (is('GET', '/health')) { send(res, 200, await health()); status = 200; }
       else if (is('GET', '/video/budget')) {
         const account = accountOf(req);
         const { day } = ledger.usage(account);

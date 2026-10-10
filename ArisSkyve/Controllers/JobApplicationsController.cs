@@ -81,7 +81,7 @@ namespace ArisSkyve.Controllers
         private async Task<(User? user, JobApplication? app)> LoadEmployerApplicationAsync(int applicationId)
         {
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
-            if (user?.Profile == null || user.Role != "Business") return (user, null);
+            if (user?.Profile == null || (user.Role != "Business" && user.Role != "Admin")) return (user, null);
             var app = await _context.JobApplications
                 .Include(a => a.JobPosting)
                 .Include(a => a.Applicant)
@@ -117,7 +117,7 @@ namespace ArisSkyve.Controllers
             if (JobSourcePresentation.HasNoEmployer(job))
                 return Json(new { success = false, external = true, url = JobSourcePresentation.ApplyUrl(job), source = JobSourcePresentation.SourceName(job.OriginalUrl), message = JobSourcePresentation.NoEmployerMessage(job) });
 
-            if (user.Role == "Business")
+            if ((user.Role == "Business" || user.Role == "Admin"))
             {
                 return Json(new { success = false, isBusiness = true, isOwnJob = job.BusinessAccountId == user.Profile.Id });
             }
@@ -155,7 +155,7 @@ namespace ArisSkyve.Controllers
             if (user?.Profile == null)
                 return Json(new { success = false, message = "Vui lòng hoàn thiện hồ sơ trước khi ứng tuyển." });
 
-            if (user.Role == "Business")
+            if ((user.Role == "Business" || user.Role == "Admin"))
                 return Json(new { success = false, message = "Tài khoản doanh nghiệp không thể ứng tuyển vào tin tuyển dụng." });
 
             var job = await _context.JobPostings.FirstOrDefaultAsync(j => j.Id == jobId);
@@ -322,7 +322,7 @@ namespace ArisSkyve.Controllers
         public async Task<IActionResult> GetApplicantsForJob(int jobId, string? status = null)
         {
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
-            if (user?.Profile == null || user.Role != "Business")
+            if (user?.Profile == null || (user.Role != "Business" && user.Role != "Admin"))
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có thể xem danh sách ứng viên." });
 
             var job = await _context.JobPostings.FirstOrDefaultAsync(j => j.Id == jobId);
@@ -530,7 +530,7 @@ namespace ArisSkyve.Controllers
         public async Task<IActionResult> QueueScoringForJob(int jobId)
         {
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
-            if (user?.Profile == null || user.Role != "Business") return Json(new { success = false });
+            if (user?.Profile == null || (user.Role != "Business" && user.Role != "Admin")) return Json(new { success = false });
             var job = await _context.JobPostings.FirstOrDefaultAsync(j => j.Id == jobId && j.BusinessAccountId == user.Profile.Id);
             if (job == null) return Json(new { success = false, message = "Không tìm thấy tin." });
 
@@ -554,7 +554,7 @@ namespace ArisSkyve.Controllers
                 return Json(new { success = false, message = "Trạng thái không hợp lệ." });
 
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
-            if (user?.Profile == null || user.Role != "Business")
+            if (user?.Profile == null || (user.Role != "Business" && user.Role != "Admin"))
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có thể cập nhật trạng thái." });
 
             var application = await _context.JobApplications
@@ -633,7 +633,7 @@ namespace ArisSkyve.Controllers
                 return Json(new { success = false, message = "Thời gian phỏng vấn không thể ở quá khứ." });
 
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
-            if (user?.Profile == null || user.Role != "Business")
+            if (user?.Profile == null || (user.Role != "Business" && user.Role != "Admin"))
                 return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có thể lên lịch phỏng vấn." });
 
             var application = await _context.JobApplications

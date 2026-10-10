@@ -313,3 +313,42 @@ test('media: mix, concat and speech MP3 run on this machine', { skip: !fs.exists
     assert.doesNotMatch(await failed.text(), /ffmpeg|Invalid data|[A-Z]:\\|\.exe|interview-gateway-/i, 'no tool output or path reaches the caller');
   } finally { fs.rmSync(work, { recursive: true, force: true }); }
 });
+
+
+test('admin endpoints require a separate key; application keys cannot change spending or pause', async () => {
+  for (const route of ['/gw/admin/status','/gw/admin/pause','/gw/admin/credit-grants']) {
+    const reply=await call(route, {method: route.endsWith('/status') ? 'GET' : 'POST'}); assert.equal(reply.status,401);
+  }
+  config.adminKey='separate-admin-key-0123456789abcdef';
+  const reply=await call('/gw/admin/status',{headers:{authorization:'Bearer '+config.adminKey}}); assert.equal(reply.status,200);
+});
+
+test('approved credits are scoped to one account and Vietnam day; identical retries and restarts do not add twice', () => {
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'admin-credit-test-'));
+  const policy={perAccountDailyCredits:300,timeZone:'Asia/Ho_Chi_Minh'};
+  let time=new Date('2026-10-10T10:00:00Z');
+  try {
+    const a='a'.repeat(64), b='b'.repeat(64), actor='c'.repeat(64);
+    const ledger=new Ledger(folder,policy,()=>time);
+    const grant={id:'support-7',account:a,actor,credits:100,day:'2026-10-10'};
+    ledger.reserve(290,'test',a); assert.match(ledger.refusal(20,a),/hạn mức/);
+    ledger.grant(grant);ledger.grant(grant);assert.equal(ledger.usage(a).day.cap,400);assert.equal(ledger.usage(b).day.cap,300);assert.equal(ledger.usage(a).day.used,290);assert.equal(ledger.refusal(20,a),null);
+    assert.throws(()=>ledger.grant({...grant,credits:200}),/đã có/);
+    assert.throws(()=>ledger.grant({...grant,id:'support-8',credits:-100}),/không hợp lệ/);
+    assert.throws(()=>ledger.grant({...grant,id:'support-8',day:'2026-10-11'}),/không hợp lệ/);
+    const recovered=new Ledger(folder,policy,()=>time);recovered.grant(grant);assert.equal(recovered.usage(a).day.cap,400);
+    time=new Date('2026-10-10T17:00:00Z');assert.equal(recovered.usage(a).day.cap,300);assert.equal(recovered.usage(a).day.used,0);
+  }finally{fs.rmSync(folder,{recursive:true,force:true});}
+});
+
+test('admin pause persists and resumes; credit grant route is bounded and idempotent', async () => {
+  const headers={authorization:'Bearer '+config.adminKey};
+  let reply=await postJson('/gw/admin/pause',{},headers);assert.equal(reply.status,200);
+  reply=await postJson('/gw/video/generation/preview',{cost:0});assert.equal(reply.status,423);
+  reply=await postJson('/gw/admin/resume',{},headers);assert.equal(reply.status,200);
+  const grant={id:'support-123',account:'e'.repeat(64),actor:'f'.repeat(64),credits:25,day:ledger.day(new Date())};
+  for(let attempt=0;attempt<2;attempt++){reply=await postJson('/gw/admin/credit-grants',grant,headers);assert.equal(reply.status,200);}
+  assert.equal(ledger.grants.filter(g=>g.id===grant.id).length,1);
+  reply=await postJson('/gw/admin/credit-grants',{...grant,credits:26},headers);assert.equal(reply.status,409);
+  reply=await postJson('/gw/admin/credit-grants',{...grant,id:'support-124',credits:10001},headers);assert.equal(reply.status,400);
+});

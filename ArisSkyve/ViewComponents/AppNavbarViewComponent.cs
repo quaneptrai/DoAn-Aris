@@ -42,7 +42,7 @@ namespace ArisSkyve.ViewComponents
             if (user == null) return Content(string.Empty);
 
             var profile = user.Profile;
-            var isBusiness = user.Role == "Business";
+            var isBusiness = user.Role == "Business" || user.Role == "Admin" && profile is BussinessAccount;
             var fullName = profile is BussinessAccount biz && !string.IsNullOrWhiteSpace(biz.CompanyName)
                 ? biz.CompanyName
                 : (!string.IsNullOrWhiteSpace(profile?.FullName) ? profile!.FullName : user.Username);
@@ -53,6 +53,8 @@ namespace ArisSkyve.ViewComponents
                 UserId = userId,
                 AvatarUrl = profile?.AvatarUrl,
                 Role = user.Role ?? "Employee",
+                IsAdmin = AdminAccess.IsAdmin(user),
+                HasBusinessProfile = profile is BussinessAccount,
                 IncludeChatWidget = includeChatWidget,
                 Theme = theme,
                 FullName = fullName,
@@ -113,7 +115,9 @@ namespace ArisSkyve.ViewComponents
         public int NewApplicants { get; set; }
         public List<(string Label, string Href)> Chips { get; set; } = new();
 
-        public bool IsBusiness => Role == "Business";
+        public bool IsAdmin { get; set; }
+        public bool HasBusinessProfile { get; set; }
+        public bool IsBusiness => Role == "Business" || Role == "Admin" && HasBusinessProfile;
         public bool HasRealAvatar => AvatarPresentation.HasImage(AvatarUrl);
         public string? DeliveryAvatarUrl => PublicMediaDeliveryUrl.ToDeliveryUrl(AvatarUrl);
 

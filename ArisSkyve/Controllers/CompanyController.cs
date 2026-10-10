@@ -175,7 +175,7 @@ namespace ArisSkyve.Controllers
             model.ViewerTitle = myTitle;
             model.ViewerId = userId;
             model.ViewerAvatar = me?.Profile?.AvatarUrl;
-            model.ViewerIsBusiness = me?.Role == "Business";
+            model.ViewerIsBusiness = (me?.Role == "Business" || me?.Role == "Admin");
             model.ViewerCompanyId = (me?.Profile as BussinessAccount)?.Id;
             model.ViewerName = me?.Profile is BussinessAccount myBiz && !string.IsNullOrWhiteSpace(myBiz.CompanyName)
                 ? myBiz.CompanyName
