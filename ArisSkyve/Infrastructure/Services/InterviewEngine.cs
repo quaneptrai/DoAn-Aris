@@ -870,7 +870,7 @@ public sealed class InterviewVideoJobs(IServiceScopeFactory scopes, IInterviewEn
                 using var scope = scopes.CreateScope();
                 var services = scope.ServiceProvider;
                 var context = services.GetRequiredService<ArisDBContext>();
-                var kit = await context.InterviewKits.Include(k => k.BusinessAccount).ThenInclude(b => b.User).Include(k => k.Questions).Include(k => k.Videos)
+                var kit = await context.InterviewKits.AsSplitQuery().Include(k => k.BusinessAccount).ThenInclude(b => b.User).Include(k => k.Questions).Include(k => k.Videos)
                     .FirstOrDefaultAsync(k => k.Id == batch.KitId && k.BusinessAccountId == batch.BusinessAccountId)
                     ?? throw new InterviewEngineException("Bộ phỏng vấn đã bị xóa.");
                 if (kit.ScriptApprovedAtUtc == null) throw new InterviewEngineException("Kịch bản đã thay đổi và chưa được duyệt lại.");

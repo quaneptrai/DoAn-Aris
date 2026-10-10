@@ -42,6 +42,7 @@ public sealed partial class EmployerInterviewFlowController(
 
     private Task<InterviewKit?> KitAsync(int id, int businessId, CancellationToken cancellationToken) =>
         context.InterviewKits
+            .AsSplitQuery()
             .Include(k => k.BusinessAccount).ThenInclude(b => b.User)
             .Include(k => k.Questions)
             .Include(k => k.Videos)

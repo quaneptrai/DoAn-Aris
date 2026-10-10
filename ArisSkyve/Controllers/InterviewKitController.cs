@@ -29,6 +29,7 @@ public sealed partial class InterviewKitController(ArisDBContext context, Interv
     {
         if (!CodePattern().IsMatch(code ?? "")) return null;
         return await context.InterviewKits
+            .AsSplitQuery()
             .Include(k => k.Questions)
             .Include(k => k.Videos)
             .Include(k => k.BusinessAccount)
