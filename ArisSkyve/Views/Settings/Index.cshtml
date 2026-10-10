@@ -12,6 +12,9 @@
     uint avatarHash = 0;
     foreach (var character in profile?.FullName ?? Model.Username) avatarHash = unchecked(avatarHash * 31 + character);
     var avatarTone = (int)(avatarHash % 6) + 1;
+    var isEmployer = ArisSkyve.Infrastructure.Services.EmployerAccounts.IsEmployer(Model);
+    var employerRevoked = ArisSkyve.Infrastructure.Services.EmployerAccounts.IsRevoked(Model);
+    var employerPending = ViewBag.EmployerRequestPending == true;
 
     ViewData["Title"] = "Cài đặt tài khoản";
     ViewData["ActiveNav"] = "Settings";
@@ -48,7 +51,7 @@
             <a href="#sec-appearance" class="settings-nav__item">
                 <i data-lucide="sun-moon"></i> Giao diện
             </a>
-            @if (Model.Role == "Business")
+            @if (isEmployer)
             {
                 <a href="#sec-rejection" class="settings-nav__item">
                     <i data-lucide="mail"></i> Mẫu từ chối
@@ -107,6 +110,47 @@
                     <input type="text" class="a-input" value="@Model.Email" disabled style="opacity: 0.7; cursor: not-allowed;" />
                     <span class="a-help">Email liên kết với tài khoản đăng nhập và không thể thay đổi tại đây.</span>
                 </div>
+
+                <!-- Loại tài khoản: lối vào luồng chuyển sang nhà tuyển dụng (trên mobile không có menu tài khoản) -->
+                <div id="accountKind">
+                    <span class="a-label">Loại tài khoản</span>
+                    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                        <div style="min-width: 0;">
+                            @if (isEmployer)
+                            {
+                                <div class="fw-semibold" style="color: var(--text);">Nhà tuyển dụng · @(((ArisSkyve.Domain.Entities.BussinessAccount)profile!).CompanyName)</div>
+                                <span class="a-help">Đăng tin và quản lý ứng viên ở Bảng tuyển dụng.</span>
+                            }
+                            else if (employerRevoked)
+                            {
+                                <div class="fw-semibold" style="color: var(--text);">Ứng viên</div>
+                                <span class="a-help">Quyền nhà tuyển dụng đang bị quản trị viên thu hồi. Liên hệ quản trị viên Aris để được cấp lại.</span>
+                            }
+                            else if (employerPending)
+                            {
+                                <div class="fw-semibold" style="color: var(--text);">Ứng viên</div>
+                                <span class="a-help">Yêu cầu chuyển sang nhà tuyển dụng đang chờ quản trị viên duyệt. Bạn sẽ nhận thông báo khi có kết quả.</span>
+                            }
+                            else
+                            {
+                                <div class="fw-semibold" style="color: var(--text);">@(Model.Role == "Admin" ? "Quản trị viên" : "Ứng viên")</div>
+                                <span class="a-help">@(Model.Role == "Admin" ? "Muốn đăng tin tuyển dụng? Chuyển hồ sơ này sang nhà tuyển dụng, mất khoảng hai phút." : "Muốn đăng tin tuyển dụng? Gửi thông tin công ty để quản trị viên Aris duyệt, mất khoảng hai phút.")</span>
+                            }
+                        </div>
+                        @if (isEmployer)
+                        {
+                            <a class="a-btn a-btn--secondary" asp-controller="Company" asp-action="Edit"><i data-lucide="building-2"></i> Hồ sơ công ty</a>
+                        }
+                        else if (employerPending)
+                        {
+                            <a class="a-btn a-btn--secondary" asp-controller="Account" asp-action="BecomeEmployer"><i data-lucide="hourglass"></i> Xem yêu cầu</a>
+                        }
+                        else if (!employerRevoked)
+                        {
+                            <a class="a-btn a-btn--primary" asp-controller="Account" asp-action="BecomeEmployer"><i data-lucide="building-2"></i> Chuyển sang nhà tuyển dụng</a>
+                        }
+                    </div>
+                </div>
             </section>
 
             <!-- 2. Quyền riêng tư & Trạng thái -->
@@ -153,7 +197,7 @@
                 </div>
             </section>
 
-            @if (Model.Role == "Business")
+            @if (isEmployer)
             {
                 <!-- 4. Mẫu từ chối ứng viên (Doanh nghiệp) -->
                 <section class="settings-sec" id="sec-rejection">

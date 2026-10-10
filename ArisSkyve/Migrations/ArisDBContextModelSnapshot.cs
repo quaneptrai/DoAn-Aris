@@ -1861,6 +1861,9 @@ namespace ArisSkyve.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<string>("Payload")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("RequestedCredits")
                         .HasColumnType("int");
 

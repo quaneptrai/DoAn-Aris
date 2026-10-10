@@ -36,6 +36,8 @@ namespace ArisSkyve.Controllers
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
             if (user == null) return RedirectToAction("Login", "Account");
 
+            ViewBag.EmployerRequestPending = await _context.SupportRequests.AnyAsync(r => r.UserId == user.Id
+                && r.Kind == EmployerAccounts.RequestKind && (r.Status == "pending" || r.Status == "processing"));
             return View(user);
         }
 

@@ -60,8 +60,10 @@ check('designated admin protected from suspension',(await first.form('/Admin/Acc
 check('protected second admin still authenticated',(await second('/Admin')).status===200);
 check('account downgrade accepted',(await first.form('/Admin/Accounts/2/Role',{role:'Employee'},t)).status===302);
 check('downgraded employer loses employer API access',denied(await other('/Employer/InterviewFlow/Support')));
-check('downgraded account cannot open employer dashboard',(await other('/Employer')).headers.get('location')?.includes('/Jobs'));
-check('downgraded account cannot edit company profile',(await other('/Company/Edit')).headers.get('location')?.includes('/Jobs'));
+check('downgraded account cannot open employer dashboard',(await other('/Employer')).headers.get('location')?.includes('/Account/BecomeEmployer'));
+check('downgraded account cannot edit company profile',(await other('/Company/Edit')).headers.get('location')?.includes('/Account/BecomeEmployer'));
+page=await other.html('/Account/BecomeEmployer');check('downgraded account is told the rights were revoked, without the upgrade form',page.includes('Quyền đăng tuyển đang bị thu hồi')&&!page.includes('id="beForm"'));
+reply=await other('/Account/UpgradeToBusiness',{method:'POST',body:new URLSearchParams({CompanyName:'fixture self restore',Industry:'IT',__RequestVerificationToken:token(page)})});check('downgraded account cannot restore itself',(await reply.json()).success===false);
 check('downgraded account cannot invoke job editing',!(await other.json('/Jobs/GetJobPostingForEdit?id=1')).success);
 
 check('account restored to business without deleting profile',(await first.form('/Admin/Accounts/2/Role',{role:'Business'},t)).status===302);

@@ -41,7 +41,7 @@ namespace ArisSkyve.Controllers
         {
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
             if (user?.Role is not ("Business" or "Admin") || user.Profile is not BussinessAccount business)
-                return RedirectToAction("Index", "Jobs");
+                return RedirectToAction("BecomeEmployer", "Account");  // shows the upgrade form, or why it is unavailable
 
             var jobs = await _context.JobPostings
                 .Where(j => j.BusinessAccountId == business.Id)

@@ -42,7 +42,7 @@ namespace ArisSkyve.ViewComponents
             if (user == null) return Content(string.Empty);
 
             var profile = user.Profile;
-            var isBusiness = user.Role == "Business" || user.Role == "Admin" && profile is BussinessAccount;
+            var isBusiness = EmployerAccounts.IsEmployer(user);
             var fullName = profile is BussinessAccount biz && !string.IsNullOrWhiteSpace(biz.CompanyName)
                 ? biz.CompanyName
                 : (!string.IsNullOrWhiteSpace(profile?.FullName) ? profile!.FullName : user.Username);
@@ -117,7 +117,9 @@ namespace ArisSkyve.ViewComponents
 
         public bool IsAdmin { get; set; }
         public bool HasBusinessProfile { get; set; }
-        public bool IsBusiness => Role == "Business" || Role == "Admin" && HasBusinessProfile;
+        // Same rule as EmployerAccounts.IsEmployer: an account left with Role=Business but a candidate profile by the
+        // pre-09/10 upgrade gets the candidate menu, whose "Đăng tuyển trên Aris" lets it finish the upgrade.
+        public bool IsBusiness => (Role is "Business" or "Admin") && HasBusinessProfile;
         public bool HasRealAvatar => AvatarPresentation.HasImage(AvatarUrl);
         public string? DeliveryAvatarUrl => PublicMediaDeliveryUrl.ToDeliveryUrl(AvatarUrl);
 

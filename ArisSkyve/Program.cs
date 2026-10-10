@@ -211,6 +211,14 @@ if (useEphemeralE2E && builder.Configuration.GetValue<bool>("E2E:SeedInterviewAc
             Profile = email == AdminAccess.Emails[0] ? new ArisSkyve.Domain.Entities.BussinessAccount {FullName="Admin fixture", CompanyName="Admin fixture", Location="Test"} : new ArisSkyve.Domain.Entities.EmployesAccount {FullName="Admin fixture", Location="Test"}
         });
     }
+    // Upgraded before the 09/10 discriminator fix: Role=Business but still a candidate profile. Added last so the
+    // Ids of the fixtures above stay the same.
+    foreach (var name in new[] { "legacy.self", "legacy.admin" })
+        db.Users.Add(new ArisSkyve.Domain.Entities.User
+        {
+            Email = name + "@example.test", Username = name, Role = "Business", PrivacyAcceptedAt = DateTime.UtcNow,
+            Profile = new ArisSkyve.Domain.Entities.EmployesAccount { FullName = name, Location = "Test" }
+        });
     await db.SaveChangesAsync();
 }
 

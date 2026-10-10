@@ -3,7 +3,7 @@
 @{
     Layout="_AppLayout"; ViewData["Title"]="Yêu cầu quản trị viên"; ViewData["ActiveNav"]="InterviewFlow";
     string Status(string value)=>value switch {"pending"=>"Chờ tiếp nhận","processing"=>"Đang xử lý","granting"=>"Chờ xác nhận credit","resolved"=>"Đã xử lý","rejected"=>"Từ chối",_=>value};
-    string Kind(string value)=>value switch {"credits"=>"Xin thêm credit","bug"=>"Báo lỗi",_=>"Hỗ trợ khác"};
+    string Kind(string value)=>value switch {"credits"=>"Xin thêm credit","bug"=>"Báo lỗi",ArisSkyve.Infrastructure.Services.EmployerAccounts.RequestKind=>"Xin chuyển sang nhà tuyển dụng",_=>"Hỗ trợ khác"};
 }
 @section Styles {<link rel="stylesheet" href="~/css/pages/admin.css" asp-append-version="true" />}
 <section class="adm-page">

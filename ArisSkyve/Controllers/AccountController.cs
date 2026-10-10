@@ -28,8 +28,9 @@ namespace ArisSkyve.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly IEmailService _emailService;
         private readonly IV7FeatureGate _featureGate;
+        private readonly ILogger<AccountController> _logger;
 
-        public AccountController(ArisDBContext context, IConfiguration config, IHttpClientFactory httpClientFactory, IWebHostEnvironment env, IEmailService emailService, IV7FeatureGate featureGate)
+        public AccountController(ArisDBContext context, IConfiguration config, IHttpClientFactory httpClientFactory, IWebHostEnvironment env, IEmailService emailService, IV7FeatureGate featureGate, ILogger<AccountController>? logger = null)
         {
             _context = context;
             _config = config;
@@ -37,6 +38,18 @@ namespace ArisSkyve.Controllers
             _env = env;
             _emailService = emailService;
             _featureGate = featureGate;
+            _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<AccountController>.Instance;
+        }
+
+        // Signed in through "Nhà tuyển dụng" with an existing candidate account: continue to the upgrade page
+        // instead of the home feed. An explicit returnUrl (e.g. an interview invitation) still wins.
+        private IActionResult AfterSignIn(User user, string? returnUrl, string? intent)
+        {
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                return Redirect(returnUrl);
+            if (NormalizeIntent(intent) == "business" && !EmployerAccounts.IsEmployer(user))
+                return RedirectToAction("BecomeEmployer");
+            return RedirectToAction("Index", "Dashboard");
         }
         // Shared by all three signup paths (magic-link, Google, Facebook) so a
         // duplicate desired username -- e.g. two different emails both starting
@@ -144,6 +157,8 @@ namespace ArisSkyve.Controllers
             {
                 if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                     return Redirect(returnUrl);
+                // BecomeEmployer sends accounts that already hire straight on to /Employer.
+                if (NormalizeIntent(intent) == "business") return RedirectToAction("BecomeEmployer");
                 return RedirectToAction("Index", "Dashboard");
             }
             ViewBag.ReturnUrl = returnUrl;
@@ -354,7 +369,7 @@ namespace ArisSkyve.Controllers
             await _context.SaveChangesAsync();
             await SignInUserAsync(user);
             // Đăng ký với ý định "nhà tuyển dụng" → đi tiếp sang bước tạo hồ sơ công ty.
-            if (NormalizeIntent(Request.Cookies[IntentCookie]) == "business" && (user.Role != "Business" && user.Role != "Admin"))
+            if (NormalizeIntent(Request.Cookies[IntentCookie]) == "business" && !EmployerAccounts.IsEmployer(user))
             {
                 Response.Cookies.Delete(IntentCookie);
                 return RedirectToAction("BecomeEmployer");
@@ -371,11 +386,20 @@ namespace ArisSkyve.Controllers
                 return Challenge();
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return NotFound();
-            if (user.Role == "Business" || user.Role == "Admin" && user.Profile is BussinessAccount) return RedirectToAction("Index", "Employer");
+            if (EmployerAccounts.IsEmployer(user)) return RedirectToAction("Index", "Employer");
 
             var profileId = user.Profile?.Id ?? 0;
+            var request = await _context.SupportRequests.AsNoTracking()
+                .Where(r => r.UserId == userId && r.Kind == EmployerAccounts.RequestKind)
+                .OrderByDescending(r => r.Id).FirstOrDefaultAsync();
+            var open = request != null && EmployerAccounts.IsOpen(request);
             var model = new BecomeEmployerViewModel
             {
+                Revoked = EmployerAccounts.IsRevoked(user),
+                NeedsApproval = !AdminAccess.IsAdmin(user),
+                PendingCompany = open ? EmployerAccounts.Details(request!.Payload)?.CompanyName ?? "" : null,
+                PendingSince = open ? request!.CreatedAtUtc : null,
+                RejectedReply = request?.Status == "rejected" ? request.AdminReply : null,
                 FullName = user.Profile?.FullName ?? user.Username,
                 Email = user.Email,
                 AvatarUrl = user.Profile?.AvatarUrl,
@@ -506,10 +530,7 @@ namespace ArisSkyve.Controllers
                 return RedirectToAction("NewUserInfor", new { intent = NormalizeIntent(intent) });
             }
 
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-                return Redirect(returnUrl);
-
-            return RedirectToAction("Index", "Dashboard");
+            return AfterSignIn(user, returnUrl, intent);
         }
 
         private string GenerateMagicToken(string email, bool privacyAccepted)
@@ -711,7 +732,7 @@ namespace ArisSkyve.Controllers
 
             await RecordPrivacyAcceptanceAsync(user);
             await SignInUserAsync(user);
-            return RedirectToAction("Index", "Dashboard");
+            return AfterSignIn(user, returnUrl, intent);
         }
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -793,7 +814,7 @@ namespace ArisSkyve.Controllers
 
             await RecordPrivacyAcceptanceAsync(user);
             await SignInUserAsync(user);
-            return RedirectToAction("Index", "Dashboard");
+            return AfterSignIn(user, returnUrl, intent);
         }
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -809,6 +830,10 @@ namespace ArisSkyve.Controllers
             if (string.IsNullOrWhiteSpace(model?.CompanyName))
             {
                 return Json(new { success = false, message = "Vui lòng nhập tên doanh nghiệp." });
+            }
+            if (model.CompanyName.Trim().Length > 150)
+            {
+                return Json(new { success = false, message = "Tên doanh nghiệp tối đa 150 ký tự." });
             }
             if (string.IsNullOrWhiteSpace(model.Industry))
             {
@@ -833,70 +858,50 @@ namespace ArisSkyve.Controllers
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null) return Json(new { success = false, message = "Không tìm thấy người dùng." });
-            if (user.Role == "Business" || user.Role == "Admin" && user.Profile is BussinessAccount) return Json(new { success = true, redirectUrl = Url.Action("Index", "Employer") });
+            if (EmployerAccounts.IsEmployer(user)) return Json(new { success = true, redirectUrl = Url.Action("Index", "Employer") });
+            if (EmployerAccounts.IsRevoked(user))
+                return Json(new { success = false, message = "Quản trị viên đã thu hồi quyền nhà tuyển dụng của tài khoản này. Liên hệ quản trị viên Aris để được cấp lại." });
 
             try
             {
-                // 3. Cập nhật Role cho User
-                if (user.Role != "Admin") user.Role = "Business";
-
-                // 4. EmployesAccount/BussinessAccount dùng chung 1 bảng (TPH, phân biệt bằng cột
-                // Discriminator), nên EF không cho đổi "type" của 1 row đang track trực tiếp.
-                // Cách đúng để chuyển đổi mà KHÔNG mất dữ liệu liên quan (Resume/Education/
-                // ContactMethod đều trỏ FK tới Profile.Id): giữ lại đúng Id cũ, detach bản ghi cũ
-                // rồi attach 1 instance BussinessAccount mới với cùng Id, đánh dấu Modified —
-                // EF sẽ tự ghi lại Discriminator + toàn bộ cột khi SaveChanges. Nếu xoá rồi tạo
-                // Id mới như code cũ thì mọi Resume/Education/ContactMethod của user sẽ mồ côi.
-                var oldProfile = user.Profile;
-
-                var newBusinessProfile = new BussinessAccount
+                // Quản trị viên tự chuyển hồ sơ của mình ngay (giữ nguyên Id hồ sơ nên CV, học vấn, liên hệ và đơn ứng
+                // tuyển vẫn thuộc về người dùng). Mọi tài khoản khác gửi yêu cầu; quản trị viên duyệt ở /Admin.
+                if (AdminAccess.IsAdmin(user))
                 {
-                    // Giữ lại toàn bộ thông tin cá nhân cũ, không riêng vài trường
-                    FullName = oldProfile?.FullName ?? user.Username,
-                    Location = oldProfile?.Location ?? "Chưa cập nhật",
-                    AvatarUrl = oldProfile?.AvatarUrl,
-                    JobTitle = oldProfile?.JobTitle,
-                    Bio = oldProfile?.Bio,
-                    CoverPhotoUrl = oldProfile?.CoverPhotoUrl,
-                    IsLookingForJob = oldProfile?.IsLookingForJob ?? true,
-                    ShareWithRecruiters = oldProfile?.ShareWithRecruiters ?? false,
-                    isStudent = oldProfile?.isStudent ?? false,
-                    IsRemoteJob = oldProfile?.IsRemoteJob ?? false,
-                    ResumeUrl = oldProfile?.ResumeUrl,
-                    UserId = user.Id,
+                    var business = await EmployerAccounts.UpgradeAsync(_context, user, model);
+                    return Json(new { success = true, profileId = business.Id, redirectUrl = Url.Action("Index", "Employer", new { welcome = 1 }) });
+                }
 
-                    // Cập nhật thông tin doanh nghiệp mới từ Form
-                    CompanyName = model.CompanyName.Trim(),
-                    Industry = model.Industry.Trim(),
-                    TaxCode = model.TaxCode,
-                    FoundedYear = model.FoundedYear,
-                    CompanySize = model.CompanySize,
-                    WebsiteUrl = model.WebsiteUrl,
-                    CompanyAddress = model.CompanyAddress,
-                    Description = model.Description,
-                    IsVerified = false
+                var open = await _context.SupportRequests.FirstOrDefaultAsync(r => r.UserId == userId && r.Kind == EmployerAccounts.RequestKind
+                    && (r.Status == "pending" || r.Status == "processing"));
+                if (open != null) return Json(new { success = true, pending = true, requestId = open.Id });
+
+                var admins = (await _context.Users.AsNoTracking().Where(u => u.Role == "Admin" && !u.IsSuspended).ToListAsync())
+                    .Where(AdminAccess.IsAdmin).ToList();
+                if (admins.Count == 0) return Json(new { success = false, message = "Chưa có quản trị viên tiếp nhận yêu cầu. Vui lòng thử lại sau." });
+
+                await using var transaction = _context.Database.IsRelational() ? await _context.Database.BeginTransactionAsync() : null;
+                var request = new SupportRequest
+                {
+                    UserId = userId, Kind = EmployerAccounts.RequestKind,
+                    Message = "Đăng ký nhà tuyển dụng: " + model.CompanyName.Trim(), Payload = EmployerAccounts.Payload(model)
                 };
-
-                if (oldProfile != null)
-                {
-                    newBusinessProfile.Id = oldProfile.Id;
-                    _context.Entry(oldProfile).State = EntityState.Detached;
-                    _context.Profiles.Attach(newBusinessProfile);
-                    _context.Entry(newBusinessProfile).State = EntityState.Modified;
-                }
-                else
-                {
-                    _context.Profiles.Add(newBusinessProfile);
-                }
-
-                user.Profile = newBusinessProfile;
-
+                _context.SupportRequests.Add(request);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, profileId = newBusinessProfile.Id, redirectUrl = Url.Action("Index", "Employer", new { welcome = 1 }) });
+                var who = user.Profile?.FullName is { Length: > 0 } fullName ? fullName : user.Username;
+                var staged = new List<StagedNotification?>();
+                foreach (var admin in admins)
+                    staged.Add(await NotificationWriter.StageAsync(_context, admin.Id, userId, "SupportRequest",
+                        $"{who} xin chuyển sang nhà tuyển dụng ({model.CompanyName.Trim()}).", "/Admin?tab=requests&requestId=" + request.Id));
+                await _context.SaveChangesAsync();
+                if (transaction != null) await transaction.CommitAsync();
+                foreach (var notification in staged) await NotificationWriter.PushAsync(NotificationWriter.HubFrom(HttpContext), _context, notification);
+                return Json(new { success = true, pending = true, requestId = request.Id });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+                _logger.LogError(ex, "Upgrade to employer failed for user {UserId}", userId);
+                return Json(new { success = false, message = "Chưa chuyển được tài khoản do lỗi hệ thống. Thông tin đã nhập vẫn còn, vui lòng thử lại sau ít phút." });
             }
 
         }

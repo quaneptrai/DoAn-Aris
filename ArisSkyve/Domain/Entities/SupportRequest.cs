@@ -7,6 +7,8 @@ public sealed class SupportRequest
     public User User { get; set; } = null!;
     [MaxLength(20)] public string Kind { get; set; } = "support";
     [MaxLength(2000)] public string Message { get; set; } = "";
+    // Kind "employer": the company details sent from Account/BecomeEmployer (JSON), applied when an administrator approves.
+    public string? Payload { get; set; }
     public int? RequestedCredits { get; set; }
     [MaxLength(20)] public string Status { get; set; } = "pending";
     [MaxLength(2000)] public string AdminReply { get; set; } = "";

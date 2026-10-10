@@ -21,6 +21,33 @@
             </div>
         </header>
 
+        @if (Model.Revoked)
+        {
+            <section class="a-card a-empty" aria-live="polite">
+                <div class="a-empty__art"><i data-lucide="shield-alert"></i></div>
+                <div class="a-empty__title">Quyền đăng tuyển đang bị thu hồi</div>
+                <p class="a-empty__text">Quản trị viên Aris đã chuyển tài khoản này về tài khoản ứng viên. Thông tin công ty cũ vẫn được giữ; khi quản trị viên cấp lại quyền, bảng tuyển dụng sẽ mở lại như trước.</p>
+                <a class="a-btn a-btn--secondary" asp-controller="Dashboard" asp-action="Index">Về trang chủ</a>
+            </section>
+        }
+        else if (Model.PendingCompany != null)
+        {
+            <section class="a-card a-empty" aria-live="polite">
+                <div class="a-empty__art"><i data-lucide="hourglass"></i></div>
+                <div class="a-empty__title">Đang chờ quản trị viên duyệt</div>
+                <p class="a-empty__text">Yêu cầu đăng tuyển cho <b>@Model.PendingCompany</b> đã gửi lúc @ArisSkyve.Infrastructure.Services.Recruitment.VnTime.Format(Model.PendingSince!.Value). Bạn sẽ nhận thông báo khi có kết quả; trong lúc chờ, tài khoản vẫn dùng như tài khoản ứng viên.</p>
+                <a class="a-btn a-btn--secondary" asp-controller="Dashboard" asp-action="Index">Về trang chủ</a>
+            </section>
+        }
+        else
+        {
+        @if (Model.RejectedReply != null)
+        {
+            <div class="a-card be-rejected" role="status">
+                <i data-lucide="info"></i>
+                <div><b>Yêu cầu trước chưa được duyệt.</b> Phản hồi của quản trị viên: @Model.RejectedReply<br />Bạn có thể sửa thông tin bên dưới và gửi lại.</div>
+            </div>
+        }
         <div class="be-grid">
             <section class="be-form a-card" aria-label="Thông tin doanh nghiệp">
                 <ol class="be-steps" id="beSteps">
@@ -29,7 +56,7 @@
                     <li class="be-step" data-step="3"><button type="button" data-goto="3" disabled><span class="be-step__dot">3</span><span class="be-step__label">Xác nhận</span></button></li>
                 </ol>
 
-                <form id="beForm" novalidate autocomplete="off">
+                <form id="beForm" novalidate autocomplete="off" data-needs-approval="@(Model.NeedsApproval ? "true" : "false")">
                     @Html.AntiForgeryToken()
 
                     <!-- Bước 1 -->
@@ -93,7 +120,7 @@
                                 <span class="be-drop__preview" id="beDropPreview"><i data-lucide="image-plus"></i></span>
                                 <span class="be-drop__text">
                                     <b>Kéo thả hoặc bấm để chọn logo</b>
-                                    <span>PNG, JPG hoặc WEBP, dưới 5MB. Logo sẽ thay ảnh đại diện của tài khoản.</span>
+                                    <span>PNG, JPG hoặc WEBP, dưới 5MB. Logo sẽ thay ảnh đại diện của tài khoản@(Model.NeedsApproval ? " ngay khi gửi" : "").</span>
                                 </span>
                                 <button type="button" class="a-btn a-btn--ghost a-btn--sm" id="beLogoClear" hidden>Bỏ</button>
                             </label>
@@ -120,13 +147,17 @@
 
                     <!-- Bước 3 -->
                     <fieldset class="be-stage" data-stage="3" hidden>
-                        <legend class="be-stage__title">Kiểm tra lại trước khi chuyển</legend>
+                        <legend class="be-stage__title">@(Model.NeedsApproval ? "Kiểm tra lại trước khi gửi duyệt" : "Kiểm tra lại trước khi chuyển")</legend>
 
                         <dl class="be-review" id="beReview"></dl>
 
                         <div class="be-impact">
                             <div class="be-impact__title"><i data-lucide="info"></i> Sau khi chuyển</div>
                             <ul>
+                                @if (Model.NeedsApproval)
+                                {
+                                    <li>Quản trị viên Aris xem thông tin công ty và duyệt trước. Tới lúc đó tài khoản vẫn là tài khoản ứng viên như hiện tại; bạn nhận thông báo khi có kết quả.</li>
+                                }
                                 <li>Tài khoản <b>@Model.Email</b> trở thành tài khoản nhà tuyển dụng. Bạn đăng tin, xem hồ sơ và hẹn phỏng vấn từ <b>Bảng tuyển dụng</b>.</li>
                                 <li>Bài viết, bạn bè và tin nhắn giữ nguyên.</li>
                                 @if (Model.ResumeCount > 0)
@@ -157,6 +188,19 @@
                 </form>
 
                 <!-- Hoàn tất -->
+                @if (Model.NeedsApproval)
+                {
+                <div class="be-done" id="beDone" hidden>
+                    <div class="be-done__mark"><i data-lucide="send"></i></div>
+                    <h2>Đã gửi yêu cầu, chờ quản trị viên duyệt</h2>
+                    <p>Bạn sẽ nhận thông báo khi yêu cầu được duyệt; lúc đó Bảng tuyển dụng mở ra cho tài khoản này. Trong lúc chờ, tài khoản vẫn dùng như tài khoản ứng viên.</p>
+                    <div class="be-done__actions">
+                        <a class="a-btn a-btn--primary" href="/Dashboard">Về trang chủ</a>
+                    </div>
+                </div>
+                }
+                else
+                {
                 <div class="be-done" id="beDone" hidden>
                     <div class="be-done__mark"><i data-lucide="check"></i></div>
                     <h2>Đã tạo tài khoản nhà tuyển dụng</h2>
@@ -167,6 +211,7 @@
                         <a class="a-btn a-btn--ghost" href="/Company/Edit">Bổ sung hồ sơ công ty</a>
                     </div>
                 </div>
+                }
             </section>
 
             <!-- Xem trước trực tiếp -->
@@ -205,9 +250,13 @@
                 </div>
             </aside>
         </div>
+        }
     </div>
 </main>
 
 @section Scripts {
-    <script src="~/js/pages/become-employer.js" asp-append-version="true"></script>
+    @if (!Model.Revoked)
+    {
+        <script src="~/js/pages/become-employer.js" asp-append-version="true"></script>
+    }
 }

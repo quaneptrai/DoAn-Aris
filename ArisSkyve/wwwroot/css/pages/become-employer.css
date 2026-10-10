@@ -179,3 +179,8 @@
 @media (prefers-reduced-motion: reduce) {
   .be-stage.is-active, .be-done, .be-done__mark, .be-card.is-bump { animation: none; }
 }
+
+/* Yêu cầu trước bị quản trị viên từ chối: lý do hiện trên form để người dùng sửa và gửi lại */
+.be-rejected { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; margin-bottom: 16px; border-left: 3px solid var(--warning); font-size: var(--fs-13); color: var(--text-2); }
+.be-rejected > svg { flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; color: var(--warning); }
+.be-rejected b { color: var(--text); }

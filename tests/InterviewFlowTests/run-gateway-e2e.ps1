@@ -29,7 +29,7 @@ try {
         $listener = Get-NetTCPConnection -State Listen -LocalPort 5030 -ErrorAction SilentlyContinue
         if ($listener) { throw '5030 is occupied; do not stop an unidentified process.' }
         $log = 'gateway-' + [IO.Path]::GetFileNameWithoutExtension($suite)
-        $launch = & (Join-Path $PSScriptRoot 'start-test-server.ps1') -Port 5030 -Gateway -AdminFixtures:($suite -in @('admin-e2e.mjs','admin-browser.cjs')) -AppDll $AppDll -LogName $log -GatewayUrl http://127.0.0.1:5311/gw
+        $launch = & (Join-Path $PSScriptRoot 'start-test-server.ps1') -Port 5030 -Gateway -AdminFixtures:($suite -in @('admin-e2e.mjs','admin-browser.cjs','employer-upgrade-e2e.mjs')) -AppDll $AppDll -LogName $log -GatewayUrl http://127.0.0.1:5311/gw
         $launch | Write-Output
         $testPid = [int]([regex]::Match(($launch -join ' '),'PID (\d+)').Groups[1].Value)
         if (-not $testPid) { throw 'No test server PID returned.' }

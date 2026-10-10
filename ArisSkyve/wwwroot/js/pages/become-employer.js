@@ -96,7 +96,8 @@
         backBtn.hidden = step === 1;
         cancelBtn.hidden = step !== 1;
         const label = nextBtn.querySelector('.a-btn__label') || nextBtn;
-        label.textContent = step === 3 ? 'Chuyển sang nhà tuyển dụng' : 'Tiếp tục';
+        // Tài khoản không phải quản trị viên gửi yêu cầu để quản trị viên duyệt (data-needs-approval trên form).
+        label.textContent = step === 3 ? (form.dataset.needsApproval === 'true' ? 'Gửi yêu cầu duyệt' : 'Chuyển sang nhà tuyển dụng') : 'Tiếp tục';
         if (step === 3) buildReview();
         const first = stages[step - 1].querySelector('input:not([type=hidden]):not([type=file]), textarea');
         if (first && step !== 3) setTimeout(() => first.focus({ preventScroll: true }), 60);

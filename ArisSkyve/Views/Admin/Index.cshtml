@@ -3,7 +3,7 @@
 @{
     Layout="_AppLayout"; ViewData["Title"]="Quản trị Aris"; ViewData["ActiveNav"]="Admin";
     string Status(string value)=>value switch {"pending"=>"Chờ tiếp nhận","processing"=>"Đang xử lý","granting"=>"Chờ xác nhận credit","resolved"=>"Đã xử lý","rejected"=>"Từ chối",_=>value};
-    string Kind(string value)=>value switch {"credits"=>"Xin thêm credit","bug"=>"Báo lỗi",_=>"Hỗ trợ khác"};
+    string Kind(string value)=>value switch {"credits"=>"Xin thêm credit","bug"=>"Báo lỗi",EmployerAccounts.RequestKind=>"Xin chuyển sang nhà tuyển dụng",_=>"Hỗ trợ khác"};
     string Role(string value)=>value switch {"Admin"=>"Admin","Business"=>"Nhà tuyển dụng",_=>"Ứng viên"};
 }
 @section Styles {<link rel="stylesheet" href="~/css/pages/admin.css" asp-append-version="true" />}
@@ -35,6 +35,18 @@
             <article class="a-card adm-card"><div class="adm-row"><h2>#@request.Id · @Kind(request.Kind)</h2><span class="adm-tag">@Status(request.Status)</span></div>
                 <p class="adm-hint">@request.User.Email · @ArisSkyve.Infrastructure.Services.Recruitment.VnTime.Format(request.CreatedAtUtc)</p><p class="adm-message">@request.Message</p>
                 @if(request.RequestedCredits!=null){<p>Xin thêm <strong>@request.RequestedCredits credit</strong>.</p>}
+                @if(request.Kind==EmployerAccounts.RequestKind){
+                    var company=EmployerAccounts.Details(request.Payload);
+                    if(company==null){<p class="adm-hint">Yêu cầu không còn thông tin công ty.</p>}
+                    else{
+                        <div class="adm-reply"><strong>@company.CompanyName</strong>
+                            <p>@(string.Join(" · ",new[]{company.Industry,company.CompanySize==null?null:"Quy mô "+company.CompanySize,company.FoundedYear==null?null:"Thành lập "+company.FoundedYear}.Where(v=>!string.IsNullOrWhiteSpace(v))))</p>
+                            <p class="adm-hint">@(string.Join(" · ",new[]{string.IsNullOrWhiteSpace(company.TaxCode)?"Chưa có MST":"MST "+company.TaxCode,company.WebsiteUrl,company.CompanyAddress}.Where(v=>!string.IsNullOrWhiteSpace(v))))</p>
+                            @if(!string.IsNullOrWhiteSpace(company.Description)){<p class="adm-message">@company.Description</p>}
+                        </div>
+                        @if(request.Status is not ("resolved" or "rejected")){<p class="adm-hint">Duyệt sẽ chuyển tài khoản này sang nhà tuyển dụng với thông tin trên; từ chối thì người gửi thấy phản hồi và có thể gửi lại.</p>}
+                    }
+                }
                 @if(request.Status is "resolved" or "rejected"){
                     <div class="adm-reply"><strong>Phản hồi đã gửi</strong><p class="adm-message">@request.AdminReply</p>@if(request.GrantedCredits!=null){<p>@request.GrantedCredits credit · ngày @request.CreditDay</p>}</div>
                 }else{
@@ -47,7 +59,7 @@
                         }
                         <div class="adm-actions">
                             @if(request.Status!="granting") {<button class="a-btn a-btn--secondary" type="submit" name="status" value="processing">Đang xử lý</button>}
-                            <button class="a-btn a-btn--primary" type="submit" name="status" value="resolved">@(request.Status=="granting"?"Duyệt lại":request.Kind=="credits"?"Duyệt credit":"Hoàn tất")</button>
+                            <button class="a-btn a-btn--primary" type="submit" name="status" value="resolved">@(request.Status=="granting"?"Duyệt lại":request.Kind=="credits"?"Duyệt credit":request.Kind==EmployerAccounts.RequestKind?"Duyệt nhà tuyển dụng":"Hoàn tất")</button>
                             @if(request.Status!="granting"){<button class="a-btn a-btn--secondary" type="submit" name="status" value="rejected">Từ chối</button>}
                         </div>
                     </form>
@@ -59,7 +71,7 @@
     @if(Model.Tab=="accounts"){
         <p class="adm-hint">Quyền Admin dành cho hai tài khoản đã chỉ định. Đổi loại hoặc tạm khóa giữ nguyên hồ sơ, CV, tin tuyển dụng và kết quả.</p>
         <div class="adm-history">@foreach(var account in Model.Accounts){
-            <article class="a-card adm-card"><div class="adm-row"><div><h2>@account.Username</h2><p>@account.Email · #@account.Id</p></div><span class="adm-tag">@Role(account.Role) @(account.IsSuspended?"· Tạm khóa":"")</span></div>
+            <article class="a-card adm-card"><div class="adm-row"><div><h2>@account.Username</h2><p>@account.Email · #@account.Id</p></div><span class="adm-tag">@Role(account.Role) @(account.Role=="Business" && account.CompanyName==null?"· chưa có hồ sơ công ty":"") @(account.IsSuspended?"· Tạm khóa":"")</span></div>
                 <p>@(account.CompanyName??"Chưa có hồ sơ công ty") · @account.Kits bộ phỏng vấn</p>
                 <div class="adm-actions"><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-allowance="@account.Id">Xem hạn mức hôm nay</button><span role="status" data-allowance-result="@account.Id"></span></div>
                 @if(!AdminAccess.IsDesignated(account.Email)){

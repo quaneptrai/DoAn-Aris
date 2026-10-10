@@ -60,6 +60,9 @@ public sealed class AdminController(ArisDBContext db, AdminAccess access, Interv
         if(reply.Length>2000 || reply.Length<3 || status is not ("processing" or "resolved" or "rejected")) return Back("requests","Nhập phản hồi từ 3 đến 2.000 ký tự và chọn trạng thái hợp lệ.",true);
         if(request.Status is "resolved" or "rejected" || request.Version != version) return Back("requests","Yêu cầu đã được xử lý hoặc thay đổi. Tải lại để xem trạng thái mới.",true);
         if(request.Kind=="credits" && status=="resolved" && credits is not (>=1 and <=10000)) return Back("requests","Số credit bổ sung phải từ1 đến10.000.",true);
+        var employer=request.Kind==EmployerAccounts.RequestKind;
+        var details=employer?EmployerAccounts.Details(request.Payload):null;
+        if(employer && status=="resolved" && details==null) return Back("requests","Yêu cầu thiếu thông tin công ty nên không duyệt được. Hãy từ chối và đề nghị người gửi gửi lại.",true);
         if(request.Status=="granting" && status!="resolved") return Back("requests","Đang xác nhận credit. Dùng Duyệt lại để xác nhận cùng khoản đã gửi.",true);
         try {
             if(request.Kind=="credits" && status=="resolved") {
@@ -72,10 +75,22 @@ public sealed class AdminController(ArisDBContext db, AdminAccess access, Interv
             } else {request.AdminReply=reply;request.HandledByUserId=admin.Id;}
             request.Status=status;request.UpdatedAtUtc=DateTime.UtcNow;request.Version=Guid.NewGuid().ToString("N");
             Audit(admin.Id,request.UserId,"support."+status,$"Yêu cầu #{id}; credit {request.GrantedCredits ?? 0}; ngày {request.CreditDay ?? ""}");
-            var staged=await NotificationWriter.StageAsync(db,request.UserId,admin.Id,"SupportResponse",$"Yêu cầu #{id} đã có phản hồi từ quản trị viên.","/Employer/InterviewFlow/Support");
+            var staged=await NotificationWriter.StageAsync(db,request.UserId,admin.Id,"SupportResponse",
+                !employer?$"Yêu cầu #{id} đã có phản hồi từ quản trị viên.":status=="resolved"?"Yêu cầu đăng tuyển đã được duyệt. Bảng tuyển dụng đã mở.":status=="rejected"?"Yêu cầu đăng tuyển chưa được duyệt. Xem phản hồi của quản trị viên.":$"Quản trị viên đang xem yêu cầu đăng tuyển #{id}.",
+                employer?"/Account/BecomeEmployer":"/Employer/InterviewFlow/Support");
+            if(employer && status=="resolved") {
+                // Approval is the only way a non-admin account becomes an employer: role and profile change in this same save.
+                var user=await db.Users.Include(u=>u.Profile).FirstAsync(u=>u.Id==request.UserId,token);
+                if(!EmployerAccounts.IsEmployer(user)) {
+                    Audit(admin.Id,user.Id,"account.role",$"Duyệt yêu cầu #{id}: chuyển sang nhà tuyển dụng");
+                    if(user.Profile is BussinessAccount) user.Role="Business";  // company profile kept from an earlier downgrade
+                    else await EmployerAccounts.UpgradeAsync(db,user,EmployerAccounts.Company(details!),token);
+                }
+            }
             await db.SaveChangesAsync(token);await NotificationWriter.PushAsync(NotificationWriter.HubFrom(HttpContext),db,staged);
-            return Back("requests",status=="resolved" && request.GrantedCredits!=null ? "Đã duyệt và bổ sung credit cho ngày " + request.CreditDay + "." : "Đã lưu phản hồi.");
+            return Back("requests",status=="resolved" && request.GrantedCredits!=null ? "Đã duyệt và bổ sung credit cho ngày " + request.CreditDay + "." : employer && status=="resolved" ? "Đã duyệt: tài khoản đã chuyển sang nhà tuyển dụng." : "Đã lưu phản hồi.");
         } catch(DbUpdateConcurrencyException) {return Back("requests","Yêu cầu vừa được quản trị viên khác cập nhật. Tải lại trang.",true);}
+        catch(DbUpdateException) {return Back("requests","Chưa lưu được thay đổi. Tải lại trang rồi thử lại.",true);}
         catch(InterviewEngineException e) {return Back("requests",e.Message+" Khoản credit đang chờ xác nhận; duyệt lại sẽ không cộng trùng.",true);}
     }
     [HttpPost("Accounts/{id:int}/State"), ValidateAntiForgeryToken]
@@ -99,7 +114,8 @@ public sealed class AdminController(ArisDBContext db, AdminAccess access, Interv
         var user=await db.Users.Include(u=>u.Profile).FirstOrDefaultAsync(u=>u.Id==id,token);if(user==null)return NotFound();
         if(AdminAccess.IsDesignated(user.Email))return Back("accounts","Hai tài khoản quản trị được bảo vệ khỏi khóa hoặc hạ quyền.",true);
         if(role is not ("Employee" or "Business"))return Back("accounts","Chỉ hai tài khoản đã chỉ định được cấp quyền Admin.",true);
-        if(user.Role==role)return Back("accounts","Loại tài khoản đã đúng.");
+        // Role=Business with a candidate profile (upgraded before the 09/10 fix) is not an employer yet: let the admin finish it.
+        if(user.Role==role && (role!="Business" || user.Profile is BussinessAccount))return Back("accounts","Loại tài khoản đã đúng.");
         if(role=="Business" && user.Profile is not BussinessAccount) {
             companyName=companyName?.Trim(); if(string.IsNullOrEmpty(companyName)||companyName.Length>160)return Back("accounts","Nhập tên công ty (tối đa160 ký tự) khi chuyển sang nhà tuyển dụng.",true);
             var old=user.Profile;
@@ -109,9 +125,9 @@ public sealed class AdminController(ArisDBContext db, AdminAccess access, Interv
                 user.Role=role;Audit(admin.Id,id,"account.role","Đổi loại tài khoản sang "+role);await db.SaveChangesAsync(token);await transaction.CommitAsync(token);
                 return Back("accounts","Đã chuyển tài khoản sang nhà tuyển dụng; giữ nguyên hồ sơ và dữ liệu cũ.");
             }
-            var business=new BussinessAccount {Id=old?.Id??0, UserId=user.Id, FullName=old?.FullName??user.Username,Location=old?.Location??"",AvatarUrl=old?.AvatarUrl,Bio=old?.Bio,JobTitle=old?.JobTitle,CompanyName=companyName};
-            if(old!=null){db.Entry(old).State=EntityState.Detached;db.Profiles.Update(business);}else db.Profiles.Add(business);
-            user.Profile=business;
+            Audit(admin.Id,id,"account.role","Đổi loại tài khoản sang "+role);
+            await EmployerAccounts.UpgradeAsync(db,user,new BussinessAccount{CompanyName=companyName},token);  // in-memory store, or no profile yet
+            return Back("accounts","Đã chuyển tài khoản sang nhà tuyển dụng; giữ nguyên hồ sơ và dữ liệu cũ.");
         }
         user.Role=role;Audit(admin.Id,id,"account.role","Đổi loại tài khoản sang "+role);await db.SaveChangesAsync(token);
         return Back("accounts","Đã đổi loại tài khoản; dữ liệu cũ được giữ lại.");
