@@ -1,44 +1,39 @@
-# Bàn giao phỏng vấn — 10/10/2026, Codex tiếp quản
+# Bàn giao phỏng vấn — production đã triển khai 10/10/2026
 
-## Trạng thái hiện tại
+## Trạng thái
 
-Người dùng đã yêu cầu tiếp tục công việc Claude và chuẩn bị tới production. Chính sách mới: `xuanthangmuoi@gmail.com` không giới hạn credit; người khác 300 credit/ngày, không có trần tháng. Danh tính chủ được kiểm tra read-only trong DB: UserId 16, Role Business. Không tiếp tục phần notebook Colab/Kaggle trong lượt này.
+Đã hoàn tất release application `0ac45de` (feature base `cf04fe9`) lên https://thuctap.runasp.net. Người dùng đã cho phép làm hết tới production và cho phép riêng tải bộ Embedded chứa giọng/avatar lên Google Drive công khai để tạo link thử.
 
-- Preview Embedded vẫn chạy ở `http://localhost:5029/Employer/InterviewFlow/1`, build `.local/stop-voice-final-build/ArisSkyve.dll`. Không restart hay thay dữ liệu preview này.
-- Embedded dùng `ruby_wav_clean`, 6 cách đọc thuật ngữ đã thử, 9 clip có lời được ghép lại; 11 clip gồm listening và base-master. Âm lượng đã đo từ −14,0 tới −14,4 LUFS. Bản sao `.local/embedded-ruby-clean-voice`; đây là kết quả Claude, không phải lượt tạo mới của Codex.
-- Giữ `ruby_eng` và `ruby_eng_clean` trên dịch vụ, không tự xóa/sửa. WAV riêng chỉ được gửi tới dịch vụ giọng đã được phép; ASR chạy trên máy.
+- Chủ `xuanthangmuoi@gmail.com`, UserId16: unlimited renderer credit; các tài khoản khác300/ngày, không trần tháng, reset00:00 Việt Nam.
+- Gateway đã reload, budget đã xác minh. Task Windows `Aris-InterviewGateway` đang chạy; Tailscale Automatic; 9router Startup riêng. Funnel `/gw` được thêm, root MuseFlow/9router giữ nguyên.
+- DB `db47010` đã áp SQL reviewed: snapshot history và 2 migration phỏng vấn. Read-only check pending[]; 5 bảng mới cùng các cột đầy đủ.
+- Backup live đầy đủ116.445.542 byte/1.100 entries; deploy17 thêm/4 sửa/0 xóa; live/ready200. `.local/production-settings.json` đã giữ cấu hình gateway để redeploy sau không làm mất thiết lập.
 
-## Gateway
+## Link kiểm thử
 
-`tools/InterviewGateway/` đã có gateway, kiểm thử, cấu hình mẫu, README và supervisor Windows. Task `Aris-InterviewGateway` đã đăng ký và chạy sau đăng nhập; tự khởi động/restart gateway và F2A khi cổng trống. 9router giữ Startup riêng, Tailscale service đã tự chạy.
+- Ứng viên: https://thuctap.runasp.net/InterviewKit/55c0c009559735d101212ed1
+- Chủ xem/sửa/kết quả: https://thuctap.runasp.net/Employer/InterviewFlow/1
+- Bộ production có6 câu và14 clip từ preview, giữ rubric, timing, trọng số và giọng `ruby_wav_clean`. Upload có quyền riêng của người dùng; không tạo clip mới, không sao chép lịch sử local, không tiêu renderer credit.
+- Người ở máy khác cần đăng nhập tài khoản riêng, cho phép microphone rồi trả lời/hoàn tất. Kiểm tra thực tế giọng đọc/thu âm/chấm bằng tài khoản của họ vẫn còn bước người dùng nhờ họ thực hiện.
 
-Funnel có `/gw` → `127.0.0.1:8780`; root `/` của 9router/MuseFlow giữ nguyên. Health local/public đã báo LLM/video/TTS/FFmpeg đều sẵn sàng. Chỉ GET health, không tạo media thật hay tiêu credit trong lượt này.
+## Preview và dữ liệu riêng
 
-Hạn mức bền vững tại `.local/interview-gateway-data/ledger.json`, không phải bảng mới trong DB. Aris lấy UserId từ DB, gửi SHA-256 của `aris:user:<UserId>` bằng key riêng của server; trình duyệt không quyết định danh tính. Mọi bộ của cùng tài khoản chia sẻ trần 300/ngày; đặt lại lúc 00:00 Việt Nam. Lỗi kết nối/5xx giữ khoản dự phòng vì nhà cung cấp có thể đã tính phí. Giá chưa biết bị từ chối với tài khoản có trần; chủ không giới hạn vẫn có thể duyệt.
+**Không restart preview5029.** Nó dùng InMemory, hiện14 clip và1 phiên phỏng vấn. Snapshot `.local/embedded-ruby-clean-voice` chỉ11 clip/0 phiên nên không đại diện dữ liệu hiện tại. `.local/embedded-production-source` chỉ nội dung/media chuyển sang production, không phải bản khôi phục lịch sử.
 
-**Cần reload gateway trước deploy:** cấu hình trên đĩa đã có ngoại lệ đúng UserId16, nhưng tiến trình đang chạy vẫn giữ cấu hình cũ từ trước khi đổi cách định danh. Automatic approval review từ chối lệnh dừng rộng nhiều gateway kèm thử nghiệm bằng key thật. Không vượt quyết định này; dùng probe giả/key riêng để kiểm tra Funnel. Việc restart gateway cùng migration/deploy chờ người dùng duyệt kết quả cụ thể.
+Giữ `ruby_eng` và `ruby_eng_clean`, không tự sửa/xóa. WAV riêng chỉ gửi tới dịch vụ giọng đã được cho phép; ASR chạy local. Quyền upload public mới chỉ áp cho avatar và14 clip bản mẫu mà người dùng vừa duyệt.
 
-## Kiểm thử
+## Kiểm thử và khôi phục
 
-- Gateway 18/18, gồm báo giá hết hạn/đổi nội dung, đồng thời, giá null, credit chưa chắc, tách tài khoản, đổi ngày và khóa một tiến trình/sổ.
-- Voice stability 41/41, có FFmpeg thật và media từ xa.
-- Qua gateway: flow 61/61; credit selection 13/13; stop 32/32; Chrome 29/29; quota 8/8. Quota được chạy lại sau đổi sang UserId và đã đạt.
-- Build Aris 0 lỗi; 64 cảnh báo nullable/unread tồn tại trong mã hiện tại. Log `.local/gateway-continuation-build.log`.
+Gateway18/18; voice41/41; flow61/61; credit13/13; stop32/32; Chrome29/29; quota8/8; regression20/20. Build0 lỗi/64 cảnh báo hiện có. Các bài render dùng giả. Smoke production kiểm health, bảo vệ đăng nhập, QuickLogin bị chặn, nội dung JS/CSS và hạn mức gateway.
 
-## Production còn chờ
+Backup rollback `.local/deploy-backups/live-20261010-210647.zip`, có DLL/web.config. Không rollback DB bằng Down; giữ App_Data/Drive và dữ liệu cũ. Chỉ điều khiển đúng tiến trình đã kiểm PID/command line. `tools/ProvisionEmployer` và `tools/provision-employer.ps1` vẫn chưa thuộc commit release, không broad-stage/reset/clean.
 
-DB `db47010` còn `MapCrawledCompanies` (chỉ cập nhật lịch sử, không đổi schema), `AddInterviewKits`, `ExtendInterviewFlow`. Đã tạo `.local/interview-release-idempotent.sql`; chưa áp dụng. Cấu hình ứng viên `.local/production-settings.interview.json` giữ nguyên các cấu hình cũ và thêm gateway/media; key thực chỉ nằm ở file ignored.
+Chi tiết ở [INTERVIEW-GATEWAY-RELEASE.md](INTERVIEW-GATEWAY-RELEASE.md), cùng các báo cáo ignored trong `.local`. Không tiếp tục notebook Colab/Kaggle hay thay đổi dịch vụ AiCore trong lượt này.
 
-Thực hiện dry run của release được commit, sau đó xin duyệt bước cuối: restart đúng gateway, áp 2 migration phỏng vấn cùng lịch sử snapshot còn thiếu, backup live rồi deploy. Giữ App_Data và các dữ liệu production cũ. Không ship working tree còn dở, không broad stage/reset/clean; `tools/ProvisionEmployer` chưa thuộc release này.
+## Sửa tốc độ tải bộ sau khi chuyển mẫu
 
-Xem `docs/INTERVIEW-GATEWAY-RELEASE.md` và `tools/InterviewGateway/README.md` để tiếp tục.
+Revision `0ac45de` thêm `AsSplitQuery()` tại ba truy vấn có cả Questions và Videos. Với bộ Embedded, truy vấn JOIN cũ lặp avatar theo tổ hợp 6 câu × 14 clip; lần kiểm tra read-only chờ hơn 150 giây trước khi dừng. Truy vấn tách đã đọc/xác minh cùng dữ liệu trong 7,48 giây. Không thay câu hỏi, rubric, media, credit hay schema.
 
-## Xác minh cuối
+Build 0 lỗi; flow qua gateway chạy lại đạt 61/61. Bản sửa đã deploy: 3 file cập nhật, 0 thêm/xóa; live/ready HTTP200. Backup application trước sửa ở `.local/deploy-backups/interview-before-query-fix-20261010-213036.zip`; để rollback đầy đủ cả static endpoint metadata, dùng package live đầy đủ hoặc redeploy committed `cf04fe9` với production settings hiện tại.
 
-- Regression toàn repo 20/20. Probe giả qua Funnel giữ kết nối không trả byte 180 giây, HTTP200 sau 180,1 giây; mount `/gw-probe` đã gỡ. Gateway thật thiếu key HTTP401, có key health đạt và renderer usage vẫn 0.
-- Preview hiện tại đã khác bản sao Claude: 14 clip, thêm thinking/pass/fail; intro và transition khác byte bản sao, 9 clip còn lại của bản sao vẫn khớp; câu hỏi/avatar/kịch bản/cấu hình vẫn khớp. Có 1 phiên phỏng vấn. Đây là quan sát read-only, không phải lần phục hồi hay tạo lại trong lượt này.
-- **Không restart preview 5029.** Helper từ chối snapshot phục hồi vì đã có lịch sử. File HTML/kết quả quan sát nằm ở `.local/embedded-gateway-takeover-20261010`, không có manifest đầy đủ và không được dùng để phục hồi. `.local/embedded-ruby-clean-voice` chỉ là snapshot lịch sử 11 clip, không đại diện toàn bộ dữ liệu hiện tại.
-
-## Revision đã kiểm tra
-
-Application release **`cf04fe9`** đã commit, không chứa credential thực. Web Deploy `-WhatIf` đã thành công với settings ứng viên: 17 file thêm, 4 file cập nhật, 0 file xóa, khoảng 6,4 MB. Chưa đổi website hay DB. Khi duyệt triển khai, chỉ định `-Commit cf04fe9 -SettingsFile .local/production-settings.interview.json`; script tự backup live trước sync. Báo cáo máy đọc được ở `.local/interview-release-result.json`.
+Xác minh public: 14/14 video HTTP200, SHA256 khớp nguồn; request tua một đoạn HTTP206; avatar khớp. Link mời chuyển tới Login và giữ ReturnUrl. Production sample chưa có session tại thời điểm kiểm tra; thử giọng/ghi âm/chấm trên máy khác là bước nghiệm thu của người thử.

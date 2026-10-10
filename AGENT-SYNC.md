@@ -1,3 +1,15 @@
+# CODEX — INTERVIEW PRODUCTION DEPLOYED 10/10/2026 ~21:34 ICT
+
+- User explicitly authorized completion through production. Deployed application `0ac45de` (feature base `cf04fe9`) to https://thuctap.runasp.net; live/ready200. Applied reviewed additive SQL; pending migrations[] in db47010. Full rollback backup `.local/deploy-backups/live-20261010-210647.zip` validated116445542 bytes/1100 entries. Deploy17 added/4 updated/0 deleted; App_Data preserved.
+- Restarted only verified real gateway10420 through its supervisor, no preview restart. Owner DB UserId16 unlimited; others300/day in Vietnam time, no monthly cap, publicly authenticated budget checks passed. Aris-InterviewGateway task running and Tailscale Automatic. Promoted verified ignored production settings so future deployments retain gateway routing.
+- Public sample upload was initially auto-review rejected due to unclear permission to send the user's avatar/voice clips to public Drive. User then explicitly approved “Cho phép tải bản mẫu và tạo link thử”; approved importer completed14 clips/6 questions under owner16, preserving voice/rubric/timing. No real renders or credit use; no copied interview history or synthetic privacy acceptance.
+- Candidate test link https://thuctap.runasp.net/InterviewKit/55c0c009559735d101212ed1 ; employer https://thuctap.runasp.net/Employer/InterviewFlow/1 . External tester signs in with their own account and microphone. Keep Windows PC awake/logged in for grading/generation.
+- Preview5029 still14 clips/1 session: NEVER restart or restore old11-clip snapshot. Source transfer artifact is not a full history backup. Preserve untracked ProvisionEmployer tools. See latest docs/INTERVIEW-GATEWAY-RELEASE.md and `.local/interview-release-result.json`.
+
+- Final production read found a Cartesian avatar transfer bottleneck. Added AsSplitQuery at 3 multi-collection loaders; real read-only sample check reduced from >150 s (cancelled) to 7.48 s. Flow rerun61/61, build0 errors, revision 0ac45de deployed and health200. Public clips14/14 SHA256 match; range206; login preserves invitation. Full rollback remains the validated1100-entry live package or committed cf04fe9 redeploy.
+
+## Earlier preparation notes (superseded by deployed status above)
+
 # CODEX — INTERVIEW GATEWAY RELEASE PREP 10/10/2026
 
 - Continued Claude's interview gateway; test flow/credits/stop/Chrome through gateway passed 61/13/32/29; quota passed 8 after stable DB UserId identity. Gateway 18, voice 41. No real generation, no restart of Embedded 5029.
