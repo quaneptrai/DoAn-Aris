@@ -80,3 +80,12 @@ powershell -NoProfile -File tests/InterviewFlowTests/run-gateway-e2e.ps1 -AppDll
 ```
 
 Admin fixtures exist only in the explicitly enabled Development/InMemory seeding mode; they do not create or modify production accounts. The tests cover notifications, ticket privacy, CSRF, role management, suspended sessions, service controls and real browser forms.
+
+A separate limited-user task can restore a missing `/gw` mount on an already enabled Funnel. Set `windows.funnelHostname` to the existing `*.ts.net` hostname in private config, then run:
+
+```powershell
+powershell -NoProfile -File tools/InterviewGateway/funnel-windows.ps1 -Register
+powershell -NoProfile -File tests/InterviewFlowTests/funnel-guard.ps1
+```
+
+`Aris-InterviewFunnelGuard` checks at logon and every minute; it preserves the root mount, respects intentional Funnel shutdown and leaves conflicting `/gw` targets alone. It does not restart Tailscale for TLS failures. The script logs only a route readiness result, with no keys, and unregisters with `-Unregister`.
