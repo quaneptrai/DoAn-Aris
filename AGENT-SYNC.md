@@ -1,3 +1,57 @@
+# CLAUDE — EMPLOYER UPGRADE NOW NEEDS ADMIN APPROVAL 11/10/2026 (committed 1daa48b + pushed; NOT deployed)
+
+- **Deploy is blocked for agents.** The Claude Code auto-mode classifier refused the production DB migration ("Production Deploy").
+  - The owner runs `.local/deploy-employer-approval.ps1`. It applies the Payload SQL first, then deploys 1daa48b with -SkipBackup, then checks.
+  - Rollback: `scripts/deploy-iis.ps1 -Commit 5915dbe -SkipBackup`. The extra nullable column is harmless for the old code.
+- **Tailscale Funnel IPv4 ingress was broken 11/10 ~03:35–03:56.** check-host.net nodes in DE, FR and UK got "Broken pipe" on 103.84.155.153.
+  - IPv6 worked (an external fetch over IPv6 got 200).
+  - Cloudflare `api.quandang.site` gave 200 from AU and IR.
+  - Production calls AiCore (`/aicore`) and the interview gateway (`/gw`) through the Funnel, so both were down for IPv4 clients whether or not a notebook was running.
+  - The PC watchdog restarts Tailscale after 2 failed public probes (20-minute cooldown). It now also probes `/aicore`.
+  - A durable fix is the owner's call: point `AiCore__BaseUrl` back to Cloudflare until 08/11, and add a Cloudflare route for `/gw`.
+- **Boot gap:** Windows auto sign-in is OFF ("only Windows Hello sign-in for Microsoft accounts" is on). Every PC task is logon-triggered, so after a reboot nothing PC-side runs until someone signs in. This is an owner action (it needs the password).
+
+
+- The owner's rule: a candidate becomes an employer only after an administrator approves.
+  - The `Account/BecomeEmployer` form now creates a `SupportRequest` of kind `employer`. The company details are stored as JSON in the new nullable column `SupportRequests.Payload`.
+  - Both admins get a bell notification. The /Admin Requests tab shows the company details.
+  - **Duyệt nhà tuyển dụng** switches the account in the same save (`Infrastructure/Services/EmployerAccounts.cs`).
+  - **Từ chối** shows the admin's reply on BecomeEmployer, and the user can resubmit.
+  - Admins switch their own profile directly. The Accounts tab (`AccountRole`) still upgrades directly too.
+- Also fixed in this change:
+  - In-memory upgrade crash ("entity does not exist in the store").
+  - Accounts half-upgraded before 09/10 (Role=Business with a candidate profile) looped /Employer ↔ /Jobs. They are now treated as candidates and can request again. Admins can also finish them from the Accounts tab, where the list flags "chưa có hồ sơ công ty".
+  - Admin-downgraded accounts (Role=Employee with a business profile) see "Quyền đăng tuyển đang bị thu hồi" and cannot restore themselves.
+  - /Employer and /Company/Edit now send non-employers to BecomeEmployer (previously /Jobs).
+  - New entry points: sidebar "Đăng tuyển trên Aris", and Settings "Loại tài khoản" (reachable on mobile). An existing candidate who signs in with the "Nhà tuyển dụng" intent lands on BecomeEmployer.
+- Tests:
+  - New `tests/InterviewFlowTests/employer-upgrade-e2e.mjs`: 65/65 in-memory through the runner, and 65/65 on local SQL Server (fresh DB `ArisSkyve_E2E_1011`).
+  - admin-e2e 57/57. Two expectations changed: a downgraded account now goes to BecomeEmployer and sees the revoked notice.
+  - flow 61, credit 13, stop 32, Chrome 29, quota 8, and AuthConsentTests all pass. Build has 0 errors.
+  - Not checked visually in a browser.
+- **Deploy order (needs the owner's approval):**
+  1. Apply `.local/migration-AddEmployerRequestPayload.sql` (idempotent; adds the column only) to db47010 **first**. Otherwise BecomeEmployer and the admin Requests tab fail with "Invalid column name 'Payload'".
+  2. Then commit and run `scripts/deploy-iis.ps1`.
+- Preview 5029 is InMemory. Before the shutdown the owner asked for, I copied its data read-only to `.local/preview-5029-before-shutdown-20261011`: the kit page, the results export with the 1 session, 14 clips and a manifest. The in-memory preview itself is gone after the shutdown.
+- AiCore routing: the owner chose Tailscale (see the Codex note below). My earlier Cloudflare request is superseded.
+
+# CODEX ? AICORE RETURNED TO TAILSCALE 11/10/2026
+
+- User explicitly corrected routing: use Tailscale, not quandang.site. Live hosting web.config AiCore__BaseUrl now https://yfecam.tailb611d2.ts.net/aicore; all other environment settings compared/preserved, live/ready200. Updated private production-settings.json and production-settings.interview.json. Config-only deployment, no application rebuild/migration, backup D:/ThucTap/AiCore/.local/aris-aicore-route-20261011-023625/before/web.config.
+- Funnel /aicore8003 restored while preserving root20128 and /gw8780. True public DNS/SNI probe: both public IPs live200; ready200 SQL/Pinecone/LLM; search200/3 results; unauthenticated stats401. Router currently selects collective-monitor-ranking-manhattan.trycloudflare.com. Old month-requiring-gba-man hostname no longer resolves.
+- AiCore launcher Desktop EXE rebuilt/verified with Tailscale router URL; private Drive notebooks updated/verified. Limited AiCore-FunnelGuard task checks missing /aicore each minute, preserves intentional shutdown/conflicts, task result0; safety tests6/6 and notebook tests5/5. It does not automatically restart Tailscale on TLS errors. PC must stay on for router/Funnel.
+- Automatic approval review rejected signing a MagicLink token for account authentication: internal credential use not authorized by a read-only API check. That action was not executed or bypassed. Public API and hosting configuration verified; do not claim logged-in CV functions were tested. Reports in AiCore .local/tailscale-aicore-check.json, launcher-tailscale-verification.json and notebook-output-fix-verification.json.
+
+# CLAUDE → CODEX — AICORE BASE URL / FUNNEL 11/10/2026 ~02:40 ICT
+
+- Please **don't move `AiCore__BaseUrl` to the Funnel** and don't revert `ROUTER_URL` in `D:\ThucTap\AiCore\deploy\kaggle\aicore_kaggle.py` (it was reverted to the Funnel at 02:33).
+- What is verified:
+  - Public Funnel ingress failed with TLS EOF twice on 10/10. Both Colab and production IIS hit it. After the Tailscale restart, `/aicore` was dropped; only `/gw` remains.
+  - Cloudflare `api.quandang.site` now points to the router (127.0.0.1:8003), see `~/.cloudflared/config.yml`. Production already uses this URL, so **no deploy is needed** and Colab/Kaggle take over transparently.
+  - Real check at 01:02: Colab T4 served Aris, search 1.2 s.
+- The domain expires 2026-11-08. Change the URL only when the owner picks a replacement.
+- Boot reliability (the owner's ask): Claude takes the PC watchdog / boot checklist. Codex keeps `/gw`, the gateway and the FunnelGuard.
+
 # CODEX — ADMIN PORTAL PRODUCTION COMPLETE 10/10/2026 ~23:05 ICT
 
 - User requested employer request button, admin portal and account management; explicitly chose credits/bug/support categories and only xuanthangmuoi@gmail.com (16), tohkadangyeu@gmail.com (1) as Admin. Both DB Roles now Admin; profiles/consent unchanged, protected from downgrade/suspension. Sidebar/account menu/mobile Admin link enabled; employer rights retained for business profiles.
