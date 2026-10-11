@@ -48,6 +48,9 @@ async function loginAs(page, email, landing) {
         const job = await call(page, '/Jobs/CreateJobPosting', { method: 'POST', body: { Title: 'Thực tập sinh Embedded (e2e)', Company: 'Admin fixture', FullText: 'Tin kiểm thử luồng phỏng vấn AI.' } });
         check('company posts a job', job.json?.success && job.json.jobId > 0);
         const jobId = job.json.jobId;
+        await page.goto(base + '/Jobs', { waitUntil: 'networkidle2' });
+        check('admin with a company profile gets the job management page with their posting', await page.evaluate(() =>
+            document.title.includes('Quản lý tin tuyển dụng') && window.__IS_BUSINESS__ === true && document.body.innerText.includes('Thực tập sinh Embedded (e2e)')));
 
         await loginAs(page, CANDIDATE, '/Jobs');
         const resume = await call(page, '/Resume/CreateBlank', { method: 'POST' });

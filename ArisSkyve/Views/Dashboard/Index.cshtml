@@ -15,7 +15,7 @@
 
     var profile = Model?.Profile;
     var business = profile as ArisSkyve.Domain.Entities.BussinessAccount;
-    var isBusiness = Model?.Role == "Business";
+    var isBusiness = ArisSkyve.Infrastructure.Services.EmployerAccounts.IsEmployer(Model);
     var avatar = ArisSkyve.Infrastructure.Services.PublicMediaDeliveryUrl.ToDeliveryUrl(profile?.AvatarUrl);
     var hasAvatar = !string.IsNullOrWhiteSpace(avatar)
         && !avatar.Contains("default-avatar", StringComparison.OrdinalIgnoreCase)

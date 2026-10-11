@@ -1,10 +1,11 @@
 @model JobsIndexViewModel
 @{
     Layout = "_AppLayout";
-    ViewData["Title"] = Model.User.Role == "Business" ? "Quản lý tin tuyển dụng" : "Việc làm";
+    // Same rule as the navbar and JobsController: an admin with a company profile manages postings too.
+    var isBusiness = ArisSkyve.Infrastructure.Services.EmployerAccounts.IsEmployer(Model.User);
+    ViewData["Title"] = isBusiness ? "Quản lý tin tuyển dụng" : "Việc làm";
     ViewData["ActiveNav"] = "Jobs";
     ViewData["UserRole"] = Model.User.Role;
-    var isBusiness = Model.User.Role == "Business";
 }
 
 @section Styles {
