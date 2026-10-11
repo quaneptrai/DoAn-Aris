@@ -67,16 +67,23 @@
         if (selectedVoice && !options.some(v => v.id === selectedVoice)) options.unshift(selected || { id: selectedVoice, name: selectedVoice });
         const select = $('[data-voice-select]'); select.replaceChildren(new Option('Chọn giọng…', ''), ...options.map(v => new Option(v.name, v.id))); select.value = selectedVoice;
     }
-    const toggleVoices = () => { $('[data-voice-controls]').hidden = $('[data-narration-mode]').value !== 'tts'; updateNarrationStatus(); };
+    // Danh sách giọng tự tải khi chọn giọng TTS dùng chung (một lần mỗi trang); nút "Tải danh sách giọng" để làm mới.
+    let voicesLoading = null;
+    function loadVoices() {
+        if (voicesLoading) return voicesLoading;
+        const button = $('[data-load-voices]'); if (button) button.disabled = true; voiceStatus.textContent = 'Đang tải giọng…';
+        voicesLoading = (async () => {
+            try { if (!ttsAvailable) throw new Error('TTS chưa được cấu hình trên hệ thống.'); const data = await (await request('/Employer/InterviewFlow/Voices')).json(); if (!data.ok) throw new Error(data.error); voices = data.voices; filterVoices(); updateNarrationStatus(); voiceStatus.textContent = `Đã tải ${voices.length} giọng. Giọng đã chọn được giữ nguyên; bấm Lưu tham số để dùng cho mọi clip nói.`; }
+            catch (error) { voiceStatus.textContent = error.message; } finally { if (button) button.disabled = !ttsAvailable; voicesLoading = null; }
+        })();
+        return voicesLoading;
+    }
+    const toggleVoices = () => { const tts = $('[data-narration-mode]').value === 'tts'; $('[data-voice-controls]').hidden = !tts; updateNarrationStatus(); if (tts && ttsAvailable && !voices.length) void loadVoices(); };
     $('[data-visual-mode]')?.addEventListener('change', () => { if ($('[data-visual-mode]').value !== 'independent' && ttsAvailable) $('[data-narration-mode]').value = 'tts'; toggleVoices(); });
     $('[data-narration-mode]')?.addEventListener('change', () => { if ($('[data-narration-mode]').value === 'native') $('[data-visual-mode]').value = 'independent'; toggleVoices(); }); toggleVoices();
     $('[data-voice-select]')?.addEventListener('change', e => { selectedVoice = e.target.value; updateNarrationStatus(); });
     ['[data-voice-search]', '[data-voice-gender]', '[data-voice-region]'].forEach(selector => $(selector)?.addEventListener('input', filterVoices));
-    $('[data-load-voices]')?.addEventListener('click', async e => {
-        e.target.disabled = true; voiceStatus.textContent = 'Đang tải giọng…';
-        try { if (!ttsAvailable) throw new Error('TTS chưa được cấu hình trên hệ thống.'); const data = await (await request('/Employer/InterviewFlow/Voices')).json(); if (!data.ok) throw new Error(data.error); voices = data.voices; filterVoices(); updateNarrationStatus(); voiceStatus.textContent = `Đã tải ${voices.length} giọng. Giọng đã chọn được giữ nguyên; bấm Lưu tham số để dùng cho mọi clip nói.`; }
-        catch (error) { voiceStatus.textContent = error.message; } finally { e.target.disabled = !ttsAvailable; }
-    });
+    $('[data-load-voices]')?.addEventListener('click', () => void loadVoices());
     $('[data-sample-voice]')?.addEventListener('click', async e => {
         e.target.disabled = true; voiceStatus.textContent = 'Đang tạo đoạn nghe thử…';
         try { if (!ttsAvailable || !selectedVoice) throw new Error('Chọn một giọng TTS đã được bật trước khi nghe thử.'); const text = $('[data-voice-sample-text]')?.value.trim() || 'Xin chào, chúc bạn có một buổi phỏng vấn thật tự tin.'; const response = await request('/Employer/InterviewFlow/Voices/Sample', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voiceId: selectedVoice, text, pronunciationOverrides: $('[name="Production.PronunciationOverrides"]')?.value || '', speed: Number($('[name="Production.Speed"]').value), pitch: Number($('[name="Production.Pitch"]').value) }) }); if (sampleUrl) URL.revokeObjectURL(sampleUrl); sampleUrl = URL.createObjectURL(await response.blob()); const player = $('[data-voice-sample]'); player.src = sampleUrl; player.hidden = false; await player.play(); voiceStatus.textContent = 'Đang nghe giọng đã chọn với cách đọc thuật ngữ hiện tại. Chưa thay âm thanh trong các video đã có.'; }
