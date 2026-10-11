@@ -552,6 +552,33 @@ public sealed partial class EmployerInterviewFlowController(
         return Redirect(Url.Action(nameof(Edit), new { id = video.KitId }) + "#videos");
     }
 
+    /// <summary>
+    /// Clears the kit's clips so they can be made again from scratch (e.g. after changing the voice).
+    /// keepBase keeps the shared base videos: talking clips are then re-voiced over them without new render credits.
+    /// </summary>
+    [HttpPost("{id:int}/Videos/DeleteAll")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAllVideos(int id, bool keepBase, CancellationToken cancellationToken)
+    {
+        var business = await BusinessAsync(cancellationToken);
+        if (business == null) return Forbid();
+        if (!await context.InterviewKits.AnyAsync(k => k.Id == id && k.BusinessAccountId == business.Id, cancellationToken)) return NotFound();
+        var back = Url.Action(nameof(Edit), new { id }) + "#videos";
+        if (jobs.IsBusy(id))
+        {
+            TempData["InterviewFlowError"] = "Đang tạo ảnh hoặc video. Dừng hoặc chờ tạo xong rồi xóa video.";
+            return Redirect(back);
+        }
+        var videos = await context.InterviewKitVideos
+            .Where(v => v.KitId == id && !(keepBase && InterviewKitVideo.BaseKinds.Contains(v.Kind)))
+            .ToListAsync(cancellationToken);
+        await store.DeleteVideosAsync(videos, cancellationToken);
+        TempData["InterviewFlowSaved"] = videos.Count == 0
+            ? "Không có video nào để xóa."
+            : $"Đã xóa {videos.Count} video{(keepBase ? ", giữ video gốc" : "")}. Bấm \"Tạo tất cả video\" để tạo lại từ đầu.";
+        return Redirect(back);
+    }
+
     /// <summary>A studio package: a new kit, or clips for an existing kit whose questions match the package.</summary>
     [HttpPost("Import")]
     [ValidateAntiForgeryToken]

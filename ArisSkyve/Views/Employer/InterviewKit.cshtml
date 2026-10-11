@@ -274,6 +274,19 @@
                     <span class="ivf-muted" data-batch-quote role="status"></span>
                 </div>
             }
+            @if (Model.Videos.Count > 0)
+            {
+                var hasBase = Model.Videos.Any(v => InterviewKitVideo.BaseKinds.Contains(v.Kind));
+                <form method="post" action="/Employer/InterviewFlow/@form.Id/Videos/DeleteAll" class="ivf-row" data-delete-all-videos
+                      data-confirm="Xóa @Model.Videos.Count video của bộ này để tạo lại từ đầu? Không hoàn tác được.">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="a-btn a-btn--ghost a-btn--sm" disabled="@(Model.RunningBatchId != null || Model.RunningVideoJobId != null || Model.RunningAvatarJobId != null)"><i data-lucide="trash-2"></i> Xóa tất cả video</button>
+                    @if (hasBase)
+                    {
+                        <label class="ivf-check"><input type="checkbox" name="keepBase" value="true" checked /> Giữ video gốc (tạo lại chỉ ghép giọng mới, không tốn credit tạo hình)</label>
+                    }
+                </form>
+            }
             <div class="ivf-batch" data-batch="@Model.RunningBatchId" hidden="@(Model.RunningBatchId == null)">
                 <div class="ivf-batch__track" aria-hidden="true"><span data-batch-progress></span></div>
                 <div class="ivf-row">

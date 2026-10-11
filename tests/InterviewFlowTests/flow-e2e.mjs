@@ -68,6 +68,14 @@ for (const [mode, expected] of [['expressions', 5], ['shared', 1]]) {
     check(mode + ' spends only once per base', (await calls()).slice(startCalls).filter(c => c.url === '/v1/chat/completions').length === expected);
     const after = await owner.html(`/Employer/InterviewFlow/${id}`); const url = after.match(/<video src="([^"]+)"/)?.[1]; const file = await (await owner(url)).arrayBuffer(); fs.writeFileSync(`.local/interview-fixtures/${mode}-mixed.mp4`, Buffer.from(file));
     const demo = await owner(`/Employer/InterviewFlow/${id}/Videos/Demo`, { method: 'POST', headers: { RequestVerificationToken: ts } }); check(mode + ' exports an MP4 demo', demo.status === 200 && (await demo.arrayBuffer()).byteLength > 1000);
+    if (mode === 'shared') {
+        const keep = new FormData(); keep.append('keepBase', 'true'); await owner.form(`/Employer/InterviewFlow/${id}/Videos/DeleteAll`, keep, ts);
+        let page = await owner.html(`/Employer/InterviewFlow/${id}`);
+        check('delete all can keep the shared base video', (page.match(/<video src=/g) || []).length === 1 && page.includes('giữ video gốc'));
+        await owner.form(`/Employer/InterviewFlow/${id}/Videos/DeleteAll`, new FormData(), ts);
+        page = await owner.html(`/Employer/InterviewFlow/${id}`);
+        check('delete all clears every clip for a fresh render', !page.includes('<video src=') && !page.includes('data-delete-all-videos'));
+    }
 }
 // Candidate privacy, recorded audio + STT, supplement, weighted finish and regrade/export.
 html = await owner.html(`/Employer/InterviewFlow/${native}`); t = token(html); body = new FormData(); body.append('open', 'true'); await owner.form(`/Employer/InterviewFlow/${native}/Invite`, body, t);
