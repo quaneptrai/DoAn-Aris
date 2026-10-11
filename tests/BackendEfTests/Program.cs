@@ -357,7 +357,30 @@ namespace BackendEfTests
             }));
             if (!reapply.GetProperty("success").GetBoolean() || await context.JobApplications.CountAsync() != 2)
                 throw new Exception("The intentional re-apply policy must allow a separately confirmed second application.");
-            Console.WriteLine("  ✓ P11.3: controller retains a second, deliberate application as a separate record.\n");
+            Console.WriteLine("  ✓ P11.3: controller retains a second, deliberate application as a separate record.");
+
+            var adminUser = new User { Id = 935, Username = "admin-p11", Email = "admin-p11@example.test", Role = "Admin" };
+            var adminProfile = new EmployesAccount { Id = 9350, UserId = adminUser.Id, FullName = "Admin Candidate P11", Location = "Test" };
+            var adminResume = new Resume { Id = 9351, EmployeeId = adminProfile.Id, Label = "Admin CV", Email = adminUser.Email, FileUrl = "/fixtures/admin-cv.pdf" };
+            context.Users.Add(adminUser);
+            context.Profiles.Add(adminProfile);
+            context.Resumes.Add(adminResume);
+            await context.SaveChangesAsync();
+            var adminApply = JsonOf(await CreateApplicationsController(context, adminUser.Id).Apply(job.Id, new SubmitJobApplicationDto
+            {
+                ResumeId = adminResume.Id,
+                ScreeningAnswers = new List<string> { "admin answer" }
+            }));
+            if (!adminApply.GetProperty("success").GetBoolean() || !await context.JobApplications.AnyAsync(a => a.ApplicantId == adminProfile.Id))
+                throw new Exception("An admin whose profile is a candidate profile must be able to apply.");
+            var employerApply = JsonOf(await CreateApplicationsController(context, employerUser.Id).Apply(job.Id, new SubmitJobApplicationDto
+            {
+                ResumeId = adminResume.Id,
+                ScreeningAnswers = new List<string> { "employer answer" }
+            }));
+            if (employerApply.GetProperty("success").GetBoolean())
+                throw new Exception("A company account must still be refused.");
+            Console.WriteLine("  ✓ P11.4: admin with a candidate profile can apply; company accounts are still refused.\n");
         }
 
         private static ArisDBContext CreateInMemoryContext()

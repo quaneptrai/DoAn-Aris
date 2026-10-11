@@ -117,7 +117,8 @@ namespace ArisSkyve.Controllers
             if (JobSourcePresentation.HasNoEmployer(job))
                 return Json(new { success = false, external = true, url = JobSourcePresentation.ApplyUrl(job), source = JobSourcePresentation.SourceName(job.OriginalUrl), message = JobSourcePresentation.NoEmployerMessage(job) });
 
-            if ((user.Role == "Business" || user.Role == "Admin"))
+            // Same rule as the navbar: an admin whose profile is still a candidate profile applies like a candidate.
+            if (EmployerAccounts.IsEmployer(user))
             {
                 return Json(new { success = false, isBusiness = true, isOwnJob = job.BusinessAccountId == user.Profile.Id });
             }
@@ -155,7 +156,7 @@ namespace ArisSkyve.Controllers
             if (user?.Profile == null)
                 return Json(new { success = false, message = "Vui lòng hoàn thiện hồ sơ trước khi ứng tuyển." });
 
-            if ((user.Role == "Business" || user.Role == "Admin"))
+            if (EmployerAccounts.IsEmployer(user))
                 return Json(new { success = false, message = "Tài khoản doanh nghiệp không thể ứng tuyển vào tin tuyển dụng." });
 
             var job = await _context.JobPostings.FirstOrDefaultAsync(j => j.Id == jobId);
