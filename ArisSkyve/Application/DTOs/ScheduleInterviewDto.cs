@@ -12,5 +12,7 @@ namespace ArisSkyve.Application.DTOs
         public bool NextRound { get; set; }
         // Bỏ qua cảnh báo trùng lịch với buổi phỏng vấn khác của công ty.
         public bool Force { get; set; }
+        // Có giá trị = phỏng vấn AI bằng bộ phỏng vấn này thay cho gặp người thật; ScheduledAt là hạn hoàn thành.
+        public int? InterviewKitId { get; set; }
     }
 }

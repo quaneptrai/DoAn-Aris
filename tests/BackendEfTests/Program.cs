@@ -146,6 +146,9 @@ namespace BackendEfTests
                 if (target == "all" || target == "candidate_apply" || target == "p11")
                     await TestP11_CandidateApplyValidationAndReapply();
 
+                if (target == "all" || target == "ai_interview" || target == "p13")
+                    await TestP13_AiInterviewFromApplication();
+
                 if (target == "all" || target == "company_ranking" || target == "ranking")
                     await TestCompanyRanking_AggregatesAndFilters();
 
@@ -381,6 +384,93 @@ namespace BackendEfTests
             if (employerApply.GetProperty("success").GetBoolean())
                 throw new Exception("A company account must still be refused.");
             Console.WriteLine("  ✓ P11.4: admin with a candidate profile can apply; company accounts are still refused.\n");
+        }
+
+        // =========================================================================
+        // P13: an employer sends an AI interview from the scheduling step; the candidate takes it
+        // from their application and the result comes back to the pipeline.
+        // =========================================================================
+        private static async Task TestP13_AiInterviewFromApplication()
+        {
+            Console.WriteLine(">>> RUNNING P13: AI interview sent from a job application...");
+            using var context = CreateInMemoryContext();
+            var employerUser = new User { Id = 1301, Username = "employer-p13", Email = "employer-p13@example.test", Role = "Business" };
+            var employer = new BussinessAccount { Id = 13010, UserId = employerUser.Id, FullName = "Employer P13", Location = "Test", CompanyName = "P13 Co" };
+            var otherUser = new User { Id = 1302, Username = "other-p13", Email = "other-p13@example.test", Role = "Business" };
+            var other = new BussinessAccount { Id = 13020, UserId = otherUser.Id, FullName = "Other P13", Location = "Test", CompanyName = "Other Co" };
+            var candidateUser = new User { Id = 1303, Username = "candidate-p13", Email = "candidate-p13@example.test", Role = "Employee" };
+            var candidate = new EmployesAccount { Id = 13030, UserId = candidateUser.Id, FullName = "Candidate P13", Location = "Test" };
+            var job = new JobPosting { Id = 13040, Title = "P13 Engineer", Company = employer.CompanyName, BusinessAccountId = employer.Id, isActive = true };
+            var application = new JobApplication { Id = 13050, JobPostingId = job.Id, ApplicantId = candidate.Id, FullName = candidate.FullName, Email = candidateUser.Email, Status = JobApplicationStatus.Shortlisted };
+            var kit = new InterviewKit { Id = 13060, BusinessAccountId = employer.Id, Title = "Embedded P13", PassPercent = 70, Questions = { new InterviewKitQuestion { Id = 13061, Position = 0, Question = "What is volatile?" } } };
+            var foreignKit = new InterviewKit { Id = 13070, BusinessAccountId = other.Id, Title = "Foreign kit", Questions = { new InterviewKitQuestion { Id = 13071, Position = 0, Question = "Q" } } };
+            context.Users.AddRange(employerUser, otherUser, candidateUser);
+            context.Profiles.AddRange(employer, other, candidate);
+            context.JobPostings.Add(job);
+            context.JobApplications.Add(application);
+            context.InterviewKits.AddRange(kit, foreignKit);
+            await context.SaveChangesAsync();
+
+            var employerController = CreateApplicationsController(context, employerUser.Id);
+            var deadline = DateTime.UtcNow.AddDays(2);
+            var foreign = JsonOf(await employerController.ScheduleInterview(application.Id, new ScheduleInterviewDto { ScheduledAt = deadline, InterviewKitId = foreignKit.Id }));
+            if (foreign.GetProperty("success").GetBoolean() || application.InterviewKitId != null)
+                throw new Exception("Another company's interview kit must be refused.");
+            Console.WriteLine("  ✓ P13.1: an interview kit of another company cannot be sent.");
+
+            var sent = JsonOf(await employerController.ScheduleInterview(application.Id, new ScheduleInterviewDto { ScheduledAt = deadline, InterviewKitId = kit.Id, Note = "Làm trong 20 phút" }));
+            if (!sent.GetProperty("success").GetBoolean() || application.InterviewKitId != kit.Id || application.IsVideoCall
+                || application.Status != JobApplicationStatus.InterviewScheduled || application.InterviewResponse != InterviewResponses.Accepted
+                || !await context.ApplicationEvents.AnyAsync(e => e.JobApplicationId == application.Id && e.Title.Contains("phỏng vấn AI"))
+                || !await context.Notifications.AnyAsync(n => n.UserId == candidateUser.Id && n.Content.Contains("phỏng vấn AI")))
+                throw new Exception("Sending an AI interview must store the kit, need no confirmation, log it and notify the candidate.");
+            var now = DateTime.UtcNow;
+            if (RecruitmentFlow.ForCandidate(application, now) is not { Key: "ai-start" } start || !start.Actions.Contains("startAi")
+                || RecruitmentFlow.ForEmployer(application, null, now, 0, null).Key != "ai-waiting"
+                || RecruitmentFlow.ForCandidate(application, deadline.AddMinutes(1)).Key != "ai-overdue")
+                throw new Exception("The AI round must offer the candidate a start button, show the employer it is waiting, and expire at the deadline.");
+            Console.WriteLine("  ✓ P13.2: AI interview is sent without a time to confirm; both sides see the right next step.");
+
+            var playerController = new InterviewKitController(context, new InterviewSessions(context, null!), null!)
+            {
+                ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, candidateUser.Id.ToString()) }, "mock")) } }
+            };
+            if (await playerController.StartForApplication(application.Id, CancellationToken.None) is not JsonResult)
+                throw new Exception("The candidate must be able to start the AI interview from their application.");
+            var session = await context.InterviewKitSessions.SingleAsync();
+            if (session.JobApplicationId != application.Id || session.KitId != kit.Id)
+                throw new Exception("The session must be tied to the application.");
+            session.AnswersJson = InterviewJson.Write(new List<InterviewAnswerResult>());
+            await context.SaveChangesAsync();
+            await playerController.FinishForApplication(application.Id, new InterviewKitController.AnswerRequest { SessionId = session.Id }, CancellationToken.None);
+            if (!await context.ApplicationEvents.AnyAsync(e => e.JobApplicationId == application.Id && e.Type == ApplicationEventTypes.AiInterviewCompleted)
+                || !await context.Notifications.AnyAsync(n => n.UserId == employerUser.Id && n.Type == "AiInterviewCompleted"))
+                throw new Exception("Finishing must put the result on the timeline and notify the employer.");
+            var intruder = new InterviewKitController(context, new InterviewSessions(context, null!), null!)
+            {
+                ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, otherUser.Id.ToString()) }, "mock")) } }
+            };
+            if (await intruder.StartForApplication(application.Id, CancellationToken.None) is not NotFoundObjectResult)
+                throw new Exception("Only the applicant may open the AI interview of an application.");
+            Console.WriteLine("  ✓ P13.3: only the applicant can take it; finishing logs the result and notifies the employer.");
+
+            session.Score = 82;
+            await context.SaveChangesAsync();
+            var info = (await AiInterviews.LoadAsync(context, new[] { application }))[application.Id];
+            if (info.Outcome is not { Passed: true } outcome || outcome.Score != 82
+                || RecruitmentFlow.ForEmployer(application, null, now, 0, null, info.Outcome) is not { Key: "ai-done" } done || !done.Actions.Contains("aiResult")
+                || RecruitmentFlow.ForCandidate(application, now, info.Outcome).Key != "await-result")
+                throw new Exception("A finished AI interview must show its score to the employer and a waiting state to the candidate.");
+            var again = JsonOf(await employerController.ScheduleInterview(application.Id, new ScheduleInterviewDto { ScheduledAt = deadline, InterviewKitId = kit.Id, NextRound = true }));
+            if (again.GetProperty("success").GetBoolean())
+                throw new Exception("The same kit must not be sent again for an application that already took it.");
+            Console.WriteLine("  ✓ P13.4: the result reaches the pipeline and the same kit cannot be sent twice.");
+
+            var live = JsonOf(await employerController.ScheduleInterview(application.Id, new ScheduleInterviewDto { ScheduledAt = deadline.AddDays(1), IsVideoCall = true, NextRound = true, Force = true }));
+            if (!live.GetProperty("success").GetBoolean() || application.InterviewKitId != null || !application.IsVideoCall || application.InterviewRound != 2
+                || application.InterviewResponse != InterviewResponses.Pending)
+                throw new Exception("A live round after the AI round must clear the kit and ask the candidate to confirm again.");
+            Console.WriteLine("  ✓ P13.5: the next round can be a live interview, which clears the AI round.\n");
         }
 
         private static ArisDBContext CreateInMemoryContext()

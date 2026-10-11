@@ -981,8 +981,10 @@
                         <div class="text-muted" style="font-size:12px">${esc(inv.companyName)}</div>
                       </div>
                     </div>
-                    <div class="small text-muted mb-2"><i data-lucide="calendar"></i> ${new Date(inv.interviewAt).toLocaleString('vi-VN')}</div>
-                    ${inv.response === 'Pending' ? `
+                    <div class="small text-muted mb-2"><i data-lucide="calendar"></i> ${inv.isAiInterview ? 'Phỏng vấn AI · hạn ' : ''}${new Date(inv.interviewAt).toLocaleString('vi-VN')}</div>
+                    ${inv.isAiInterview ? `
+                      <a class="a-btn a-btn--primary a-btn--sm" href="/InterviewKit/Application/${inv.id}"><i data-lucide="bot"></i> Làm phỏng vấn AI</a>
+                    ` : inv.response === 'Pending' ? `
                       <div class="d-flex gap-2">
                         <button class="a-btn a-btn--primary a-btn--sm" type="button" data-inv-respond="1" data-id="${inv.id}">Chấp nhận</button>
                         <button class="a-btn a-btn--secondary a-btn--sm" type="button" data-inv-respond="0" data-id="${inv.id}">Từ chối</button>

@@ -6,6 +6,9 @@ namespace ArisSkyve.Infrastructure.Services.Recruitment
 {
     public record NextStep(string Key, string Title, string Text, IReadOnlyList<string> Actions);
 
+    // The candidate's finished AI interview for the application's current invitation (null = not taken yet).
+    public record AiInterviewOutcome(double Score, bool Passed, DateTime CompletedAtUtc);
+
     // Một nơi duy nhất quyết định "bây giờ làm gì tiếp" cho mỗi đơn, để bảng Kanban, ngăn chi
     // tiết của nhà tuyển dụng và trang "Đơn ứng tuyển" của ứng viên luôn nói cùng một điều.
     public static class RecruitmentFlow
@@ -56,8 +59,10 @@ namespace ArisSkyve.Infrastructure.Services.Recruitment
         public static bool InterviewFinished(JobApplication a, DateTime now) =>
             a.InterviewAt.HasValue && a.InterviewAt.Value.AddMinutes(Math.Max(15, a.InterviewDurationMinutes)) <= now;
 
-        public static NextStep ForEmployer(JobApplication a, InterviewEvaluation? roundEval, DateTime now, int hiredCount, int? openings)
+        public static NextStep ForEmployer(JobApplication a, InterviewEvaluation? roundEval, DateTime now, int hiredCount, int? openings, AiInterviewOutcome? ai = null)
         {
+            if (a.Status == JobApplicationStatus.InterviewScheduled && a.InterviewKitId != null && roundEval == null)
+                return ForEmployerAi(a, now, ai);
             switch (a.Status)
             {
                 case JobApplicationStatus.Submitted:
@@ -147,8 +152,40 @@ namespace ArisSkyve.Infrastructure.Services.Recruitment
             }
         }
 
-        public static NextStep ForCandidate(JobApplication a, DateTime now)
+        // AI interview round: no meeting time to confirm — InterviewAt is the deadline to take it.
+        private static NextStep ForEmployerAi(JobApplication a, DateTime now, AiInterviewOutcome? ai)
         {
+            var deadline = a.InterviewAt.HasValue ? VnTime.Format(a.InterviewAt.Value, "HH:mm dd/MM") : "?";
+            if (ai != null)
+                return new("ai-done", "Ứng viên đã làm phỏng vấn AI",
+                    $"Điểm {ai.Score:0.#}/100 · {(ai.Passed ? "đạt" : "chưa đạt")}. Xem từng câu trả lời, rồi ghi phiếu đánh giá hoặc hẹn vòng phỏng vấn với người thật.",
+                    new[] { "aiResult", "evaluate", "nextRound", "reject" });
+            if (a.InterviewAt.HasValue && a.InterviewAt.Value <= now)
+                return new("ai-overdue", "Quá hạn phỏng vấn AI",
+                    $"Ứng viên chưa làm phỏng vấn AI trước hạn {deadline}. Gia hạn hoặc khép hồ sơ.",
+                    new[] { "reschedule", "reject" });
+            return new("ai-waiting", "Chờ ứng viên làm phỏng vấn AI",
+                $"Đã gửi phỏng vấn AI vòng {a.InterviewRound}, hạn hoàn thành {deadline}. Kết quả sẽ hiện ở đây khi ứng viên làm xong.",
+                new[] { "reschedule" });
+        }
+
+        public static NextStep ForCandidate(JobApplication a, DateTime now, AiInterviewOutcome? ai = null)
+        {
+            if (a.Status == JobApplicationStatus.InterviewScheduled && a.InterviewKitId != null)
+            {
+                var deadline = a.InterviewAt.HasValue ? VnTime.Format(a.InterviewAt.Value, "HH:mm, dd/MM") : "?";
+                if (ai != null)
+                    return new("await-result", "Chờ kết quả phỏng vấn",
+                        "Bạn đã hoàn thành phỏng vấn AI. Nhà tuyển dụng sẽ báo kết quả ở đây.",
+                        new[] { "insight" });
+                if (a.InterviewAt.HasValue && a.InterviewAt.Value <= now)
+                    return new("ai-overdue", "Đã quá hạn phỏng vấn AI",
+                        $"Hạn làm phỏng vấn AI là {deadline}. Nhắn nhà tuyển dụng nếu bạn cần thêm thời gian.",
+                        new[] { "insight" });
+                return new("ai-start", "Làm phỏng vấn AI",
+                    $"Nhà tuyển dụng mời bạn phỏng vấn vòng {a.InterviewRound} với người phỏng vấn AI. Làm lúc nào cũng được trước {deadline}; chọn nơi yên tĩnh và chuẩn bị micro.",
+                    new[] { "startAi", "insight" });
+            }
             switch (a.Status)
             {
                 case JobApplicationStatus.Submitted:

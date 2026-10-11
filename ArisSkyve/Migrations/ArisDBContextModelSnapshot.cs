@@ -773,6 +773,9 @@ namespace ArisSkyve.Migrations
                     b.Property<bool>("IsEmployerTest")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("JobApplicationId")
+                        .HasColumnType("int");
+
                     b.Property<int>("KitId")
                         .HasColumnType("int");
 
@@ -786,6 +789,8 @@ namespace ArisSkyve.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("JobApplicationId");
 
                     b.HasIndex("UserId");
 
@@ -888,6 +893,9 @@ namespace ArisSkyve.Migrations
                         .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("InterviewDurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("InterviewKitId")
                         .HasColumnType("int");
 
                     b.Property<string>("InterviewLocation")

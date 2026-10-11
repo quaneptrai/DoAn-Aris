@@ -253,7 +253,7 @@
                 </div>
 
                 <div id="drawerInterviewInfo" class="d-none cd-block cd-block--brand">
-                    <div class="cd-block__label"><i data-lucide="calendar"></i> Lịch phỏng vấn</div>
+                    <div class="cd-block__label"><i data-lucide="calendar"></i> <span id="drawerInterviewLabel">Lịch phỏng vấn</span></div>
                     <div class="fw-semibold" id="drawerInterviewTime"></div>
                     <div class="small text-muted mt-1" id="drawerInterviewLoc"></div>
                 </div>
@@ -341,20 +341,35 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body px-4 py-3">
+                <div class="emp-iv-mode" role="radiogroup" aria-label="Hình thức phỏng vấn">
+                    <label class="emp-iv-mode__opt">
+                        <input type="radio" name="interviewMode" value="live" checked>
+                        <span><b><i data-lucide="users"></i> Người thật</b><small>Gặp trực tiếp hoặc gọi video trên Aris</small></span>
+                    </label>
+                    <label class="emp-iv-mode__opt">
+                        <input type="radio" name="interviewMode" value="ai">
+                        <span><b><i data-lucide="bot"></i> Phỏng vấn AI</b><small>Ứng viên tự làm với người phỏng vấn AI</small></span>
+                    </label>
+                </div>
+                <div class="mb-3" id="interviewAiFields" hidden>
+                    <label class="a-label" for="interviewKitSelect">Bộ phỏng vấn AI</label>
+                    <select class="a-select" id="interviewKitSelect"></select>
+                    <div class="a-help" id="interviewKitHelp"></div>
+                </div>
                 <div class="emp-slot-picks" id="scheduleSlotPicks" hidden>
                     <div class="a-label">Ứng viên rảnh vào</div>
                     <div class="d-flex flex-wrap gap-2" id="scheduleSlotList"></div>
                 </div>
                 <div class="row g-2 mb-3">
                     <div class="col-5">
-                        <label class="a-label" for="interviewDateInput">Ngày</label>
+                        <label class="a-label" for="interviewDateInput" id="interviewDateLabel">Ngày</label>
                         <input type="date" class="a-input" id="interviewDateInput" required>
                     </div>
                     <div class="col-4">
                         <label class="a-label" for="interviewTimeInput">Giờ</label>
                         <input type="time" class="a-input" id="interviewTimeInput" required>
                     </div>
-                    <div class="col-3">
+                    <div class="col-3" id="interviewDurationCol">
                         <label class="a-label" for="interviewDurationInput">Thời lượng</label>
                         <select class="a-select" id="interviewDurationInput">
                             <option value="30">30 phút</option>
@@ -366,7 +381,7 @@
                 </div>
                 <div class="emp-conflict" id="scheduleConflict" hidden></div>
 
-                <div class="p-3 rounded-3 mb-3" style="background: var(--field); border: 1px solid var(--line-soft);">
+                <div class="p-3 rounded-3 mb-3" id="interviewVideoCallBox" style="background: var(--field); border: 1px solid var(--line-soft);">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <div class="fw-semibold small" style="color: var(--text);">Phỏng vấn trực tuyến Aris Video Room</div>
@@ -387,7 +402,7 @@
                     <label class="a-label" for="interviewNoteInput">Ghi chú gửi ứng viên</label>
                     <textarea class="a-textarea" id="interviewNoteInput" rows="2" placeholder="Người phỏng vấn, cần chuẩn bị gì, mang theo giấy tờ gì..."></textarea>
                 </div>
-                <div class="a-help">Ứng viên nhận thông báo để xác nhận hoặc đề xuất giờ khác. Cả hai bên được nhắc trước 24 giờ và 1 giờ.</div>
+                <div class="a-help" id="scheduleHelp">Ứng viên nhận thông báo để xác nhận hoặc đề xuất giờ khác. Cả hai bên được nhắc trước 24 giờ và 1 giờ.</div>
             </div>
             <div class="modal-footer border-0 px-4 pb-4 pt-2">
                 <button type="button" class="a-btn a-btn--ghost" data-bs-dismiss="modal">Hủy</button>

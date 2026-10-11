@@ -641,6 +641,7 @@ namespace ArisSkyve.Infrastructure.Data.Context
                     .HasForeignKey(s => s.UserId)
                     .OnDelete(DeleteBehavior.NoAction);
                 session.HasIndex(s => new { s.KitId, s.StartedAtUtc });
+                session.HasIndex(s => s.JobApplicationId);
             });
             modelBuilder.Entity<InterviewKitRecording>(recording =>
             {

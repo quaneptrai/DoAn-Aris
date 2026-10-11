@@ -65,6 +65,7 @@
             interviewAt: raw.interviewAt || null,
             interviewLocation: raw.interviewLocation || null,
             isVideoCall: !!raw.isVideoCall,
+            aiInterview: raw.aiInterview || null,
             interviewResponse: raw.interviewResponse || null,
             interviewRound: raw.interviewRound || 1,
             interviewDurationMinutes: raw.interviewDurationMinutes || 45,
@@ -96,8 +97,8 @@
     ];
 
     // Bước tiếp theo đang chờ chính nhà tuyển dụng — thẻ có vạch nhấn, sidebar đếm.
-    const NEEDS_ACTION = new Set(['reschedule', 'evaluate', 'decide-offer', 'decide-next', 'decide-reject', 'decide-hold', 'offer-declined', 'offer-expired']);
-    const STEP_TONE = { hired: 'ok', upcoming: 'ok', closed: 'muted', 'await-confirm': 'muted', 'offer-pending': 'muted' };
+    const NEEDS_ACTION = new Set(['reschedule', 'evaluate', 'decide-offer', 'decide-next', 'decide-reject', 'decide-hold', 'offer-declined', 'offer-expired', 'ai-done', 'ai-overdue']);
+    const STEP_TONE = { hired: 'ok', upcoming: 'ok', closed: 'muted', 'await-confirm': 'muted', 'offer-pending': 'muted', 'ai-waiting': 'muted' };
 
     const REJECTION_CATEGORIES = [
         { code: 'Skills', label: 'Kỹ năng chưa khớp' },
@@ -893,6 +894,66 @@
         };
     }
 
+    // Hình thức trong modal hẹn: người thật (giờ, phòng video/địa điểm) hoặc phỏng vấn AI (bộ phỏng vấn + hạn hoàn thành).
+    const LIVE_HELP = 'Ứng viên nhận thông báo để xác nhận hoặc đề xuất giờ khác. Cả hai bên được nhắc trước 24 giờ và 1 giờ.';
+    const AI_HELP = 'Ứng viên nhận thông báo và làm phỏng vấn AI ngay trong đơn ứng tuyển, lúc nào cũng được trước hạn. Điểm hiện trên thẻ ứng viên khi họ làm xong.';
+    const AI_DEADLINE_DAYS = 3;
+    let aiKitsPromise = null;
+    const loadAiKits = () => aiKitsPromise ??= fetch('/JobApplications/AiInterviewKits', { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(d => (d && d.success ? d.kits : []))
+        .catch(() => { aiKitsPromise = null; return []; });
+
+    // Trả về hàm đọc lựa chọn hiện tại: { mode: 'live' | 'ai', kitId }.
+    function setupInterviewMode(app, opts, liveConfirmLabel) {
+        const byId = id => document.getElementById(id);
+        const radios = [...document.querySelectorAll('input[name="interviewMode"]')];
+        const kitSelect = byId('interviewKitSelect'), kitHelp = byId('interviewKitHelp');
+        const toggle = byId('interviewVideoCallToggle'), slotPicks = byId('scheduleSlotPicks');
+        const dateInput = byId('interviewDateInput'), timeInput = byId('interviewTimeInput');
+        const slotPicksShown = !!slotPicks && !slotPicks.hidden;
+        let mode = (opts.prefill && opts.prefill.mode) || (app.aiInterview && !opts.nextRound ? 'ai' : 'live');
+
+        async function fillKits() {
+            if (!kitSelect) return;
+            kitSelect.replaceChildren(new Option('Đang tải bộ phỏng vấn…', ''));
+            const kits = await loadAiKits();
+            kitSelect.replaceChildren(...(kits.length
+                ? kits.map(k => new Option(`${k.title} · ${k.questionCount} câu · ${k.videoCount} video`, k.id))
+                : [new Option('Chưa có bộ phỏng vấn AI', '')]));
+            const current = app.aiInterview && app.aiInterview.kitId;
+            if (current && kits.some(k => k.id === current)) kitSelect.value = String(current);
+            if (kitHelp) kitHelp.innerHTML = kits.length
+                ? 'Ứng viên làm ngay trong đơn ứng tuyển, không cần mở link công khai của bộ. <a href="/Employer/InterviewFlow" target="_blank" rel="noopener">Quản lý bộ phỏng vấn</a>'
+                : '<a href="/Employer/InterviewFlow/New" target="_blank" rel="noopener">Tạo bộ phỏng vấn AI</a> trước, rồi quay lại đây.';
+        }
+
+        function apply(next, resetDeadline) {
+            mode = next;
+            const ai = mode === 'ai';
+            radios.forEach(r => { r.checked = r.value === mode; });
+            byId('interviewAiFields').hidden = !ai;
+            byId('interviewDurationCol').hidden = ai;
+            byId('interviewVideoCallBox').hidden = ai;
+            byId('interviewLocationField').hidden = ai || !!(toggle && toggle.checked);
+            if (slotPicks) slotPicks.hidden = ai || !slotPicksShown;
+            byId('interviewDateLabel').innerText = ai ? 'Hạn hoàn thành' : 'Ngày';
+            byId('scheduleHelp').innerText = ai ? AI_HELP : LIVE_HELP;
+            byId('confirmScheduleBtn').innerText = ai ? 'Gửi phỏng vấn AI' : liveConfirmLabel;
+            if (ai && resetDeadline && dateInput && timeInput) {
+                const deadline = new Date();
+                deadline.setDate(deadline.getDate() + AI_DEADLINE_DAYS);
+                dateInput.value = toDateInput(deadline);
+                timeInput.value = '23:00';
+            }
+            if (ai) fillKits();
+        }
+
+        radios.forEach(r => { r.onchange = () => apply(r.value, true); });
+        apply(mode, !opts.prefill);
+        return () => ({ mode, kitId: kitSelect && kitSelect.value ? Number(kitSelect.value) : null });
+    }
+
     // Modal Hẹn phỏng vấn. opts: { nextRound, slot (ISO), conflicts, prefill, force }
     function openScheduleInterviewModal(app, fromStage, opts) {
         opts = opts || {};
@@ -941,7 +1002,8 @@
             }
         }
         const force = !!(opts.conflicts && opts.conflicts.length);
-        confirmBtn.innerText = force ? 'Vẫn đặt lịch' : (app.status === 'InterviewScheduled' && !nextRound ? 'Gửi lịch mới' : 'Gửi lời mời');
+        const readMode = setupInterviewMode(app, opts,
+            force ? 'Vẫn đặt lịch' : (app.status === 'InterviewScheduled' && !nextRound ? 'Gửi lịch mới' : 'Gửi lời mời'));
 
         const modal = getModal(modalEl);
         modal.show();
@@ -965,8 +1027,15 @@
                 return;
             }
 
+            const { mode, kitId } = readMode();
+            const isAi = mode === 'ai';
+            if (isAi && !kitId) {
+                M.toast('Chọn một bộ phỏng vấn AI.', { tone: 'danger' });
+                return;
+            }
+
             const scheduledAt = scheduledDate.toISOString();
-            const isVideoCall = videoCallToggle?.checked ?? true;
+            const isVideoCall = !isAi && (videoCallToggle?.checked ?? true);
             const location = locationInput?.value ? locationInput.value.trim() : (isVideoCall ? 'Trực tuyến qua Aris Video Room' : 'Aris Video Room');
             const note = noteInput?.value ? noteInput.value.trim() : '';
             const duration = parseInt(durationInput?.value, 10) || app.interviewDurationMinutes || 45;
@@ -997,7 +1066,8 @@
                             IsVideoCall: isVideoCall,
                             DurationMinutes: duration,
                             NextRound: nextRound,
-                            Force: force
+                            Force: force,
+                            InterviewKitId: isAi ? kitId : null
                         })
                     });
                     const result = await res.json();
@@ -1013,7 +1083,8 @@
                         app.isVideoCall = result.isVideoCall !== undefined ? result.isVideoCall : isVideoCall;
                         if (result.interviewRound) app.interviewRound = result.interviewRound;
                         if (result.interviewDurationMinutes) app.interviewDurationMinutes = result.interviewDurationMinutes;
-                        app.interviewResponse = 'Pending';
+                        app.aiInterview = result.aiInterview || null;
+                        app.interviewResponse = isAi ? 'Accepted' : 'Pending';
                         app.proposedSlots = [];
                         if (currentJobId === jobIdAtSchedule) {
                             renderPipeline(applicantsData);
@@ -1025,7 +1096,7 @@
                             scheduleSilentRefresh();
                         }
                         if (viewMode === 'calendar') loadCalendar();
-                        M.toast('Đã lên lịch phỏng vấn và gửi thông báo tới ứng viên!', { tone: 'success' });
+                        M.toast(isAi ? 'Đã gửi phỏng vấn AI cho ứng viên!' : 'Đã lên lịch phỏng vấn và gửi thông báo tới ứng viên!', { tone: 'success' });
                     } else {
                         if (appState.pendingOps === 0) {
                             app.status = appState.confirmedStatus || prevStatusBeforeSchedule;
@@ -1037,7 +1108,7 @@
                             openScheduleInterviewModal(app, fromStage, {
                                 nextRound,
                                 conflicts: result.conflicts || [],
-                                prefill: { date: dateStr, time: timeStr, duration, location, note, isVideoCall }
+                                prefill: { date: dateStr, time: timeStr, duration, location, note, isVideoCall, mode }
                             });
                             return;
                         }
@@ -1161,6 +1232,7 @@
         markHired: { label: 'Ghi nhận đã tuyển', icon: 'badge-check', tone: 'secondary' },
         closeJob: { label: 'Đóng tin', icon: 'lock', tone: 'secondary' },
         joinRoom: { label: 'Vào phòng', icon: 'video', tone: 'primary' },
+        aiResult: { label: 'Xem kết quả AI', icon: 'bot', tone: 'primary' },
         ics: { label: 'Thêm vào lịch', icon: 'calendar-plus', tone: 'ghost' },
         reject: { label: 'Từ chối', icon: 'x', tone: 'ghost-danger' }
     };
@@ -1187,6 +1259,7 @@
             const label = a === 'nextRound' ? `Hẹn vòng ${(app.interviewRound || 1) + 1}` : def.label;
             const cls = def.tone === 'ghost-danger' ? 'a-btn--ghost" style="color:var(--danger)' : `a-btn--${def.tone}`;
             if (a === 'joinRoom') return `<a class="a-btn a-btn--primary a-btn--sm" href="/Interview/Room/${app.id}" target="_blank" rel="noopener"><i data-lucide="${def.icon}"></i> ${label}</a>`;
+            if (a === 'aiResult') return app.aiInterview ? `<a class="a-btn a-btn--primary a-btn--sm" href="${esc(app.aiInterview.resultsUrl)}" target="_blank" rel="noopener"><i data-lucide="${def.icon}"></i> ${label}</a>` : '';
             if (a === 'ics') return `<a class="a-btn a-btn--ghost a-btn--sm" href="/JobApplications/InterviewIcs?applicationId=${app.id}"><i data-lucide="${def.icon}"></i> ${label}</a>`;
             return `<button type="button" class="a-btn ${cls} a-btn--sm" data-next-act="${a}"><i data-lucide="${def.icon}"></i> ${label}</button>`;
         }).join('');
@@ -1252,6 +1325,8 @@
         if (interviewBox) {
             if (app.interviewAt) {
                 interviewBox.classList.remove('d-none');
+                const labelEl = document.getElementById('drawerInterviewLabel');
+                if (labelEl) labelEl.innerText = app.aiInterview ? 'Hạn làm phỏng vấn AI' : 'Lịch phỏng vấn';
                 if (interviewTimeEl) {
                     const d = new Date(app.interviewAt);
                     interviewTimeEl.innerText = isNaN(d.getTime()) ? app.interviewAt : d.toLocaleString('vi-VN');

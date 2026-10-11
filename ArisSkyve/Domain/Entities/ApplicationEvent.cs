@@ -16,6 +16,7 @@ namespace ArisSkyve.Domain.Entities
         public const string Rejected = "Rejected";
         public const string Withdrawn = "Withdrawn";
         public const string Reminder = "Reminder";
+        public const string AiInterviewCompleted = "AiInterviewCompleted";
     }
 
     // Lịch sử một đơn ứng tuyển — nguồn cho dòng thời gian ở cả hai phía.

@@ -211,6 +211,17 @@
 .emp-slot-picks { margin-bottom: 14px; padding: 10px 12px; border-radius: var(--r-md); background: var(--brand-soft); }
 .emp-slot-picks[hidden] { display: none; }
 
+/* Modal hẹn: chọn phỏng vấn với người thật hay phỏng vấn AI */
+.emp-iv-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.emp-iv-mode__opt { position: relative; display: block; margin: 0; cursor: pointer; }
+.emp-iv-mode__opt input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.emp-iv-mode__opt span { display: flex; flex-direction: column; gap: 2px; height: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--field); }
+.emp-iv-mode__opt b { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-13); font-weight: 600; color: var(--text); }
+.emp-iv-mode__opt b svg { width: 16px; height: 16px; }
+.emp-iv-mode__opt small { font-size: var(--fs-12); line-height: 1.4; color: var(--text-3); }
+.emp-iv-mode__opt input:checked + span { border-color: var(--brand); background: var(--brand-soft); }
+.emp-iv-mode__opt input:focus-visible + span { outline: 2px solid var(--brand-line); outline-offset: 2px; }
+
 /* Modal từ chối: nhóm lý do + mẫu phản hồi */
 .emp-reasons { display: flex; flex-wrap: wrap; gap: 6px; }
 .emp-reasons label { position: relative; margin: 0; cursor: pointer; }

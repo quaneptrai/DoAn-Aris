@@ -131,6 +131,11 @@ namespace ArisSkyve.Domain.Entities
         // built-in WebRTC video room at /Interview/Room/{applicationId} (see VideoCallHub).
         public bool IsVideoCall { get; set; } = false;
 
+        // Set when the current round is an AI video interview instead of a meeting with a person:
+        // the candidate takes this InterviewKit from their application before InterviewAt (the
+        // deadline). Kept as a plain id — a deleted kit just leaves the invitation unusable.
+        public int? InterviewKitId { get; set; }
+
         // Candidate's response to the invitation — reset to Pending every time an interview
         // is (re)scheduled. Surfaced as its own "Lời mời" (Invitations) tab on the Chat page
         // rather than folded into the passive MyApplications list, since it's something the

@@ -275,9 +275,10 @@ namespace ArisSkyve.Controllers
                 .ToListAsync();
 
             var now = DateTime.UtcNow;
+            var aiInterviews = await AiInterviews.LoadAsync(_context, rows);
             var applications = rows.Select(a =>
             {
-                var step = RecruitmentFlow.ForCandidate(a, now);
+                var step = RecruitmentFlow.ForCandidate(a, now, aiInterviews.GetValueOrDefault(a.Id)?.Outcome);
                 return new MyApplicationItemViewModel
                 {
                     Id = a.Id,
@@ -359,13 +360,15 @@ namespace ArisSkyve.Controllers
             var hiredCount = await _context.JobApplications.CountAsync(a => a.JobPostingId == jobId && a.Status == JobApplicationStatus.Hired);
             var now = DateTime.UtcNow;
 
+            var aiInterviews = await AiInterviews.LoadAsync(_context, raw);
             var applicants = raw.Select(a =>
             {
                 var roundEval = evaluations
                     .Where(e => e.JobApplicationId == a.Id && e.Round == a.InterviewRound)
                     .OrderByDescending(e => e.CreatedAt)
                     .FirstOrDefault();
-                var step = RecruitmentFlow.ForEmployer(a, roundEval, now, hiredCount, job.Openings);
+                var ai = aiInterviews.GetValueOrDefault(a.Id);
+                var step = RecruitmentFlow.ForEmployer(a, roundEval, now, hiredCount, job.Openings, ai?.Outcome);
                 var tier = MatchInsight.Tier(a.MatchScore);
                 return new
                 {
@@ -391,6 +394,15 @@ namespace ArisSkyve.Controllers
                     interviewAt = a.InterviewAt,
                     interviewLocation = a.InterviewLocation,
                     isVideoCall = a.IsVideoCall,
+                    aiInterview = ai == null ? null : new
+                    {
+                        kitId = ai.KitId,
+                        kitTitle = ai.KitTitle,
+                        resultsUrl = AiInterviews.ResultsUrl(ai.KitId),
+                        score = ai.Outcome?.Score,
+                        passed = ai.Outcome?.Passed,
+                        completedAt = ai.Outcome?.CompletedAtUtc
+                    },
                     interviewResponse = a.InterviewResponse,
                     interviewRound = a.InterviewRound,
                     interviewDurationMinutes = a.InterviewDurationMinutes,
@@ -649,6 +661,9 @@ namespace ArisSkyve.Controllers
             if (application.Status is JobApplicationStatus.Withdrawn or JobApplicationStatus.Rejected or JobApplicationStatus.Offered or JobApplicationStatus.Hired)
                 return Json(new { success = false, message = "Không thể lên lịch phỏng vấn ở trạng thái hiện tại." });
 
+            if (dto.InterviewKitId is int kitId)
+                return await ScheduleAiInterviewAsync(application, user.Profile.Id, kitId, dto);
+
             var duration = Math.Clamp(dto.DurationMinutes ?? application.InterviewDurationMinutes, 15, 240);
 
             // Cảnh báo trùng giờ với buổi phỏng vấn khác của cùng doanh nghiệp.
@@ -680,6 +695,7 @@ namespace ArisSkyve.Controllers
             application.InterviewAt = dto.ScheduledAt;
             application.InterviewDurationMinutes = duration;
             application.IsVideoCall = dto.IsVideoCall;
+            application.InterviewKitId = null;
             application.InterviewLocation = dto.IsVideoCall ? null : dto.Location;
             application.StatusNote = dto.Note;
             application.InterviewResponse = InterviewResponses.Pending;
@@ -717,6 +733,78 @@ namespace ArisSkyve.Controllers
             });
         }
 
+        // AI interview round: the candidate takes one of the employer's interview kits from their
+        // application before the deadline (ScheduledAt). Nothing to confirm, so it is marked accepted.
+        private async Task<IActionResult> ScheduleAiInterviewAsync(JobApplication application, int businessAccountId, int kitId, ScheduleInterviewDto dto)
+        {
+            var kit = await _context.InterviewKits.AsNoTracking()
+                .Where(k => k.Id == kitId && k.BusinessAccountId == businessAccountId)
+                .Select(k => new { k.Id, k.Title, QuestionCount = k.Questions.Count })
+                .FirstOrDefaultAsync();
+            if (kit == null)
+                return Json(new { success = false, message = "Chọn một bộ phỏng vấn AI của công ty bạn." });
+            if (kit.QuestionCount == 0)
+                return Json(new { success = false, message = "Bộ phỏng vấn này chưa có câu hỏi." });
+            if (await _context.InterviewKitSessions.AnyAsync(s => s.JobApplicationId == application.Id && s.KitId == kit.Id && s.CompletedAtUtc != null))
+                return Json(new { success = false, message = "Ứng viên đã làm bộ phỏng vấn này cho đơn này. Chọn bộ khác hoặc hẹn phỏng vấn với người thật." });
+
+            var isReschedule = application.Status == JobApplicationStatus.InterviewScheduled && !dto.NextRound;
+            if (dto.NextRound && application.InterviewAt.HasValue) application.InterviewRound += 1;
+
+            application.Status = JobApplicationStatus.InterviewScheduled;
+            application.InterviewAt = dto.ScheduledAt;
+            application.InterviewKitId = kit.Id;
+            application.IsVideoCall = false;
+            application.InterviewLocation = Clip($"Phỏng vấn AI · {kit.Title}", 500);
+            application.StatusNote = dto.Note;
+            application.InterviewResponse = InterviewResponses.Accepted;
+            application.InterviewDeclineReason = null;
+            application.ProposedSlotsJson = null;
+            application.InterviewRespondedAt = null;
+            application.Reminder24hSentAt = null;
+            application.Reminder1hSentAt = null;
+            application.FollowUpNudgedAt = null;
+            application.UpdatedAt = DateTime.UtcNow;
+
+            var deadline = VnTime.Format(dto.ScheduledAt, "HH:mm dd/MM/yyyy");
+            AddEvent(application, ApplicationEventTypes.InterviewScheduled, "Employer",
+                isReschedule ? $"Gia hạn phỏng vấn AI vòng {application.InterviewRound}" : $"Mời phỏng vấn AI vòng {application.InterviewRound}",
+                $"Bộ phỏng vấn: {kit.Title} · hạn {deadline}" + (string.IsNullOrWhiteSpace(dto.Note) ? "" : $"\n{dto.Note}"));
+            await NotifyAsync(application.Applicant.UserId, "InterviewScheduled",
+                isReschedule
+                    ? $"Hạn làm phỏng vấn AI cho \"{application.JobPosting.Title}\" đã được dời đến {deadline}."
+                    : $"Bạn được mời phỏng vấn AI vòng {application.InterviewRound} cho \"{application.JobPosting.Title}\". Làm trước {deadline}.",
+                CandidateLink(application));
+
+            await _context.SaveChangesAsync();
+            return Json(new
+            {
+                success = true,
+                statusLabel = StatusLabel(application.Status),
+                interviewAt = application.InterviewAt,
+                interviewLocation = application.InterviewLocation,
+                isVideoCall = false,
+                interviewRound = application.InterviewRound,
+                interviewDurationMinutes = application.InterviewDurationMinutes,
+                aiInterview = new { kitId = kit.Id, kitTitle = kit.Title, resultsUrl = AiInterviews.ResultsUrl(kit.Id) }
+            });
+        }
+
+        // Employer's interview kits for the "AI interview" choice of the scheduling dialog.
+        [HttpGet]
+        public async Task<IActionResult> AiInterviewKits()
+        {
+            var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == CurrentUserId);
+            if (!EmployerAccounts.IsEmployer(user))
+                return Json(new { success = false, message = "Chỉ tài khoản doanh nghiệp mới có bộ phỏng vấn AI." });
+            var kits = await _context.InterviewKits.AsNoTracking()
+                .Where(k => k.BusinessAccountId == user!.Profile!.Id)
+                .OrderByDescending(k => k.UpdatedAtUtc)
+                .Select(k => new { id = k.Id, title = k.Title, questionCount = k.Questions.Count, videoCount = k.Videos.Count })
+                .ToListAsync();
+            return Json(new { success = true, kits });
+        }
+
         // Candidate-facing "Lời mời" (Invitations) list — every application of theirs
         // currently sitting at InterviewScheduled, most recent interview first. Kept
         // separate from MyApplications since these need an explicit accept/decline rather
@@ -740,6 +828,7 @@ namespace ArisSkyve.Controllers
                     interviewAt = a.InterviewAt,
                     interviewLocation = a.InterviewLocation,
                     isVideoCall = a.IsVideoCall,
+                    isAiInterview = a.InterviewKitId != null,
                     interviewRound = a.InterviewRound,
                     note = a.StatusNote,
                     response = a.InterviewResponse

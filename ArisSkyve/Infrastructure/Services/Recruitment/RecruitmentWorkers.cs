@@ -189,7 +189,9 @@ namespace ArisSkyve.Infrastructure.Services.Recruitment
                 .Where(a => a.Status == JobApplicationStatus.InterviewScheduled
                             && a.InterviewAt != null && a.InterviewAt > now && a.InterviewAt <= horizon
                             && a.InterviewResponse != InterviewResponses.Declined
-                            && (a.Reminder24hSentAt == null || (a.Reminder1hSentAt == null && a.InterviewAt <= now.AddHours(1))))
+                            && (a.Reminder24hSentAt == null || (a.Reminder1hSentAt == null && a.InterviewAt <= now.AddHours(1)))
+                            // An AI interview already taken from this application needs no reminder.
+                            && (a.InterviewKitId == null || !db.InterviewKitSessions.Any(s => s.JobApplicationId == a.Id && s.KitId == a.InterviewKitId && s.CompletedAtUtc != null)))
                 .Take(100)
                 .ToListAsync(ct);
 
@@ -197,6 +199,21 @@ namespace ArisSkyve.Infrastructure.Services.Recruitment
             {
                 var within1h = a.InterviewAt <= now.AddHours(1);
                 var when = VnTime.Format(a.InterviewAt!.Value, "HH:mm dd/MM");
+                if (a.InterviewKitId != null)
+                {
+                    // AI interview: InterviewAt is the deadline to take it, only the candidate has something to do.
+                    db.Notifications.Add(new Notification
+                    {
+                        UserId = a.Applicant.UserId,
+                        Type = "InterviewReminder",
+                        Content = $"{(within1h ? "Còn chưa đầy 1 giờ" : "Còn chưa đầy 24 giờ")} để làm phỏng vấn AI \"{a.JobPosting.Title}\" (hạn {when}).",
+                        Link = $"/JobApplications/MyApplications?app={a.Id}",
+                        CreatedAt = now
+                    });
+                    if (within1h) a.Reminder1hSentAt = now;
+                    a.Reminder24hSentAt ??= now;
+                    continue;
+                }
                 var where = a.IsVideoCall ? "phòng video Aris" : (a.InterviewLocation ?? "địa điểm đã hẹn");
                 var lead = within1h ? "Còn chưa đầy 1 giờ" : "Ngày mai";
                 var confirmHint = a.InterviewResponse == InterviewResponses.Pending ? " Bạn chưa xác nhận lịch này." : "";
@@ -235,6 +252,8 @@ namespace ArisSkyve.Infrastructure.Services.Recruitment
                             && a.InterviewAt >= now.AddDays(-14)
                             && a.InterviewResponse != InterviewResponses.Declined
                             && a.FollowUpNudgedAt == null
+                            // AI rounds notify the employer when the candidate finishes, not by the clock.
+                            && a.InterviewKitId == null
                             && !a.Evaluations.Any(e => e.Round == a.InterviewRound))
                 .Take(100)
                 .ToListAsync(ct);

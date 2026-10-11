@@ -156,6 +156,9 @@ public sealed class InterviewKitSession
 
     public bool IsEmployerTest { get; set; }
 
+    /// <summary>Set when the candidate took this interview from a job application's AI interview invitation.</summary>
+    public int? JobApplicationId { get; set; }
+
     public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
 
     public DateTime? CompletedAtUtc { get; set; }
