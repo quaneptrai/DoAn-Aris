@@ -75,6 +75,20 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
         const generate = await page.$('[data-generate]'); assert.ok(generate, 'single clip button exists'); await generate.evaluate(el => el.click());
         await page.waitForFunction(() => !document.querySelector('[data-render-approve]').closest('.ivf-modal').hidden);
         check('video approval shows exact credits', await page.$eval('[data-render-approve]', el => el.textContent.includes('10 credit'))); await page.click('[data-render-cancel]');
+        for (const kind of ['intro', 'outro']) {
+            const input = await page.$(`[data-slot][data-kind="${kind}"] input[type="file"]`);
+            await Promise.all([page.waitForNavigation(), input.uploadFile(path.join(fixtures, 'shared-mixed.mp4'))]);
+        }
+        await page.$eval('.ivf-head [data-preview-open]', el => el.click());
+        await page.waitForFunction(() => !document.getElementById('previewModal').hidden && document.querySelector('[data-preview-video]').src.includes('/'));
+        check('seamless preview starts with the intro clip', await page.evaluate(() => document.querySelector('[data-preview-video]').src === document.querySelector('[data-slot][data-kind="intro"] video').src && document.querySelector('[data-preview-step]').textContent.includes('Mở đầu')));
+        check('seamless preview marks clips without video', await page.$$eval('[data-preview-steps] li', els => els.length > 3 && els.filter(el => el.classList.contains('is-missing')).length === els.length - 2));
+        await page.waitForFunction(() => document.querySelector('[data-preview-step]').textContent.includes('Kết thúc'), { timeout: 20000 });
+        check('seamless preview advances on its own without answering', await page.evaluate(() => document.querySelector('[data-preview-video]').src === document.querySelector('[data-slot][data-kind="outro"] video').src));
+        await page.$eval('[data-preview-restart]', el => el.click());
+        check('seamless preview restarts from the intro', await page.$eval('[data-preview-step]', el => el.textContent.includes('Mở đầu')));
+        await page.keyboard.press('Escape');
+        check('seamless preview closes and stops playback', await page.evaluate(() => document.getElementById('previewModal').hidden && !document.querySelector('[data-preview-video]').getAttribute('src')));
         await page.setViewport({ width: 390, height: 844 });
         check('kit fits mobile width', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
         await page.setViewport({ width: 1280, height: 900 });

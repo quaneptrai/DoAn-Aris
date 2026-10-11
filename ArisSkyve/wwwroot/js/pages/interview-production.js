@@ -35,7 +35,7 @@
     }
     async function importFile(input, answersOnly) {
         const file = input.files?.[0]; if (!file) return; const status = $('[data-import-status]');
-        try { if (file.size > 2 * 1024 * 1024) throw new Error('File câu hỏi/đáp án tối đa 2 MB.'); const text = await file.text(); const data = answersOnly ? ArisInterviewData.merge(currentQuestions(), text, file.name) : ArisInterviewData.parse(text, file.name); if (!answersOnly && !confirm('Thay bộ câu hỏi đang nhập bằng file này? Các video câu cũ bị xóa sau khi lưu.')) return; fill(data); status.textContent = `Đã ${answersOnly ? 'ghép đáp án' : 'nhập ' + data.length + ' câu'}. Kiểm tra rồi bấm Lưu tham số.`; }
+        try { if (file.size > 2 * 1024 * 1024) throw new Error('File câu hỏi/đáp án tối đa 2 MB.'); const text = await file.text(); const data = answersOnly ? ArisInterviewData.merge(currentQuestions(), text, file.name) : ArisInterviewData.parse(text, file.name); if (!answersOnly && !confirm('Thay bộ câu hỏi đang nhập bằng file này? Video của các câu cũ sẽ bị xóa khi lưu.')) return; fill(data); status.textContent = `Đã ${answersOnly ? 'ghép đáp án' : 'nhập ' + data.length + ' câu'}. Kiểm tra rồi bấm Lưu tham số.`; }
         catch (error) { status.textContent = error.message; } finally { input.value = ''; }
     }
     $('[data-import-questions]')?.addEventListener('change', e => void importFile(e.target, false));
@@ -54,10 +54,10 @@
     function updateNarrationStatus() {
         const status = $('[data-narration-status]');
         if (status) status.textContent = $('[data-narration-mode]').value === 'native'
-            ? 'Giọng hiện tại do model video tạo riêng cho từng clip, nên có thể đổi giữa các video. Chọn một giọng TTS dùng chung để dùng cùng voice ID, tốc độ và cao độ cho toàn bộ câu.'
-            : !ttsAvailable ? 'TTS chưa được cấu hình trên hệ thống. Chưa thể giữ một giọng TTS xuyên suốt cho đến khi dịch vụ được bật.'
-            : selectedVoice ? `Các clip nói sẽ dùng chung voice ID ${selectedVoice}, tốc độ và cao độ đã lưu. Lưu lựa chọn để áp dụng khi ghép TTS; âm thanh trong video đã có giữ nguyên.`
-            : 'Chọn một giọng TTS rồi lưu tham số. Toàn bộ clip nói sau đó sẽ dùng chung voice ID, tốc độ và cao độ này.';
+            ? 'Mỗi clip có giọng do model video tạo riêng, nên giọng có thể khác nhau giữa các video. Chọn một giọng TTS dùng chung để mọi câu có cùng giọng, tốc độ và cao độ.'
+            : !ttsAvailable ? 'Hệ thống chưa bật TTS nên chưa thể dùng một giọng chung cho mọi video.'
+            : selectedVoice ? `Mọi clip có lời sẽ dùng giọng ${voices.find(v => v.id === selectedVoice)?.name || selectedVoice}. Bấm Lưu tham số để áp dụng khi ghép TTS; video đã có giữ nguyên âm thanh.`
+            : 'Chọn một giọng rồi bấm Lưu tham số. Mọi clip có lời sau đó sẽ dùng cùng giọng, tốc độ và cao độ này.';
         const sample = $('[data-sample-voice]'); if (sample) sample.disabled = !ttsAvailable || !selectedVoice;
     }
     function filterVoices() {
@@ -73,7 +73,7 @@
         if (voicesLoading) return voicesLoading;
         const button = $('[data-load-voices]'); if (button) button.disabled = true; voiceStatus.textContent = 'Đang tải giọng…';
         voicesLoading = (async () => {
-            try { if (!ttsAvailable) throw new Error('TTS chưa được cấu hình trên hệ thống.'); const data = await (await request('/Employer/InterviewFlow/Voices')).json(); if (!data.ok) throw new Error(data.error); voices = data.voices; filterVoices(); updateNarrationStatus(); voiceStatus.textContent = `Đã tải ${voices.length} giọng. Giọng đã chọn được giữ nguyên; bấm Lưu tham số để dùng cho mọi clip nói.`; }
+            try { if (!ttsAvailable) throw new Error('TTS chưa được cấu hình trên hệ thống.'); const data = await (await request('/Employer/InterviewFlow/Voices')).json(); if (!data.ok) throw new Error(data.error); voices = data.voices; filterVoices(); updateNarrationStatus(); voiceStatus.textContent = `Đã tải ${voices.length} giọng. Bấm Lưu tham số để dùng giọng đã chọn cho mọi clip có lời.`; }
             catch (error) { voiceStatus.textContent = error.message; } finally { if (button) button.disabled = !ttsAvailable; voicesLoading = null; }
         })();
         return voicesLoading;
@@ -86,7 +86,7 @@
     $('[data-load-voices]')?.addEventListener('click', () => void loadVoices());
     $('[data-sample-voice]')?.addEventListener('click', async e => {
         e.target.disabled = true; voiceStatus.textContent = 'Đang tạo đoạn nghe thử…';
-        try { if (!ttsAvailable || !selectedVoice) throw new Error('Chọn một giọng TTS đã được bật trước khi nghe thử.'); const text = $('[data-voice-sample-text]')?.value.trim() || 'Xin chào, chúc bạn có một buổi phỏng vấn thật tự tin.'; const response = await request('/Employer/InterviewFlow/Voices/Sample', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voiceId: selectedVoice, text, pronunciationOverrides: $('[name="Production.PronunciationOverrides"]')?.value || '', speed: Number($('[name="Production.Speed"]').value), pitch: Number($('[name="Production.Pitch"]').value) }) }); if (sampleUrl) URL.revokeObjectURL(sampleUrl); sampleUrl = URL.createObjectURL(await response.blob()); const player = $('[data-voice-sample]'); player.src = sampleUrl; player.hidden = false; await player.play(); voiceStatus.textContent = 'Đang nghe giọng đã chọn với cách đọc thuật ngữ hiện tại. Chưa thay âm thanh trong các video đã có.'; }
+        try { if (!ttsAvailable || !selectedVoice) throw new Error('Chọn một giọng TTS đã được bật trước khi nghe thử.'); const text = $('[data-voice-sample-text]')?.value.trim() || 'Xin chào, chúc bạn có một buổi phỏng vấn thật tự tin.'; const response = await request('/Employer/InterviewFlow/Voices/Sample', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voiceId: selectedVoice, text, pronunciationOverrides: $('[name="Production.PronunciationOverrides"]')?.value || '', speed: Number($('[name="Production.Speed"]').value), pitch: Number($('[name="Production.Pitch"]').value) }) }); if (sampleUrl) URL.revokeObjectURL(sampleUrl); sampleUrl = URL.createObjectURL(await response.blob()); const player = $('[data-voice-sample]'); player.src = sampleUrl; player.hidden = false; await player.play(); voiceStatus.textContent = 'Đang phát giọng đã chọn với cách đọc thuật ngữ hiện tại. Video đã có không bị thay đổi.'; }
         catch (error) { voiceStatus.textContent = error.message; } finally { e.target.disabled = !ttsAvailable || !selectedVoice; }
     });
     $('[data-clone-voice]')?.addEventListener('click', async e => {

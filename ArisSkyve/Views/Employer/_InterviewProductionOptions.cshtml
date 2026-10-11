@@ -3,9 +3,9 @@
 <div class="a-field ivf-span-2 ivf-production" data-tts-available="@Model.CanSpeak.ToString().ToLowerInvariant()">
     <h3>Video &amp; giọng đọc</h3>
     <div class="ivf-fields">
-        <label class="a-field"><span class="a-label">Dùng credit</span><select class="a-input" name="Production.CreditMode" data-credit-mode>
+        <label class="a-field"><span class="a-label">Nguồn credit</span><select class="a-input" name="Production.CreditMode" data-credit-mode>
             <option value="auto" selected="@(settings.CreditMode == "auto")">Tự chọn tài khoản</option>
-            <option value="pool" selected="@(settings.CreditMode == "pool")">Gộp số dư, luân phiên tài khoản (round robin)</option>
+            <option value="pool" selected="@(settings.CreditMode == "pool")">Luân phiên các tài khoản (gộp số dư)</option>
             <option value="single" selected="@(settings.CreditMode == "single")">Dùng một tài khoản đã chọn</option>
         </select></label>
         <label class="a-field" data-credit-account-field hidden="@(settings.CreditMode != "single")"><span class="a-label">Tài khoản credit</span><select class="a-input" name="Production.CreditAccountId" data-credit-account><option value="">Chọn tài khoản…</option>
@@ -13,15 +13,15 @@
         </select></label>
     </div>
     <div class="ivf-row"><button class="a-btn a-btn--ghost a-btn--sm" type="button" data-load-credits>Xem / cập nhật credit</button><span class="ivf-muted" data-credit-status role="status"></span></div>
-    <p class="ivf-muted">Luân phiên dùng số dư từng tài khoản cho từng video; credit vẫn thuộc tài khoản gốc. Lưu tham số để áp dụng. Mọi video vẫn phải duyệt giá trước khi tạo.</p>
+    <p class="ivf-muted">Chế độ luân phiên lần lượt trừ credit của từng tài khoản cho mỗi video; credit vẫn thuộc tài khoản gốc. Bấm Lưu tham số để áp dụng. Video nào cũng cần duyệt chi phí trước khi tạo.</p>
     <div class="ivf-fields">
         <label class="a-field"><span class="a-label">Hình ảnh</span><select class="a-input" name="Production.VisualMode" data-visual-mode>
-            <option value="independent" selected="@(settings.VisualMode == "independent")">Tạo từng clip</option>
+            <option value="independent" selected="@(settings.VisualMode == "independent")">Tạo riêng từng clip</option>
             <option value="expressions" selected="@(settings.VisualMode == "expressions")" disabled="@(!Model.CanSpeak)">5 biểu cảm: nói, nghe, suy nghĩ, cười, nhíu mày</option>
             <option value="shared" selected="@(settings.VisualMode == "shared")" disabled="@(!Model.CanSpeak)">Một video gốc xuyên suốt</option>
         </select></label>
         <label class="a-field"><span class="a-label">Giọng đọc</span><select class="a-input" name="Production.NarrationMode" data-narration-mode>
-            <option value="native" selected="@(settings.NarrationMode == "native")">Giọng do mỗi video tạo (có thể khác nhau)</option>
+            <option value="native" selected="@(settings.NarrationMode == "native")">Giọng do model video tự tạo (mỗi clip có thể khác)</option>
             <option value="tts" selected="@(settings.NarrationMode == "tts")" disabled="@(!Model.CanSpeak)">Một giọng TTS dùng chung cho mọi video</option>
         </select></label>
         <label class="a-field"><span class="a-label">Chất lượng video</span><select class="a-input" name="Production.Quality">
@@ -29,11 +29,11 @@
             <option value="balanced" selected="@(settings.Quality == "balanced")">Cân bằng</option>
             <option value="quality" selected="@(settings.Quality == "quality")">Chất lượng cao</option>
         </select></label>
-        <label class="a-field"><span class="a-label">Số lần được bổ sung câu trả lời</span><input class="a-input" name="Production.MaxSupplements" value="@settings.MaxSupplements" type="number" min="0" max="3" /></label>
+        <label class="a-field"><span class="a-label">Số lần ứng viên được trả lời bổ sung</span><input class="a-input" name="Production.MaxSupplements" value="@settings.MaxSupplements" type="number" min="0" max="3" /></label>
     </div>
-    <p class="ivf-muted" data-narration-status role="status">@(settings.NarrationMode == "native" ? "Giọng hiện tại do model video tạo riêng cho từng clip, nên có thể đổi giữa các video. Chọn một giọng TTS dùng chung để dùng cùng voice ID, tốc độ và cao độ cho toàn bộ câu." : "Mỗi clip nói dùng cùng voice ID, tốc độ và cao độ đã lưu. Lưu lựa chọn để áp dụng cho các clip được ghép TTS sau đó; video đã có giữ nguyên âm thanh.")</p>
-    @if (!Model.CanSpeak) { <p class="ivf-muted" data-tts-unavailable role="status">TTS chưa được cấu hình trên hệ thống. Chưa thể giữ một giọng TTS xuyên suốt cho đến khi dịch vụ được bật.</p> }
-    <p class="ivf-muted">Một video gốc xuyên suốt giữ cùng bối cảnh qua các câu. Video gốc và bộ biểu cảm dùng giọng TTS; hình được lặp hoặc cắt theo lời đọc, âm lượng chuẩn hóa −14 LUFS. Khẩu hình có thể chưa khớp từng tiếng.</p>
+    <p class="ivf-muted" data-narration-status role="status">@(settings.NarrationMode == "native" ? "Mỗi clip có giọng do model video tạo riêng, nên giọng có thể khác nhau giữa các video. Chọn một giọng TTS dùng chung để mọi câu có cùng giọng, tốc độ và cao độ." : "Mọi clip có lời dùng cùng giọng, tốc độ và cao độ đã lưu. Thay đổi chỉ áp dụng cho các clip ghép TTS sau khi bạn lưu; video đã có giữ nguyên âm thanh.")</p>
+    @if (!Model.CanSpeak) { <p class="ivf-muted" data-tts-unavailable role="status">Hệ thống chưa bật TTS nên chưa thể dùng một giọng chung cho mọi video.</p> }
+    <p class="ivf-muted">Chế độ "Một video gốc" giữ nguyên bối cảnh qua mọi câu. Chế độ này và "5 biểu cảm" đều dùng giọng TTS: hình được lặp hoặc cắt cho vừa lời đọc, âm lượng được chuẩn hóa. Khẩu hình có thể chưa khớp từng chữ.</p>
     <div data-voice-controls>
         <div class="ivf-fields">
             <label class="a-field"><span class="a-label">Tìm giọng</span><input class="a-input" type="search" data-voice-search placeholder="Tên hoặc mã giọng…" /></label>
@@ -44,9 +44,9 @@
             <label class="a-field"><span class="a-label">Cao độ (0,8–1,2)</span><input class="a-input" name="Production.Pitch" type="number" step="0.05" min="0.8" max="1.2" value="@settings.Pitch.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></label>
         </div>
         <label class="a-field"><span class="a-label">Cách đọc thuật ngữ (tùy chọn)</span><textarea class="a-input" name="Production.PronunciationOverrides" maxlength="4000" rows="4" placeholder="Mỗi dòng: thuật ngữ = lời đọc&#10;Ví dụ: DMA = đi em ây">@settings.PronunciationOverrides</textarea></label>
-        <p class="ivf-muted">Chỉ thay văn bản gửi cho TTS; câu hỏi, kịch bản và đáp án vẫn giữ nguyên. Tối đa 50 mục. Với từ tiếng Anh như volatile, thử một giọng song ngữ hoặc nhập cách đọc mong muốn. Chất lượng phát âm còn phụ thuộc giọng đã chọn.</p>
-        <label class="a-field"><span class="a-label">Lời nghe thử (không tạo video)</span><textarea class="a-input" data-voice-sample-text maxlength="2400" rows="2">Xin chào, chúng ta trao đổi về volatile và DMA.</textarea></label>
-        <div class="ivf-row"><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-load-voices disabled="@(!Model.CanSpeak)">Tải danh sách giọng</button><button class="a-btn a-btn--ghost a-btn--sm" type="button" data-sample-voice disabled="@(!Model.CanSpeak)">Nghe thử (tạo âm thanh TTS)</button><audio controls data-voice-sample hidden></audio></div>
+        <p class="ivf-muted">Chỉ đổi cách đọc khi tạo giọng nói; câu hỏi, kịch bản và đáp án hiển thị vẫn giữ nguyên. Tối đa 50 mục. Với từ tiếng Anh như volatile, hãy thử giọng song ngữ hoặc nhập cách đọc mong muốn. Phát âm còn tùy vào giọng đã chọn.</p>
+        <label class="a-field"><span class="a-label">Câu nghe thử (không tạo video)</span><textarea class="a-input" data-voice-sample-text maxlength="2400" rows="2">Xin chào, chúng ta trao đổi về volatile và DMA.</textarea></label>
+        <div class="ivf-row"><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-load-voices disabled="@(!Model.CanSpeak)">Tải danh sách giọng</button><button class="a-btn a-btn--ghost a-btn--sm" type="button" data-sample-voice disabled="@(!Model.CanSpeak)">Nghe thử</button><audio controls data-voice-sample hidden></audio></div>
         <details><summary>Nhân bản giọng từ mẫu âm thanh</summary>
             <label class="a-field"><span class="a-label">Tên giọng mới</span><input class="a-input" maxlength="80" data-clone-name /></label>
             <label class="a-field"><span class="a-label">Âm thanh mẫu (tối đa 10 MB)</span><input class="a-input" type="file" accept="audio/*,.webm" data-clone-file /></label>
@@ -57,6 +57,6 @@
     </div>
     <label class="ivf-check"><input type="checkbox" name="Production.AutoApprove" value="true" checked="@settings.AutoApprove" /> Tự duyệt chi phí video trong hạn mức đã lưu</label>
     <label class="a-field"><span class="a-label">Hạn mức mỗi video (credit)</span><input class="a-input" name="Production.MaximumCredits" value="@settings.MaximumCredits" type="number" min="0" max="10000" /></label>
-    <label class="a-field"><span class="a-label">Hạn mức tổng một lượt tạo (credit)</span><input class="a-input" name="Production.MaximumTotalCredits" value="@settings.MaximumTotalCredits" type="number" min="0" max="100000" /></label>
-    <p class="ivf-muted">Tự duyệt chỉ áp dụng khi bạn bấm tạo video và chi phí đã báo không vượt hạn mức. Avatar luôn có bước duyệt riêng.</p>
+    <label class="a-field"><span class="a-label">Hạn mức cho cả lượt tạo (credit)</span><input class="a-input" name="Production.MaximumTotalCredits" value="@settings.MaximumTotalCredits" type="number" min="0" max="100000" /></label>
+    <p class="ivf-muted">Chỉ tự duyệt khi bạn bấm tạo video và chi phí báo giá không vượt hạn mức. Tạo avatar luôn cần duyệt riêng.</p>
 </div>

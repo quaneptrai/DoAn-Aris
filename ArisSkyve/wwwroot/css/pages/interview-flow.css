@@ -122,6 +122,18 @@
 .ivf-modal__items li span:last-child { font-variant-numeric: tabular-nums; color: var(--text); }
 .ivf-modal__items[hidden] { display: none; }
 
+/* Xem thử cả buổi phỏng vấn liền mạch */
+.ivf-modal__panel--wide { width: min(880px, 100%); max-height: calc(100vh - 32px); overflow: auto; }
+.ivf-preview__stage { display: flex; flex-direction: column; gap: 8px; }
+.ivf-preview__stage video { width: 100%; aspect-ratio: 16 / 9; max-height: 60vh; object-fit: contain; background: #000; border-radius: 12px; }
+.ivf-modal__panel .ivf-preview__caption { min-height: 1.6em; color: var(--text); font-size: var(--fs-14, 14px); text-align: center; }
+.ivf-preview__steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; font-size: var(--fs-12, 12px); }
+.ivf-preview__steps button { width: 100%; padding: 4px 8px; border: 0; border-radius: 6px; background: none; color: var(--text-2); font: inherit; text-align: left; cursor: pointer; }
+.ivf-preview__steps button:hover:not(:disabled) { color: var(--brand-text); background: var(--surface-2); }
+.ivf-preview__steps button:focus-visible { outline: 2px solid var(--brand-line); outline-offset: 1px; }
+.ivf-preview__steps button:disabled { cursor: default; opacity: .55; }
+.ivf-preview__steps .is-current button { color: var(--brand-text); background: var(--surface-2); font-weight: 600; }
+
 .ivf-batch { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--brand-line); border-radius: 12px; background: var(--surface); }
 .ivf-batch[hidden] { display: none; }
 .ivf-batch__track { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }

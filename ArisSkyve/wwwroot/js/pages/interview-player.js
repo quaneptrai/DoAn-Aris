@@ -148,7 +148,7 @@
     async function closeMic() { await stopRecording(); if (meterFrame) cancelAnimationFrame(meterFrame); meterFrame = null; stream?.getTracks().forEach(t => t.stop()); stream = null; if (audioContext) { await audioContext.close().catch(() => {}); audioContext = null; } }
     function clearAudio() { recordedBlob = null; recordingId = null; chunks = []; if (hasRecordingControls) { $('[data-answer-file]').value = ''; $('[data-answer-audio]').hidden = true; $('[data-recording-status]').textContent = ''; } if (recordingUrl) URL.revokeObjectURL(recordingUrl); recordingUrl = null; }
     async function uploadAudio(transcribe) {
-        stopListening(); await stopRecording(); if (!recordedBlob?.size) throw new Error('Ghi âm hoặc chọn file trước.');
+        stopListening(); await stopRecording(); if (!recordedBlob?.size) throw new Error('Hãy ghi âm hoặc chọn file âm thanh trước.');
         const body = new FormData(); body.append('sessionId', currentPlan.sessionId); body.append('questionId', currentQuestion.id); body.append('transcribe', transcribe); body.append('audio', recordedBlob, 'answer.audio');
         const response = await fetch(endpoint + '/Recording', { method: 'POST', credentials: 'same-origin', headers: { RequestVerificationToken: token() }, body });
         const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || 'Không lưu được âm thanh.');

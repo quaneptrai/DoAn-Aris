@@ -34,11 +34,12 @@
         <div>
             <a class="ivf-back" href="/Employer/InterviewFlow"><i data-lucide="arrow-left"></i> Các bộ phỏng vấn</a>
             <h1>@(isNew ? "Bộ phỏng vấn mới" : form.Title)</h1>
-            <p>@Model.CompanyName · Tham số → kịch bản → video → gửi link cho ứng viên.</p>
+            <p>@Model.CompanyName · Các bước: tham số → kịch bản → video → gửi link cho ứng viên.</p>
         </div>
         @if (!isNew)
         {
             <div class="ivf-head__actions">
+                <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-preview-open><i data-lucide="monitor-play"></i> Xem thử liền mạch</button>
                 <a class="a-btn a-btn--secondary a-btn--sm" href="/Employer/InterviewFlow/@form.Id/Try"><i data-lucide="play"></i> Phỏng vấn thử</a>
                 <form method="post" action="/Employer/InterviewFlow/@form.Id/Delete" data-confirm="Xóa bộ phỏng vấn này cùng toàn bộ video và kết quả?">
                     @Html.AntiForgeryToken()
@@ -52,7 +53,7 @@
     {
         <div class="ivf-video-controls a-card" data-video-controls>
             <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-video-stop disabled="@(Model.RunningBatchId == null && Model.RunningVideoJobId == null)"><i data-lucide="square"></i> Dừng tạo video</button>
-            <span class="ivf-muted" data-video-status role="status" aria-live="polite">@(Model.RunningBatchId != null || Model.RunningVideoJobId != null ? "Đang tạo video…" : "Không có video đang tạo.")</span>
+            <span class="ivf-muted" data-video-status role="status" aria-live="polite">@(Model.RunningBatchId != null || Model.RunningVideoJobId != null ? "Đang tạo video…" : "Không có video nào đang được tạo.")</span>
         </div>
     }
 
@@ -203,7 +204,7 @@
                     <span class="ivf-tag @(Model.ScriptApproved ? "ivf-tag--ok" : "")">@(Model.ScriptApproved ? "Đã duyệt" : "Chưa duyệt")</span>
                 }
             </div>
-            <p class="ivf-muted">Giọng trong video cần lời ngắn vừa thời lượng clip; TTS đọc đủ lời và tự kéo dài/cắt video. Duyệt kịch bản rồi mới tạo video tự động.</p>
+            <p class="ivf-muted">Mỗi lời thoại nên ngắn, vừa một clip. Khi dùng giọng TTS, video được kéo dài hoặc cắt cho khớp lời đọc. Cần duyệt kịch bản trước khi tạo video tự động.</p>
             <div class="ivf-row">
                 <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-write-script><i data-lucide="wand-sparkles"></i> @(Model.Script.Count == 0 ? "Viết kịch bản" : "Viết lại kịch bản")</button>
                 <span class="ivf-muted" data-script-status role="status"></span>
@@ -247,9 +248,9 @@
         <section class="a-card ivf-section" id="videos" aria-labelledby="videosTitle">
             <div class="ivf-section__head">
                 <h2 id="videosTitle">Video</h2>
-                <span class="ivf-muted">@(Model.SlotCount - missing)/@Model.SlotCount ô có video</span>
+                <span class="ivf-muted">Đã có @(Model.SlotCount - missing)/@Model.SlotCount video</span>
             </div>
-            <p class="ivf-muted">Bộ này có @form.Questions.Count video câu hỏi + @kitSlots.Length video trạng thái dùng chung = @Model.SlotCount ô. Thêm câu hỏi sẽ thêm ô video. Đây là số clip cần chuẩn bị; thời gian trả lời của buổi phỏng vấn được đặt riêng cho từng câu. Clip lắng nghe và suy nghĩ được lặp trong lúc ứng viên trả lời.</p>
+            <p class="ivf-muted">Bộ này cần @Model.SlotCount video: @form.Questions.Count video câu hỏi và @kitSlots.Length video dùng chung (mở đầu, lắng nghe, suy nghĩ, chuyển câu, hai phản ứng, kết thúc). Mỗi câu hỏi thêm vào cần thêm một video. Video lắng nghe và suy nghĩ được phát lặp lại trong lúc ứng viên trả lời và chờ chấm.</p>
             <p class="ivf-muted">
                 @if (!Model.CanRenderVideo)
                 {
@@ -257,11 +258,11 @@
                 }
                 else if (!Model.ScriptApproved)
                 {
-                    @:Duyệt kịch bản để tạo video tự động. Bạn vẫn có thể tải video lên từng ô.
+                    @:Duyệt kịch bản để bật tạo video tự động. Bạn vẫn có thể tải video lên từng ô.
                 }
                 else
                 {
-                    @:Mọi lần tạo, một video hay tất cả, đều hiện số credit để bạn duyệt trước. Tạo lại cùng ô sẽ thay video cũ.
+                    @:Trước mỗi lần tạo, dù một video hay cả bộ, bạn sẽ thấy số credit cần dùng để duyệt. Tạo lại một ô sẽ thay video cũ của ô đó.
                 }
             </p>
             @if (Model.CanRenderVideo && Model.ScriptApproved)
@@ -302,7 +303,7 @@
                     }
                 </div>
             }
-            <div class="ivf-row"><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-export-demo>Xuất video demo (MP4)</button><span class="ivf-muted" data-demo-status role="status"></span></div>
+            <div class="ivf-row"><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-preview-open><i data-lucide="monitor-play"></i> Xem thử liền mạch</button><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-export-demo>Xuất video demo (MP4)</button><span class="ivf-muted" data-demo-status role="status"></span></div>
             <form method="post" action="/Employer/InterviewFlow/Import" enctype="multipart/form-data" class="ivf-import ivf-import--inline">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="kitId" value="@form.Id" />
@@ -329,7 +330,7 @@
                         <button type="submit" class="a-btn a-btn--ghost a-btn--sm">Đóng link</button>
                     </form>
                 </div>
-                <p class="ivf-muted">Ứng viên đăng nhập Aris rồi mở link để phỏng vấn. Mỗi tài khoản làm một lần.</p>
+                <p class="ivf-muted">Ứng viên đăng nhập Aris rồi mở link để phỏng vấn. Mỗi tài khoản chỉ được làm một lần.</p>
             }
             else
             {
@@ -337,7 +338,7 @@
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="open" value="true" />
                     <button type="submit" class="a-btn a-btn--secondary a-btn--sm"><i data-lucide="link"></i> Tạo link phỏng vấn</button>
-                    <span class="ivf-muted">Chưa nhận ứng viên.</span>
+                    <span class="ivf-muted">Link chưa mở nên ứng viên chưa thể vào phỏng vấn.</span>
                 </form>
             }
 
@@ -430,9 +431,43 @@
     </div>
 </div>
 
+@if (!isNew)
+{
+    <div class="ivf-modal" id="previewModal" hidden>
+        <div class="ivf-modal__panel ivf-modal__panel--wide a-card" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+            <div class="ivf-section__head">
+                <h2 id="previewTitle">Xem thử cả buổi phỏng vấn</h2>
+                <button type="button" class="a-btn a-btn--ghost a-btn--sm" data-preview-close aria-label="Đóng"><i data-lucide="x"></i></button>
+            </div>
+            <p>Phát lần lượt các video đã có theo đúng thứ tự ứng viên sẽ xem. Không cần trả lời và không tốn credit.</p>
+            <div class="ivf-row">
+                <label class="a-field"><span class="a-label">Phản ứng sau mỗi câu</span><select class="a-input" data-preview-reaction>
+                    <option value="pass">Trả lời tốt</option>
+                    <option value="fail">Cần cố gắng</option>
+                    <option value="alternate">Xen kẽ hai kiểu</option>
+                </select></label>
+                <label class="ivf-check"><input type="checkbox" data-preview-skip-waits /> Bỏ đoạn lắng nghe và suy nghĩ</label>
+            </div>
+            <div class="ivf-preview__stage">
+                <video data-preview-video controls playsinline preload="auto"></video>
+                <p class="ivf-preview__caption" data-preview-caption aria-live="polite"></p>
+            </div>
+            <div class="ivf-row">
+                <button type="button" class="a-btn a-btn--ghost a-btn--sm" data-preview-prev><i data-lucide="skip-back"></i> Đoạn trước</button>
+                <button type="button" class="a-btn a-btn--ghost a-btn--sm" data-preview-next>Đoạn sau <i data-lucide="skip-forward"></i></button>
+                <button type="button" class="a-btn a-btn--ghost a-btn--sm" data-preview-restart><i data-lucide="rotate-ccw"></i> Phát lại từ đầu</button>
+                <span class="ivf-muted" data-preview-step role="status"></span>
+            </div>
+            <p class="ivf-muted" data-preview-note></p>
+            <ol class="ivf-preview__steps" data-preview-steps></ol>
+        </div>
+    </div>
+}
+
 @section Scripts {
     <script>window.ArisInterviewKit = { maxQuestions: @ArisSkyve.Controllers.EmployerInterviewFlowController.MaxQuestions };</script>
     <script src="~/js/pages/interview-kit.js" asp-append-version="true"></script>
     <script src="~/js/pages/interview-data.js" asp-append-version="true"></script>
     <script src="~/js/pages/interview-production.js" asp-append-version="true"></script>
+    <script src="~/js/pages/interview-preview.js" asp-append-version="true"></script>
 }

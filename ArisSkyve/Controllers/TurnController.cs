@@ -21,51 +21,67 @@ namespace ArisSkyve.Controllers
             _httpClientFactory = httpClientFactory;
         }
 
+        private static readonly TimeSpan MeteredTimeout = TimeSpan.FromSeconds(10);
+
+        // Order: SecretKey (one-hour credential per call) → credential ApiKey (Metered returns the
+        // iceServers list) → fixed TurnUsername/TurnCredential from the dashboard → STUN only.
         [HttpGet]
         public async Task<IActionResult> GetIceServers()
         {
             var appName = _config["Metered:AppName"];
             var secretKey = _config["Metered:SecretKey"];
+            var apiKey = _config["Metered:ApiKey"];
+            var username = _config["Metered:TurnUsername"];
+            var password = _config["Metered:TurnCredential"];
+            var fallback = string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)
+                ? StunOnlyFallback()
+                : RelayServers("global.relay.metered.ca", username, password);
 
-            if (string.IsNullOrWhiteSpace(appName) || string.IsNullOrWhiteSpace(secretKey))
-                return Json(new { success = true, iceServers = StunOnlyFallback() });
+            if (string.IsNullOrWhiteSpace(appName))
+                return Json(new { success = true, iceServers = fallback });
 
             try
             {
                 var client = _httpClientFactory.CreateClient();
-                var body = new StringContent(
-                    JsonSerializer.Serialize(new { expiryInSeconds = 3600, label = "aris-call" }),
-                    Encoding.UTF8, "application/json");
-
-                var response = await client.PostAsync(
-                    $"https://{appName}.metered.live/api/v1/turn/credential?secretKey={secretKey}", body);
-
-                if (!response.IsSuccessStatusCode)
-                    return Json(new { success = true, iceServers = StunOnlyFallback() });
-
-                var cred = await response.Content.ReadFromJsonAsync<MeteredCredentialResponse>();
-                if (cred?.Username == null || cred.Password == null)
-                    return Json(new { success = true, iceServers = StunOnlyFallback() });
-
-                var iceServers = new object[]
+                client.Timeout = MeteredTimeout;
+                if (!string.IsNullOrWhiteSpace(secretKey))
                 {
-                    new { urls = "stun:stun.relay.metered.ca:80" },
-                    new { urls = "turn:relay.metered.ca:80", username = cred.Username, credential = cred.Password },
-                    new { urls = "turn:relay.metered.ca:80?transport=tcp", username = cred.Username, credential = cred.Password },
-                    new { urls = "turn:relay.metered.ca:443", username = cred.Username, credential = cred.Password },
-                    new { urls = "turns:relay.metered.ca:443?transport=tcp", username = cred.Username, credential = cred.Password }
-                };
-
-                return Json(new { success = true, iceServers });
+                    var body = new StringContent(
+                        JsonSerializer.Serialize(new { expiryInSeconds = 3600, label = "aris-call" }),
+                        Encoding.UTF8, "application/json");
+                    var response = await client.PostAsync(
+                        $"https://{appName}.metered.live/api/v1/turn/credential?secretKey={Uri.EscapeDataString(secretKey)}", body);
+                    var cred = response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<MeteredCredentialResponse>() : null;
+                    if (cred?.Username != null && cred.Password != null)
+                        return Json(new { success = true, iceServers = RelayServers("relay.metered.ca", cred.Username, cred.Password) });
+                }
+                else if (!string.IsNullOrWhiteSpace(apiKey))
+                {
+                    var response = await client.GetAsync(
+                        $"https://{appName}.metered.live/api/v1/turn/credentials?apiKey={Uri.EscapeDataString(apiKey)}");
+                    var iceServers = response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<JsonElement>() : default;
+                    if (iceServers.ValueKind == JsonValueKind.Array && iceServers.GetArrayLength() > 0)
+                        return Json(new { success = true, iceServers });
+                }
             }
             catch (Exception)
             {
-                return Json(new { success = true, iceServers = StunOnlyFallback() });
+                // Metered unreachable or slow: fall through to the configured fallback.
             }
+            return Json(new { success = true, iceServers = fallback });
         }
 
-        // Used until a Metered SecretKey is configured, and as a safety net if the Metered
-        // API call fails — STUN-only still works for calls on the same network.
+        private static object[] RelayServers(string host, string username, string password) => new object[]
+        {
+            new { urls = "stun:stun.relay.metered.ca:80" },
+            new { urls = $"turn:{host}:80", username, credential = password },
+            new { urls = $"turn:{host}:80?transport=tcp", username, credential = password },
+            new { urls = $"turn:{host}:443", username, credential = password },
+            new { urls = $"turns:{host}:443?transport=tcp", username, credential = password }
+        };
+
+        // Used until Metered is configured, and as a safety net if the Metered API call fails —
+        // STUN-only still works for calls on the same network.
         private static object[] StunOnlyFallback() => new object[]
         {
             new { urls = new[] { "stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302" } }
