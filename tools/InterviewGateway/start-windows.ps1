@@ -39,7 +39,9 @@ try {
     $node = (Get-Command node -ErrorAction Stop).Source
     while ($true) {
         $config = Get-Content -LiteralPath $ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ($config.windows.videoPython -and $config.windows.videoWorkingDirectory) {
+        # ArisControl.exe ghi cờ này khi chủ dự án tắt F2A: không tự bật lại.
+        $videoOff = Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA 'ArisControl\off\f2a')
+        if (-not $videoOff -and $config.windows.videoPython -and $config.windows.videoWorkingDirectory) {
             Start-Managed 'video' $config.windows.videoPython @('-m','uvicorn','src.main:app','--host','127.0.0.1','--port','8000') $config.windows.videoWorkingDirectory 8000
         }
         Start-Managed 'gateway' $node @('"' + (Join-Path $PSScriptRoot 'gateway.mjs') + '"','--config','"' + $ConfigFile + '"') $repo ([int]$config.port)
