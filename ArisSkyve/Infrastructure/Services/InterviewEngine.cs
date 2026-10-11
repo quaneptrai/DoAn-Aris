@@ -132,6 +132,9 @@ public sealed class InterviewEngineOptions
         public string? ApiKey { get; set; }
         public string Model { get; set; } = "veo-3.1-lite-8s-landscape";
         public string ModelWithImage { get; set; } = "veo-3.1-lite-i2v-6s-landscape";
+        /// <summary>Optional speech-enabled models for synchronized narration; never shown to web users.</summary>
+        public string? NativeModel { get; set; }
+        public string? NativeModelWithImage { get; set; }
         public int? AccountId { get; set; }
         public bool Enabled => !string.IsNullOrWhiteSpace(BaseUrl);
     }
@@ -152,7 +155,7 @@ public sealed class InterviewEngine(IHttpClientFactory clients, IOptionsMonitor<
         [InterviewKitVideo.KindListening] = "Nhân vật lắng nghe ứng viên trả lời: nhìn thẳng vào camera, ánh mắt chăm chú, thỉnh thoảng gật đầu rất nhẹ.",
         [InterviewKitVideo.KindThinking] = "Nhân vật đang cân nhắc câu trả lời: hơi nghiêng đầu, ánh mắt suy nghĩ, có thể chạm nhẹ tay lên cằm.",
         [InterviewKitVideo.KindPass] = "Nhân vật hài lòng với câu trả lời: mỉm cười ấm áp, gật đầu tán thưởng.",
-        [InterviewKitVideo.KindFail] = "Câu trả lời chưa đạt: nhân vật hơi mím môi, ánh mắt vẫn thông cảm và khích lệ, gật đầu nhẹ."
+        [InterviewKitVideo.KindFail] = "Câu trả lời chưa đạt: nhân vật hơi nhíu mày lo lắng, mím môi, nghiêng đầu nhẹ; ánh mắt thông cảm và khích lệ. Không cười tán thưởng."
     };
 
     private const string DefaultScene = "Phòng họp hiện đại, tường sáng màu, bàn gỗ, ánh sáng dịu; trung cảnh, camera cố định.";
@@ -262,10 +265,25 @@ public sealed class InterviewEngine(IHttpClientFactory clients, IOptionsMonitor<
         else
         {
             line = Squash(line, 2400);
-            builder.AppendLine(InterviewProductionSettings.Of(kit).NarrationMode == "tts"
-                ? "Nhân vật mấp máy miệng tự nhiên như đang trò chuyện. Video không có giọng nói; lời thoại sẽ ghép riêng."
-                : $"Nhân vật nói tiếng Việt rõ ràng, đúng nguyên văn: \"{line}\"")
-                .Append("Chỉ một người nói, không nhạc nền, không phụ đề, không chữ trên hình.");
+            var settings = InterviewProductionSettings.Of(kit);
+            if (settings.NarrationMode == "tts")
+                builder.AppendLine("Nhân vật mấp máy miệng tự nhiên như đang trò chuyện. Video không có giọng nói; lời thoại sẽ ghép riêng.");
+            else
+            {
+                var spoken = settings.PrepareSpeechText(line);
+                if (spoken.Length > 2400) throw new InterviewEngineException("Lời đọc sau khi áp dụng cách đọc thuật ngữ vượt 2.400 ký tự.");
+                builder.AppendLine("Giọng người phỏng vấn trầm ấm, điềm tĩnh, tiếng Việt chuẩn, phát âm rõ ràng, nhịp trò chuyện tự nhiên.")
+                    .AppendLine(kind switch
+                    {
+                        InterviewKitVideo.KindQuestion => "Khi hỏi, nhân vật hơi nhướng mày, biểu cảm tò mò và khích lệ, cử chỉ tay nhẹ.",
+                        InterviewKitVideo.KindOutro => "Nhân vật mỉm cười chân thành, gật đầu cảm ơn và chào nhẹ.",
+                        InterviewKitVideo.KindTransition => "Nhân vật chuyển câu với nét mặt thân thiện và một cái gật đầu nhẹ.",
+                        _ => "Nhân vật chào đón thân thiện, mỉm cười nhẹ và nhìn vào camera."
+                    })
+                    .AppendLine($"Nhân vật nói tiếng Việt rõ ràng, đúng nguyên văn: \"{spoken}\"")
+                    .AppendLine("Tạo âm thanh lời nói cùng video; môi và hàm khớp với từng từ của chính lời nói đó. Bắt đầu nói sớm, đọc đủ câu một lần, không thêm lời.");
+            }
+            builder.Append("Chỉ một người nói, không nhạc nền, không phụ đề, không chữ trên hình.");
         }
         if (kit.AvatarImage is { Length: > 0 }) builder.Append("\nẢnh đính kèm là nguồn nhận diện chính: giữ nguyên khuôn mặt, mái tóc, trang phục và phong cách hình ảnh. Nếu ảnh là hoạt hình, giữ hoạt hình, không chuyển thành người thật.");
         return new InterviewScriptClip(kind, questionId, line, builder.ToString());
@@ -388,16 +406,22 @@ public sealed class InterviewEngine(IHttpClientFactory clients, IOptionsMonitor<
         var hasImage = kit.AvatarImage is { Length: > 0 };
         var settings = InterviewProductionSettings.Of(kit);
         var model = hasImage ? video.ModelWithImage : video.Model;
+        if (settings.UsesNativeSpeech)
+        {
+            var nativeModel = hasImage ? video.NativeModelWithImage : video.NativeModel;
+            if (!string.IsNullOrWhiteSpace(nativeModel)) model = nativeModel;
+        }
         if (model.StartsWith("veo-3.1-")) model = Regex.Replace(model, "veo-3.1-(?:lite|fast|quality)", "veo-3.1-" + (settings.Quality == "quality" ? "quality" : settings.Quality == "balanced" ? "fast" : "lite"));
-        var needed = settings.NarrationMode == "tts" || InterviewKitVideo.SilentKinds.Contains(clip.Kind) || InterviewKitVideo.BaseKinds.Contains(clip.Kind) ? 6 : clip.Line.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length / 3.0 + .6;
-        // Veo image-to-video offers 4/6 seconds for Lite/Fast and 8 seconds for Quality.
-        // Longer native questions need the supported 8-second image model; its price is still approved before rendering.
+        var spokenLine = settings.UsesNativeSpeech ? settings.PrepareSpeechText(clip.Line) : clip.Line;
+        var needed = settings.NarrationMode == "tts" || InterviewKitVideo.SilentKinds.Contains(clip.Kind) || InterviewKitVideo.BaseKinds.Contains(clip.Kind) ? 6 : spokenLine.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length / 3.0 + .6;
+        // Veo image-to-video offers 4/6 seconds for Lite/Fast and 8 seconds only for Quality.
+        // Longer spoken lines need the 8-second Quality image model; its price is still approved before rendering.
         var veoImage = model.StartsWith("veo-3.1-") && model.Contains("-i2v-");
         if (veoImage && !model.Contains("quality") && needed > 6)
             model = Regex.Replace(model, "^veo-3.1-(?:lite|fast)", "veo-3.1-quality");
         var allowed = model.Contains("quality") ? new[] { 8 } : veoImage ? new[] { 4, 6 } : model.Contains("omni") ? new[] { 4, 6, 8, 10 } : new[] { 4, 6, 8 };
-        if (settings.NarrationMode == "native" && !InterviewKitVideo.SilentKinds.Contains(clip.Kind) && needed > allowed[^1])
-            throw new InterviewEngineException("Lời thoại dài hơn thời lượng video cho phép. Chọn TTS để đọc đủ nội dung hoặc rút ngắn lời thoại rồi duyệt lại.");
+        if (settings.UsesNativeSpeech && !InterviewKitVideo.SilentKinds.Contains(clip.Kind) && needed > allowed[^1])
+            throw new InterviewEngineException("Lời thoại dài hơn thời lượng video cho phép. Chưa gửi lượt tạo; cần chia lời thoại thành các đoạn trước khi tạo video khớp môi.");
         var seconds = allowed.FirstOrDefault(d => d >= needed, allowed[^1]);
         model = Regex.Replace(model, @"\d+s(?=-)", seconds + "s");
         var content = new List<object> { new { type = "text", text = clip.Prompt } };

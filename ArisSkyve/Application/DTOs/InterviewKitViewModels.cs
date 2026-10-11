@@ -34,6 +34,8 @@ namespace ArisSkyve.Application.DTOs
         /// <summary>Whether clips can be made automatically on this server (the service itself is never named).</summary>
         public bool CanRenderVideo { get; set; }
         public bool CanSpeak { get; set; }
+        /// <summary>TTS can be fitted onto lip-synced speech (needs the media machine).</summary>
+        public bool CanFitSpeech { get; set; }
         /// <summary>A batch of clips being made right now; the page resumes its progress.</summary>
         public string? RunningBatchId { get; set; }
         public string? RunningVideoJobId { get; set; }

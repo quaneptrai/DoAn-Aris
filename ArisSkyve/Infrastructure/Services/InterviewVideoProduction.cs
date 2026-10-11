@@ -4,7 +4,7 @@ using ArisSkyve.Domain.Entities;
 namespace ArisSkyve.Infrastructure.Services;
 
 /// <summary>Reuses one silent master, or five expressions, and fits their video to the shared TTS voice.</summary>
-public sealed class InterviewVideoProduction(IInterviewEngine engine, InterviewSpeech speech, IServiceScopeFactory scopes)
+public sealed class InterviewVideoProduction(IInterviewEngine engine, InterviewSpeech speech, IServiceScopeFactory scopes, ILogger<InterviewVideoProduction> logger)
 {
     public static string Revision(InterviewKit kit) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(kit.ScriptJson + "\n" + kit.SettingsJson + "\n" + kit.Persona + "\n" + kit.Scene + "\n" + (kit.AvatarImage == null ? "" : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(kit.AvatarImage))))));
     private sealed record LocalQuote(int KitId, string Kind, int? QuestionId, DateTime Expires);
@@ -26,6 +26,8 @@ public sealed class InterviewVideoProduction(IInterviewEngine engine, InterviewS
     public async Task<InterviewVideoQuote> QuoteAsync(InterviewKit kit, InterviewScriptClip clip, CancellationToken token)
     {
         var settings = InterviewProductionSettings.Of(kit);
+        if (settings.RequiresVoiceConversion) await speech.EnsureVoiceConversionAsync(settings.VoiceId, token);
+        if (settings.RequiresSpeechFit && !speech.CanFitSpeech) throw new InterviewEngineException("Chế độ khớp môi + giọng đọc TTS chưa sẵn sàng. Vui lòng liên hệ quản trị viên.");
         if (settings.NarrationMode == "tts" || settings.VisualMode != "independent")
         {
             if (!speech.CanSpeak) throw new InterviewEngineException("Giọng đọc TTS chưa được bật trên hệ thống.");
@@ -40,6 +42,12 @@ public sealed class InterviewVideoProduction(IInterviewEngine engine, InterviewS
     public async Task<byte[]> RenderAsync(InterviewKit kit, InterviewScriptClip clip, string quoteId, CancellationToken token)
     {
         var settings = InterviewProductionSettings.Of(kit); byte[] video;
+        // Check again before consuming a paid quote: the local converter may have stopped since preview.
+        if (settings.RequiresVoiceConversion) await speech.EnsureVoiceConversionAsync(settings.VoiceId, token);
+        // Synthesize first: a TTS failure must not waste the paid video.
+        var fittedVoice = settings.RequiresSpeechFit && !InterviewKitVideo.SilentKinds.Contains(clip.Kind) && !InterviewKitVideo.BaseKinds.Contains(clip.Kind)
+            ? await speech.SpeakAsync(clip.Line, settings, token)
+            : null;
         if (quoteId.StartsWith("local-"))
         {
             if (!localQuotes.TryRemove(quoteId, out var quote) || quote.Expires <= DateTime.UtcNow || quote.KitId != kit.Id || quote.Kind != clip.Kind || quote.QuestionId != clip.QuestionId)
@@ -50,6 +58,22 @@ public sealed class InterviewVideoProduction(IInterviewEngine engine, InterviewS
         }
         else video = await engine.RenderVideoAsync(quoteId, token);
         if (InterviewKitVideo.BaseKinds.Contains(clip.Kind)) return await speech.MixAsync(video, null, token);
+        if (settings.RequiresVoiceConversion)
+            return InterviewKitVideo.SilentKinds.Contains(clip.Kind)
+                ? await speech.MixAsync(video, null, token)
+                : await speech.ConvertVoiceAsync(video, settings.VoiceId, token);
+        if (settings.RequiresSpeechFit)
+        {
+            if (fittedVoice == null) return await speech.MixAsync(video, null, token);
+            try { return await speech.FitSpeechAsync(video, fittedVoice, token); }
+            catch (InterviewEngineException e)
+            {
+                // The render is already paid for. Keep it with the same TTS voice (plain voice-over, no
+                // word-level lip sync) rather than discarding it or falling back to the model's own voice.
+                logger.LogWarning("Interview speech fit refused for kit {KitId} {Kind}; kept the clip with a plain voice-over: {Reason}", kit.Id, clip.Kind, e.Message);
+                return await speech.MixAsync(video, fittedVoice, token);
+            }
+        }
         if (settings.NarrationMode == "tts" && !InterviewKitVideo.SilentKinds.Contains(clip.Kind))
             return await speech.MixAsync(video, await speech.SpeakAsync(clip.Line, settings, token), token);
         if (settings.VisualMode != "independent") return await speech.MixAsync(video, null, token);

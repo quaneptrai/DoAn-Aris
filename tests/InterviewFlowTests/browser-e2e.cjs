@@ -2,7 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const puppeteer = require('../../ArisSkyve/node_modules/puppeteer-core');
+const puppeteer = require(process.env.ARIS_TEST_NODE_MODULES ? path.join(process.env.ARIS_TEST_NODE_MODULES, 'puppeteer-core') : '../../ArisSkyve/node_modules/puppeteer-core');
 const base = process.argv[2] || 'http://localhost:5028';
 const fixtures = path.resolve('.local/interview-fixtures');
 let passed = 0;
@@ -10,14 +10,52 @@ const check = (name, condition) => { assert.ok(condition, name); console.log('PA
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 (async () => {
     await fetch('http://127.0.0.1:5302/__config', { method: 'POST', body: JSON.stringify({ credits: 10, avatarCredits: 5, expiresIn: 300, fail: '', delayMs: 0 }) });
-    const browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });
+    const browser = process.env.ARIS_TEST_BROWSER_URL
+        ? await puppeteer.connect({ browserURL: process.env.ARIS_TEST_BROWSER_URL })
+        : await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });
     try {
-        const page = await browser.newPage(), errors = [];
+        const page = await browser.newPage(), errors = [], paidRequests = [];
+        let conversionAvailable = false;
+        await page.setRequestInterception(true);
+        page.on('request', request => {
+            if (request.method() === 'POST' && /\/(?:Videos\/(?:Render|RenderAll)|Avatar\/Render|Voices\/(?:Sample|Clone))$/.test(new URL(request.url()).pathname)) paidRequests.push(request.url());
+            if (new URL(request.url()).pathname === '/Employer/InterviewFlow/ConversionVoices') return request.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(conversionAvailable ? { ok: true, voices: [{ id: 'ruby-local-test', name: 'Ruby', gender: 'female', region: 'global' }] } : { ok: false, error: 'Chế độ khớp môi với một giọng xuyên suốt chưa sẵn sàng.' }) });
+            return request.continue();
+        });
         page.on('pageerror', error => errors.push(error.message)); page.on('dialog', dialog => dialog.accept());
         await page.evaluateOnNewDocument(() => { window.SpeechRecognition = undefined; window.webkitSpeechRecognition = undefined; });
         await page.setViewport({ width: 1280, height: 900 });
         await page.goto(base + '/Account/QuickLogin?email=port.owner@example.test');
         await page.goto(base + '/Employer/InterviewFlow/New');
+        await page.waitForFunction(() => document.querySelector('[data-conversion-status]').textContent.includes('chưa sẵn sàng'));
+        check('conversion mode disabled while local voices unavailable', await page.$eval('[data-conversion-option]', el => el.disabled));
+        check('lip-sync TTS mode disabled without the media machine', await page.$eval('[data-narration-mode] option[value="native-tts"]', el => el.disabled));
+        conversionAvailable = true;
+        await page.reload();
+        await page.waitForFunction(() => !document.querySelector('[data-conversion-option]').disabled);
+        check('conversion mode enabled after a ready local voice list', await page.$eval('[data-conversion-status]', el => el.textContent.includes('đã sẵn sàng')));
+        await page.$eval('[name="Production.Speed"]', el => { el.value = '1.3'; });
+        await page.$eval('[name="Production.Pitch"]', el => { el.value = '.96'; });
+        await page.select('[data-narration-mode]', 'native-converted');
+        check('conversion mode has only prepared target voices', await page.$$eval('[data-voice-select] option', els => els.length === 2 && els[1].value === 'ruby-local-test'));
+        await page.select('[data-voice-select]', 'ruby-local-test');
+        await page.type('[data-voice-search]', 'no match');
+        check('conversion voice survives search filtering', await page.$eval('[data-voice-select]', el => el.value === 'ruby-local-test'));
+        await page.$eval('[data-voice-search]', el => { el.value = ''; el.dispatchEvent(new Event('input')); });
+        check('conversion preserves native speed and pitch', await page.$$eval('[name="Production.Speed"], [name="Production.Pitch"]', els => els.every(el => el.value === '1' && el.readOnly)));
+        check('conversion does not expose synthesis and cloning controls', await page.evaluate(() => document.querySelector('[data-sample-voice]').hidden && document.querySelector('[data-clone-voice]').closest('details').hidden));
+        await page.select('[data-visual-mode]', 'shared');
+        check('conversion keeps independent emotion clips', await page.evaluate(() => document.querySelector('[data-visual-mode]').value === 'independent' && document.querySelector('[data-narration-mode]').value === 'native-converted'));
+        check('conversion status explains regeneration and result review', await page.$eval('[data-narration-status]', el => el.textContent.includes('tạo lại video') && el.textContent.includes('kiểm tra khẩu hình')));
+        // The option is disabled on this server; drive the control directly to check its form behaviour.
+        await page.$eval('[data-narration-mode]', el => { el.value = 'native-tts'; el.dispatchEvent(new Event('change')); });
+        check('lip-sync TTS takes speed from the video but keeps pitch and TTS controls', await page.evaluate(() =>
+            document.querySelector('[name="Production.Speed"]').closest('label').hidden && document.querySelector('[name="Production.Speed"]').value === '1'
+            && !document.querySelector('[name="Production.Pitch"]').closest('label').hidden && !document.querySelector('[data-voice-controls]').hidden
+            && document.querySelector('[data-visual-mode]').value === 'independent'));
+        check('lip-sync TTS status promises one voice without drift', await page.$eval('[data-narration-status]', el => el.textContent.includes('không lệch') || el.textContent.includes('Chọn một giọng đọc riêng')));
+        check('voice readiness and mode changes make no paid request', paidRequests.length === 0);
+        await page.select('[data-narration-mode]', 'native');
         check('free default avatar enabled on new kit', await page.$eval('[data-avatar-default]', el => el.checked));
         check('default avatar preview loads', await page.$eval('[data-avatar-preview]', el => el.complete && el.naturalWidth > 0));
         await (await page.$('[data-avatar-upload]')).uploadFile(path.join(fixtures, '../../ArisSkyve/wwwroot/images/interview/interviewer-avatar.webp'));

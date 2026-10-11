@@ -14,6 +14,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import { silenceFilter, parseSilences, speechSegments, planFit, fitFilter } from './speech-fit.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MB = 1024 * 1024;
@@ -39,6 +40,16 @@ export function loadConfig(file) {
   config.dataDir = path.resolve(folder, config.dataDir);
   // A relative FFmpeg path is relative to the config file; a bare name is looked up on PATH.
   if (/[\\/]/.test(config.ffmpegPath) && !path.isAbsolute(config.ffmpegPath)) config.ffmpegPath = path.resolve(folder, config.ffmpegPath);
+  if (config.voiceConversion) {
+    config.voiceConversion = { timeoutSeconds: 180, maxDurationDriftMs: 80, ...config.voiceConversion };
+    for (const name of ['pythonPath', 'workerPath', 'configPath']) {
+      const value = config.voiceConversion[name];
+      if (typeof value !== 'string' || !value.trim()) throw new Error(`voiceConversion.${name} is required`);
+      if (name !== 'pythonPath' || /[\\/]/.test(value)) config.voiceConversion[name] = path.resolve(folder, value);
+    }
+    if (!Number.isFinite(config.voiceConversion.timeoutSeconds) || config.voiceConversion.timeoutSeconds < 1 || config.voiceConversion.timeoutSeconds > 1800) throw new Error('voiceConversion.timeoutSeconds must be between 1 and 1800');
+    if (!Number.isFinite(config.voiceConversion.maxDurationDriftMs) || config.voiceConversion.maxDurationDriftMs < 0 || config.voiceConversion.maxDurationDriftMs > 80) throw new Error('voiceConversion.maxDurationDriftMs must be between 0 and 80');
+  }
   return config;
 }
 
@@ -188,18 +199,181 @@ function semaphore(size) {
   };
 }
 
-function ffmpeg(config, args, log, cwd) {
+// Regular files also work in a restricted Windows session where anonymous pipe
+// handles cannot be inherited. Keep capture files private, bounded, and ephemeral.
+function captureProcess(command, args, { cwd, timeoutMs, signal, stdoutLimit = 64 * 1024, stderrLimit = 200 * 1024 }) {
   return new Promise((resolve, reject) => {
-    const child = spawn(config.ffmpegPath, args, { cwd, windowsHide: true });
-    let stderr = '';
-    const timer = setTimeout(() => child.kill('SIGKILL'), 10 * 60 * 1000);
-    child.stderr.on('data', chunk => { stderr += chunk; if (stderr.length > 200_000) stderr = stderr.slice(-100_000); });
-    child.on('error', error => { clearTimeout(timer); reject(new GatewayError(503, 'media_unavailable', 'Bộ xử lý âm thanh/video chưa sẵn sàng.')); log({ ffmpeg: error.code }); });
-    child.on('close', code => {
-      clearTimeout(timer);
-      if (code === 0) resolve(stderr);
-      else { log({ ffmpeg: code, detail: stderr.slice(-1500) }); reject(new GatewayError(422, 'media_failed', 'Không xử lý được âm thanh/video. Kiểm tra file nguồn rồi thử lại.')); }
-    });
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'interview-process-'));
+    const output = path.join(dir, 'stdout'), errors = path.join(dir, 'stderr');
+    const handles = [fs.openSync(output, 'w'), fs.openSync(errors, 'w')];
+    let child, timer, settled = false, timedOut = false;
+    const abort = () => child?.kill('SIGKILL');
+    const tail = (file, limit) => {
+      const size = fs.statSync(file).size, count = Math.min(size, limit), buffer = Buffer.alloc(count), descriptor = fs.openSync(file, 'r');
+      try { fs.readSync(descriptor, buffer, 0, count, size - count); return buffer.toString('utf8'); }
+      finally { fs.closeSync(descriptor); }
+    };
+    const finish = (error, code) => {
+      if (settled) return; settled = true;
+      clearTimeout(timer); signal?.removeEventListener('abort', abort);
+      try {
+        if (error) reject(error);
+        else resolve({ code, timedOut, stdout: tail(output, stdoutLimit), stderr: tail(errors, stderrLimit) });
+      } catch (failure) { reject(failure); }
+      finally { fs.rmSync(dir, { recursive: true, force: true }); }
+    };
+    try { child = spawn(command, args, { cwd, windowsHide: true, stdio: ['ignore', handles[0], handles[1]] }); }
+    catch (error) { for (const handle of handles) fs.closeSync(handle); finish(error); return; }
+    for (const handle of handles) fs.closeSync(handle);
+    timer = setTimeout(() => { timedOut = true; abort(); }, timeoutMs);
+    signal?.addEventListener('abort', abort, { once: true });
+    child.once('error', error => finish(error));
+    child.once('close', code => finish(null, code));
+    if (signal?.aborted) abort();
+  });
+}
+
+async function ffmpeg(config, args, log, cwd, signal) {
+  let result;
+  try { result = await captureProcess(config.ffmpegPath, args, { cwd, timeoutMs: 10 * 60 * 1000, signal }); }
+  catch (error) { log({ ffmpeg: error.code }); throw new GatewayError(503, 'media_unavailable', 'Bộ xử lý âm thanh/video chưa sẵn sàng.'); }
+  if (result.code === 0) return result.stderr;
+  log({ ffmpeg: result.code, detail: result.stderr.slice(-1500) });
+  throw new GatewayError(422, 'media_failed', 'Không xử lý được âm thanh/video. Kiểm tra file nguồn rồi thử lại.');
+}
+
+// Voice conversion runs locally; these routes never send source or reference audio to an upstream.
+async function voiceWorker(config, args, log, signal) {
+  const settings = config.voiceConversion;
+  if (!settings?.pythonPath || !settings.workerPath || !settings.configPath) throw new GatewayError(503, 'voice_conversion_unavailable', 'Bộ đổi giọng chưa sẵn sàng.');
+  let result;
+  try { result = await captureProcess(settings.pythonPath, [settings.workerPath, ...args, '--config', settings.configPath], { timeoutMs: (settings.timeoutSeconds ?? 180) * 1000, signal }); }
+  catch (error) { log({ voiceConversion: 'unavailable', code: error.code }); throw new GatewayError(503, 'voice_conversion_unavailable', 'Bộ đổi giọng chưa sẵn sàng.'); }
+  // Internal paths and model messages never become HTTP errors or gateway logs.
+  if (result.code !== 0) {
+    log({ voiceConversion: result.timedOut ? 'timeout' : 'failed', code: result.code });
+    throw new GatewayError(result.timedOut ? 504 : 422, result.timedOut ? 'voice_conversion_timeout' : 'voice_conversion_failed', result.timedOut ? 'Đổi giọng quá thời gian xử lý. Thử lại sau.' : 'Không đổi được giọng cho clip này. Kiểm tra âm thanh gốc rồi thử lại.');
+  }
+  try { return JSON.parse(result.stdout); }
+  catch { throw new GatewayError(503, 'voice_conversion_unavailable', 'Bộ đổi giọng chưa sẵn sàng.'); }
+}
+
+export async function voiceConversionHealth(config, log = () => {}, signal) {
+  if (!config.voiceConversion) return { ready: false, voices: [] };
+  try {
+    const result = await voiceWorker(config, ['--health'], log, signal);
+    const voices = Array.isArray(result.voices) ? result.voices.filter(v => /^[A-Za-z0-9_-]{1,100}$/.test(v?.id ?? '') && typeof v?.name === 'string' && v.name.length > 0 && v.name.length <= 80 && !/[\\/:<>]/.test(v.name)).map(v => ({ id: v.id, name: v.name })) : [];
+    if (result.ready !== true || voices.length === 0) return { ready: false, voices: [] };
+    await ffmpeg(config, ['-version'], () => {}, undefined, signal);
+    return { ready: true, voices };
+  } catch { return { ready: false, voices: [] }; }
+}
+
+// Read sample counts, rather than an approximate container duration. Inputs are local PCM WAV.
+export function wavTiming(bytes) {
+  if (bytes.length < 44 || bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WAVE') throw new GatewayError(422, 'voice_conversion_failed', 'Âm thanh sau đổi giọng không hợp lệ.');
+  let rate = 0, align = 0, size = null;
+  for (let offset = 12; offset + 8 <= bytes.length;) {
+    const kind = bytes.toString('ascii', offset, offset + 4), length = bytes.readUInt32LE(offset + 4), start = offset + 8;
+    if (start + length > bytes.length) throw new GatewayError(422, 'voice_conversion_failed', 'Âm thanh sau đổi giọng không hợp lệ.');
+    if (kind === 'fmt ' && length >= 16) {
+      const format = bytes.readUInt16LE(start);
+      if (![1, 3, 65534].includes(format)) throw new GatewayError(422, 'voice_conversion_failed', 'Âm thanh sau đổi giọng không hợp lệ.');
+      rate = bytes.readUInt32LE(start + 4); align = bytes.readUInt16LE(start + 12);
+    }
+    if (kind === 'data') size = (size ?? 0) + length;
+    offset = start + length + (length % 2);
+  }
+  if (!rate || !align || !size || size % align) throw new GatewayError(422, 'voice_conversion_failed', 'Âm thanh sau đổi giọng không hợp lệ.');
+  return { sampleRate: rate, frames: size / align, duration: size / align / rate };
+}
+
+export function verifyVoiceTiming(original, converted, maxDriftMs = 80) {
+  const before = wavTiming(original), after = wavTiming(converted);
+  const driftMs = Math.abs(after.duration - before.duration) * 1000;
+  if (driftMs > maxDriftMs + 0.001) throw new GatewayError(422, 'voice_timing_drift', 'Đổi giọng làm lệch thời lượng lời nói. Clip đã được giữ nguyên để tránh lệch khẩu hình.');
+  return { before, after, driftMs };
+}
+
+/** Preserve every original video packet and audio timing; never loop or stretch a talking face. */
+export async function convertVoice(config, log, video, voice, signal) {
+  const health = await voiceConversionHealth(config, log, signal);
+  if (!health.ready) throw new GatewayError(503, 'voice_conversion_unavailable', 'Bộ đổi giọng chưa sẵn sàng.');
+  if (!health.voices.some(v => v.id === voice)) throw new GatewayError(400, 'invalid_voice', 'Giọng được chọn chưa sẵn sàng để đổi giọng.');
+  return inTemp(async dir => {
+    const source = path.join(dir, 'source.mp4'), original = path.join(dir, 'original.wav'), converted = path.join(dir, 'converted.wav'), output = path.join(dir, 'output.mp4');
+    fs.writeFileSync(source, video);
+    const audioStart = await extractSpeech(config, source, original, log, dir, signal);
+    const originalBytes = fs.readFileSync(original);
+    wavTiming(originalBytes);
+    await voiceWorker(config, ['--input', original, '--output', converted, '--voice', voice], log, signal);
+    if (!fs.existsSync(converted)) throw new GatewayError(422, 'voice_conversion_failed', 'Không đổi được giọng cho clip này.');
+    const { before, driftMs } = verifyVoiceTiming(originalBytes, fs.readFileSync(converted), config.voiceConversion.maxDurationDriftMs ?? 80);
+    // Only codec rounding <=80 ms may be padded/trimmed. No tempo change and no -shortest.
+    const filter = await loudnessFilter(config, converted, log, dir, signal) + `,aresample=48000,apad,atrim=end_sample=${before.frames},asetpts=PTS-STARTPTS+(${audioStart})/TB`;
+    await ffmpeg(config, ['-y', '-hide_banner', '-copyts', '-i', source, '-i', converted, '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-af', filter, '-c:a', 'aac', '-ar', '48000', '-movflags', '+faststart', output], log, dir, signal);
+    log({ voiceConversion: 'complete', durationDriftMs: Math.round(driftMs) });
+    return fs.readFileSync(output);
+  });
+}
+
+/** Writes the clip's own speech as 48 kHz mono PCM and returns when that audio starts in the video. */
+async function extractSpeech(config, source, destination, log, dir, signal) {
+  const extraction = await ffmpeg(config, ['-y', '-hide_banner', '-copyts', '-i', source, '-map', '0:a:0', '-vn', '-af', 'ashowinfo', '-ac', '1', '-ar', '48000', '-c:a', 'pcm_s16le', destination], log, dir, signal);
+  const start = extraction.match(/\bn:0\s+pts:\S+\s+pts_time:([+-]?[\d.eE]+)/);
+  const audioStart = start ? Number(start[1]) : NaN;
+  if (!Number.isFinite(audioStart)) throw new GatewayError(422, 'voice_timing_unavailable', 'Không xác định được thời điểm lời nói trong clip gốc.');
+  return audioStart;
+}
+
+/** Two-pass loudnorm to -14 LUFS; falls back to single-pass when measurement is unavailable. */
+async function loudnessFilter(config, file, log, dir, signal) {
+  const normalise = 'loudnorm=I=-14:TP=-1:LRA=11';
+  const measured = await ffmpeg(config, ['-hide_banner', '-i', file, '-af', normalise + ':print_format=json', '-f', 'null', '-'], log, dir, signal);
+  const match = measured.match(/\{\s*"input_i"[\s\S]*?\}/);
+  if (!match) return normalise;
+  const m = JSON.parse(match[0]);
+  return Number.isFinite(Number(m.input_i))
+    ? normalise + `:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`
+    : normalise;
+}
+
+async function speechSpans(config, file, duration, log, dir, signal) {
+  const levels = await ffmpeg(config, ['-hide_banner', '-i', file, '-af', 'volumedetect', '-f', 'null', '-'], log, dir, signal);
+  const peak = Number(levels.match(/max_volume:\s*(-?[\d.]+) dB/)?.[1]);
+  const report = await ffmpeg(config, ['-hide_banner', '-i', file, '-af', silenceFilter(peak), '-f', 'null', '-'], log, dir, signal);
+  return speechSegments(parseSilences(report, duration), duration);
+}
+
+/**
+ * "native-tts": keep the video's lip-synced timing but replace its voice with the kit's TTS.
+ * The TTS is fitted phrase by phrase into the native speech spans; video packets are copied and
+ * the audio track keeps the original length exactly, so sound never drifts from the picture.
+ */
+export async function fitVoice(config, log, video, audio, signal) {
+  return inTemp(async dir => {
+    const source = path.join(dir, 'source.mp4'), original = path.join(dir, 'original.wav'), voice = path.join(dir, 'voice.audio');
+    const tts = path.join(dir, 'tts.wav'), fitted = path.join(dir, 'fitted.wav'), output = path.join(dir, 'output.mp4');
+    fs.writeFileSync(source, video); fs.writeFileSync(voice, audio);
+    const audioStart = await extractSpeech(config, source, original, log, dir, signal);
+    await ffmpeg(config, ['-y', '-hide_banner', '-i', voice, '-vn', '-ac', '1', '-ar', '48000', '-c:a', 'pcm_s16le', tts], log, dir, signal);
+    const before = wavTiming(fs.readFileSync(original)), spoken = wavTiming(fs.readFileSync(tts));
+    // FFmpeg/outage errors from speechSpans keep their own status; only a refused fit becomes speech_fit_failed.
+    const nativeSpans = await speechSpans(config, original, before.duration, log, dir, signal);
+    const ttsSpans = await speechSpans(config, tts, spoken.duration, log, dir, signal);
+    let plan;
+    try { plan = planFit(nativeSpans, ttsSpans); }
+    catch (error) {
+      log({ speechFit: 'refused', reason: error.message });
+      throw new GatewayError(422, 'speech_fit_failed', error.message === 'no_native_speech'
+        ? 'Video không có lời nói để khớp giọng đọc. Thử tạo lại clip này.'
+        : 'Giọng đọc và lời nói trong video chênh nhau quá nhiều để khớp môi. Kiểm tra lời thoại rồi tạo lại.');
+    }
+    await ffmpeg(config, ['-y', '-hide_banner', '-i', original, '-i', tts, '-filter_complex', fitFilter(plan, before.sampleRate, before.frames), '-map', '[fit]', '-c:a', 'pcm_s16le', fitted], log, dir, signal);
+    const filter = await loudnessFilter(config, fitted, log, dir, signal) + `,aresample=48000,apad,atrim=end_sample=${before.frames},asetpts=PTS-STARTPTS+(${audioStart})/TB`;
+    await ffmpeg(config, ['-y', '-hide_banner', '-copyts', '-i', source, '-i', fitted, '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-af', filter, '-c:a', 'aac', '-ar', '48000', '-movflags', '+faststart', output], log, dir, signal);
+    log({ speechFit: 'complete', mode: plan.mode, phrases: plan.pieces.length, tempo: plan.pieces.map(p => Math.round(p.tempo * 100) / 100) });
+    return fs.readFileSync(output);
   });
 }
 
@@ -459,6 +633,21 @@ export function createGateway(config) {
       else if (is('GET', '/media/health')) {
         await ffmpeg(config, ['-version'], log);
         send(res, 200, { ok: true }); status = 200;
+      }
+      else if (is('GET', '/media/voice-conversion/health')) {
+        send(res, 200, await media(() => voiceConversionHealth(config, log, controller.signal))); status = 200;
+      }
+      else if (is('POST', '/media/convert-voice')) {
+        if (!config.voiceConversion) throw new GatewayError(503, 'voice_conversion_unavailable', 'Bộ đổi giọng chưa sẵn sàng.');
+        const form = await readForm(req, 80 * MB), voice = form.get('voice');
+        if (typeof voice !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(voice)) throw new GatewayError(400, 'invalid_voice', 'Giọng được chọn chưa sẵn sàng để đổi giọng.');
+        const video = await fileBytes(form, 'video');
+        send(res, 200, await media(() => convertVoice(config, log, video, voice, controller.signal)), { 'content-type': 'video/mp4' }); status = 200;
+      }
+      else if (is('POST', '/media/fit-voice')) {
+        const form = await readForm(req, 80 * MB);
+        const video = await fileBytes(form, 'video'), audio = await fileBytes(form, 'audio');
+        send(res, 200, await media(() => fitVoice(config, log, video, audio, controller.signal)), { 'content-type': 'video/mp4' }); status = 200;
       }
       else if (is('POST', '/media/mix')) {
         const form = await readForm(req, 80 * MB);

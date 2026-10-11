@@ -6,6 +6,13 @@
   "dataDir": "../../.local/interview-gateway-data",
   "ffmpegPath": "../../.local/interview-tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe",
   "mediaConcurrency": 2,
+  "voiceConversion": {
+    "pythonPath": "../../.local/voice-conversion/venv/Scripts/python.exe",
+    "workerPath": "voice_conversion_worker.py",
+    "configPath": "voice-conversion.config.local.json",
+    "timeoutSeconds": 180,
+    "maxDurationDriftMs": 80
+  },
   "budget": {
     "dailyCredits": null,
     "monthlyCredits": null,

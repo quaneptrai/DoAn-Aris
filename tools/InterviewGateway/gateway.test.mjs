@@ -7,7 +7,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execCapturedSync as execFileSync, spawnCapturedSync as spawnSync } from './capture-sync-test-helper.mjs';
 import { fileURLToPath } from 'node:url';
 import { createGateway, rewriteMediaLinks, Ledger } from './gateway.mjs';
 

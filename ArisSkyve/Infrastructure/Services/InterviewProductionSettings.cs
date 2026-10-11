@@ -8,6 +8,15 @@ public sealed class InterviewProductionSettings
 {
     public string VisualMode { get; set; } = "independent";
     public string NarrationMode { get; set; } = "native";
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool UsesNativeSpeech => NarrationMode is "native" or "native-converted" or "native-tts";
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool RequiresVoiceConversion => NarrationMode == "native-converted";
+    /// <summary>Video speaks the line for lip timing; the kit's TTS voice replaces it, fitted to that timing.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool RequiresSpeechFit => NarrationMode == "native-tts";
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool UsesSelectedVoice => NarrationMode is "tts" or "native-converted" or "native-tts";
     public string Quality { get; set; } = "fast";
     public string CreditMode { get; set; } = "auto";
     public int? CreditAccountId { get; set; }
@@ -27,9 +36,11 @@ public sealed class InterviewProductionSettings
     public string? Validate()
     {
         if (CreditMode is not ("auto" or "pool" or "single") || (CreditMode == "single" && CreditAccountId is not > 0)) return "Chọn tài khoản credit hợp lệ.";
-        if (VisualMode is not ("independent" or "expressions" or "shared") || NarrationMode is not ("native" or "tts") || Quality is not ("fast" or "balanced" or "quality")) return "Tùy chọn video không hợp lệ.";
+        if (VisualMode is not ("independent" or "expressions" or "shared") || NarrationMode is not ("native" or "tts" or "native-converted" or "native-tts") || Quality is not ("fast" or "balanced" or "quality")) return "Tùy chọn video không hợp lệ.";
         if (VisualMode != "independent" && NarrationMode != "tts") return "Video dùng chung cần chọn giọng đọc TTS.";
-        if (NarrationMode == "tts" && (string.IsNullOrWhiteSpace(VoiceId) || VoiceId.Length > 120)) return "Chọn giọng đọc TTS trước khi lưu.";
+        if (UsesSelectedVoice && (string.IsNullOrWhiteSpace(VoiceId) || VoiceId.Length > 120)) return "Chọn giọng dùng chung trước khi lưu.";
+        if (RequiresVoiceConversion && (Speed != 1 || Pitch != 1)) return "Chế độ khớp môi giữ nguyên tốc độ và cao độ để bảo toàn nhịp lời nói.";
+        if (RequiresSpeechFit && Speed != 1) return "Chế độ khớp môi + giọng đọc TTS lấy nhịp nói từ video, nên tốc độ giữ ở 1.";
         var pronunciationError = Pronunciations(out _);
         if (pronunciationError != null) return pronunciationError;
         if (!double.IsFinite(Speed) || Speed < .25 || Speed > 4 || !double.IsFinite(Pitch) || Pitch < .8 || Pitch > 1.2) return "Tốc độ/cao độ giọng đọc ngoài phạm vi cho phép.";

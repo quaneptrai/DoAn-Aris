@@ -200,3 +200,55 @@ Ruby đang có lời mẫu tham chiếu chép sai, chứa cụm “on the action
 - **Preview 5029:** đã khởi động lại bằng build mới, vẫn đường dẫn `.local/stop-voice-final-build`.
   - Dữ liệu được khôi phục từ `.local/embedded-ruby-clean-voice`, đây là bản sao hiện tại.
   - `.local/embedded-ruby-current` là trạng thái trước khi ghép lại.
+
+## Khẩu hình, biểu cảm và giọng xuyên suốt
+
+Ba chế độ giọng có mục đích khác nhau:
+
+| NarrationMode | Hình ảnh | Lời nói và khẩu hình | Giọng giữa các clip |
+| --- | --- | --- | --- |
+| `native` | `independent` | Tạo cùng video từ lời thoại trong prompt | Có thể khác nhau |
+| `native-converted` | `independent` | Tạo cùng video, sau đó đổi âm sắc và giữ nhịp nói | Dùng giọng đích đã được chuẩn bị trên máy xử lý |
+| `native-tts` | `independent` | Video tạo lời nói cùng khẩu hình; giọng TTS đã chọn thay vào đúng các đoạn miệng cử động | Một Voice ID, cách đọc thuật ngữ, cao độ đã lưu |
+| `tts` | `independent`, `expressions`, `shared` | Ghép giọng đọc riêng với hình lặp/cắt; **không có bước khớp môi từng từ** | Một Voice ID/tốc độ/cao độ đã lưu |
+
+Trên web, `native-converted` có nhãn **Khớp môi + một giọng xuyên suốt**. Lựa chọn này chỉ mở khi yêu cầu chỉ đọc `GET /Employer/InterviewFlow/ConversionVoices` trả về ít nhất một giọng sẵn sàng. Danh sách giọng cho chế độ này lấy từ máy xử lý, không lấy các giọng TTS làm bằng chứng rằng chúng đã dùng được cho đổi giọng. Trang tự kiểm tra trạng thái và tải danh sách; không tự tạo video, TTS nghe thử hoặc nhân bản giọng. Nghe thử/nhân bản ở chế độ TTS vẫn chỉ chạy khi người dùng bấm nút.
+
+Máy xử lý cần có bộ đổi giọng hoạt động và mẫu tham chiếu tương ứng với Voice ID được quản trị viên chuẩn bị. Để dùng Ruby, cần chuẩn bị mẫu Ruby đã được phép sử dụng ở máy này và đăng ký giọng đích; chỉ giữ Voice ID `ruby_wav_clean` trong dữ liệu TTS chưa đủ. Chưa có mẫu/bộ đổi giọng thì lựa chọn vẫn bị khóa. Không gửi ghi âm riêng tới dịch vụ ngoài; việc cho phép một lần tải mẫu lên dịch vụ TTS không tự cho phép gửi mẫu tới dịch vụ khác. Tên dịch vụ, model, đường dẫn mẫu, URL và key không hiển thị trong giao diện người dùng.
+
+Quản trị viên có thể cấu hình riêng `InterviewEngine:Video:NativeModel` và `NativeModelWithImage` cho các chế độ tạo lời nói cùng video; bỏ trống sẽ dùng `Model`/`ModelWithImage` hiện tại. Điều này cho phép giữ cấu hình dựng hình câm cũ trong khi chọn model có âm thanh cho các clip cần khớp môi. Model, danh mục thời lượng và báo giá thực tế phải được xác nhận từ dịch vụ; không suy ra một model có tiếng chỉ vì tên của nó có chữ "video". Veo 3.1 Lite/Fast image-to-video hiện hỗ trợ 4/6/8 giây trong danh mục F2A; câu cần 8 giây không tự bị nâng sang Quality đắt hơn. Mỗi lựa chọn model/thời lượng vẫn cần báo giá và duyệt credit trước khi gửi lượt tạo.
+
+`native-converted` giữ `Speed = 1`, `Pitch = 1` để tránh sửa nhịp nói đã tạo cùng khẩu hình. Các video nghe, suy nghĩ, hài lòng và khích lệ được tạo riêng bằng prompt biểu cảm, không lấy hình của clip nói hoặc một video gốc cho tất cả trạng thái. Câu dài hơn thời lượng được hỗ trợ cần chia thành các đoạn có lời thoại trước khi tạo; không được âm thầm bỏ từ, đổi câu hỏi hoặc quay về ghép TTS. Phần `PronunciationOverrides` chỉ thay chữ ở đầu vào tổng hợp lời nói trong prompt/TTS, giữ nguyên câu hỏi, đáp án, nội dung chấm và lời thoại hiển thị.
+
+Đổi chế độ và lưu tham số sẽ dựng lại prompt rồi yêu cầu duyệt lại kịch bản. Các video cũ giữ nguyên cho đến khi người dùng tạo lại theo quy trình báo giá → duyệt credit → tạo video. Trước khi thay video của Embedded cần sao lưu đầy đủ bằng tiện ích snapshot; không cần tạo lại cả bộ để đánh giá một clip thử. Đổi giọng phải kiểm tra độ lệch thời lượng và giữ nguyên thời gian của hình, sau đó chuẩn hóa âm lượng khoảng −14 LUFS. Không dùng `MixAsync(video, null)` cho clip nói vì đường này xóa âm thanh; không dùng vòng lặp video của TTS cho đường đổi giọng.
+
+Kiểm tra tự động với dịch vụ giả xác nhận quy trình, phân quyền, prompt, lựa chọn giọng và xử lý thời gian. Nó không chứng minh video thật khớp môi từng từ hoặc giống Ruby: cần người dùng duyệt giá một clip, xem/nghe kết quả và đối chiếu thuật ngữ. Chỉ tạo thêm biểu cảm/cả bộ sau khi clip thử đạt và chi phí tiếp theo được duyệt. Không khẳng định bộ Embedded hiện tại đã được chuyển hoặc kiểm chứng chế độ mới.
+
+### Clip thử thật (12/10/2026, Claude)
+
+- Áp bản vá lip-sync của Codex vào repo. Runtime OpenVoice chuyển từ TEMP sang `.local/voice-conversion-runtime` (git-ignored). Gateway thật ở 8780 đã có khối `voiceConversion`; health trả `ready: true`, giọng `ruby_wav_clean`, mất khoảng 18–21 s trên CPU. Timeout health phía Aris tăng từ 30 lên 120 s.
+- **Sửa chọn model:** F2A chỉ có `veo-3.1-lite/fast-i2v-4s/6s`; bản 8 giây có ảnh chỉ có ở `quality-i2v-8s`. Bản vá trước gọi `veo-3.1-fast-i2v-8s` (không tồn tại) cho câu dài hơn 6 s. Nay câu dài lên Quality như code cũ, giá vẫn hiện trong báo giá. `voice-stability` 59/59.
+- **Veo Fast bị từ chối:** tài khoản #1 nhận 403 `PUBLIC_ERROR_MODEL_ACCESS_DENIED` với `veo-3.1-fast-i2v-6s-landscape`. Không bị trừ credit. Preview bỏ `NativeModelWithImage` và dùng Omni 1.1 Flash (model mặc định `ModelWithImage`).
+- **Câu 1 Embedded bằng Omni 6 s + đổi giọng Ruby:** báo giá 10 credit, tạo xong sau khoảng 120 s.
+  - Gateway: đổi giọng hoàn tất, lệch thời lượng 2 ms. Clip 6,10 s, H.264 1280×720, AAC 48 kHz, −14,4 LUFS.
+  - Lời nói từ 1,15 s đến 4,73 s. Khung hình vùng mặt: miệng mở/khép thay đổi trong khoảng có lời, khép khi im lặng.
+  - Chưa chép lời được trên máy (không có faster-whisper); chưa gửi audio ra dịch vụ ngoài. Nội dung câu, cách đọc thuật ngữ và độ giống Ruby cần người dùng nghe.
+  - File: `.local/lipsync-trial/question-1-lipsync.mp4`, ảnh khung `mouth-sheet.png`, nhật ký `trial.log`.
+- Preview 5029 chạy build `.local/lipsync-build` với nội dung `.local/lipsync-preview-content`; bộ Embedded đã ở `independent` + `native-converted`. Chuyển chế độ bằng `.local/embedded-lipsync-mode.mjs` (không gọi dịch vụ trả phí). Các clip khác vẫn là clip cũ.
+
+## Khớp môi + giữ giọng đọc TTS (`native-tts`, 12/10/2026)
+
+Nhãn trên web: **Khớp môi + giữ giọng đọc TTS đã chọn**. Dùng khi cần cả khẩu hình khớp lời lẫn đúng giọng TTS (Ruby, cách đọc thuật ngữ) cho mọi clip.
+
+1. Model video tự đọc câu thoại (prompt giống `native`), nên miệng chỉ cử động khi có lời.
+2. Aris tạo giọng TTS **trước** khi gửi lượt tạo video trả phí; TTS lỗi thì không gửi lượt tạo.
+3. Gateway `POST /media/fit-voice` (multipart `video` + `audio`, cần key) tách lời nói gốc, dò các cụm lời bằng `silencedetect` ở cả hai bên rồi:
+   - số cụm bằng nhau: khớp từng cụm; khác nhau hoặc có cụm lệch nhịp quá mức: khớp cả khoảng lời;
+   - đổi nhịp TTS bằng `atempo` (giữ cao độ), giới hạn 0,5–2 lần; ngoài khoảng đó hoặc video không có lời thì từ chối, không đoán;
+   - cắt mỗi đoạn đúng độ dài đích, đặt đúng thời điểm, chuẩn hóa −14 LUFS; video copy nguyên gói, audio đúng số mẫu của bản gốc nên tiếng không trôi lệch hình.
+4. Tốc độ TTS cố định 1 (nhịp lấy từ video); cao độ, giọng và cách đọc thuật ngữ vẫn chỉnh được. Các ô im lặng có video biểu cảm riêng, không tiếng.
+5. Cần TTS và máy xử lý media (`InterviewEngine:Media`). Thiếu một trong hai thì lựa chọn bị tắt và server từ chối khi lưu/báo giá.
+
+Kiểm tra: `speech-fit.test.mjs` 7/7 (cụm lời tổng hợp rơi đúng chỗ, lệch ≤ 60 ms; MD5 luồng video không đổi; −14 LUFS; video không lời bị từ chối), gateway tổng 40/40, `voice-stability` 68/68 (TTS trước lượt trả phí), flow-e2e 63/63, Chrome 47/47.
+
+Thử với dữ liệu thật, không tạo video mới: clip câu 1 (Omni, nhịp lời gốc giữ nguyên sau đổi giọng) + TTS `ruby_wav_clean` thật có cách đọc thuật ngữ. Gateway khớp cả khoảng, nhịp ×1,27. Kết quả: MD5 video trùng bản gốc, 6,10 s, lời 1,18–4,71 s so với 1,15–4,72 s gốc, −14,0 LUFS. File `.local/lipsync-trial/question-1-native-tts.mp4`.

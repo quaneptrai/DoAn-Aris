@@ -11,6 +11,8 @@ namespace ArisSkyve.Infrastructure.Services;
 public sealed class InterviewSpeech(IHttpClientFactory clients, IOptionsMonitor<InterviewEngineOptions> options, ILogger<InterviewSpeech> logger)
 {
     public bool CanSpeak => options.CurrentValue.Tts.Enabled;
+    /// <summary>Fitting TTS onto lip-synced speech needs a voice and the media machine.</summary>
+    public bool CanFitSpeech => CanSpeak && options.CurrentValue.Media.Enabled;
     /// <summary>A dedicated transcription service, or else the language model (it hears MP3/WAV audio).</summary>
     public bool CanTranscribe => options.CurrentValue.Stt.Enabled || options.CurrentValue.Llm.Enabled;
     public sealed record Voice(string Id, string Name, string Gender, string Region);
@@ -260,6 +262,64 @@ public sealed class InterviewSpeech(IHttpClientFactory clients, IOptionsMonitor<
         }
     }
     private static ByteArrayContent Part(byte[] bytes, string type) { var part = new ByteArrayContent(bytes); part.Headers.ContentType = new MediaTypeHeaderValue(type); return part; }
+    /// <summary>Only voices already configured on the private media machine are offered for conversion.</summary>
+    public async Task<List<Voice>> ConversionVoicesAsync(CancellationToken token)
+    {
+        if (!options.CurrentValue.Media.Enabled) return [];
+        using var request = MediaRequest("voice-conversion/health", null);
+        // The health check loads the local model on CPU (~15 s idle); allow for a busy machine.
+        using var response = await MediaAsync(request, TimeSpan.FromSeconds(120), token);
+        try
+        {
+            using var json = JsonDocument.Parse(await ReadAsync(response, 256 * 1024, token));
+            var root = json.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("ready", out var ready) || ready.ValueKind != JsonValueKind.True
+                || !root.TryGetProperty("voices", out var voices) || voices.ValueKind != JsonValueKind.Array) return [];
+            return voices.EnumerateArray().Select(NormalizeVoice).Where(v => v.Id.Length is > 0 and <= 120 && v.Name.Length <= 200).DistinctBy(v => v.Id).ToList();
+        }
+        catch (JsonException)
+        {
+            logger.LogWarning("Interview voice conversion capability returned invalid JSON.");
+            throw new InterviewEngineException("Chưa kiểm tra được giọng dùng chung cho chế độ khớp môi. Thử lại sau.");
+        }
+    }
+    public async Task EnsureVoiceConversionAsync(string voiceId, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(voiceId) || voiceId.Length > 120)
+            throw new InterviewEngineException("Chọn giọng dùng chung cho chế độ khớp môi.");
+        if (!(await ConversionVoicesAsync(token)).Any(v => v.Id == voiceId))
+            throw new InterviewEngineException("Giọng đã chọn chưa sẵn sàng cho chế độ khớp môi. Chưa gửi lượt tạo video.");
+    }
+    /// <summary>Converts the native speech while preserving the video's original timeline. No TTS or loop.</summary>
+    public async Task<byte[]> ConvertVoiceAsync(byte[] video, string voiceId, CancellationToken token)
+    {
+        if (video.Length == 0 || video.Length > PublicMediaValidator.MaximumVideoBytes)
+            throw new InterviewEngineException("Video cần có dữ liệu và tối đa 50 MB.");
+        await EnsureVoiceConversionAsync(voiceId, token);
+        var form = new MultipartFormDataContent
+        {
+            { Part(video, "video/mp4"), "video", "source.mp4" },
+            { new StringContent(voiceId), "voice" }
+        };
+        using var request = MediaRequest("convert-voice", form);
+        using var response = await MediaAsync(request, TimeSpan.FromMinutes(10), token);
+        return await ReadAsync(response, (int)PublicMediaValidator.MaximumVideoBytes, token, "Video sau đổi giọng lớn hơn 50 MB.");
+    }
+    /// <summary>Replaces the video's own speech with the TTS line, fitted to where the mouth moves. Video and length unchanged.</summary>
+    public async Task<byte[]> FitSpeechAsync(byte[] video, byte[] audio, CancellationToken token)
+    {
+        if (!CanFitSpeech) throw new InterviewEngineException("Chế độ khớp môi + giọng đọc TTS chưa sẵn sàng. Vui lòng liên hệ quản trị viên.");
+        if (video.Length == 0 || video.Length > PublicMediaValidator.MaximumVideoBytes)
+            throw new InterviewEngineException("Video cần có dữ liệu và tối đa 50 MB.");
+        var form = new MultipartFormDataContent
+        {
+            { Part(video, "video/mp4"), "video", "source.mp4" },
+            { Part(audio, "application/octet-stream"), "audio", "voice.audio" }
+        };
+        using var request = MediaRequest("fit-voice", form);
+        using var response = await MediaAsync(request, TimeSpan.FromMinutes(10), token);
+        return await ReadAsync(response, (int)PublicMediaValidator.MaximumVideoBytes, token, "Video sau ghép giọng lớn hơn 50 MB.");
+    }
     private async Task<string> RunAsync(IEnumerable<string> arguments, CancellationToken token)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromMinutes(5));

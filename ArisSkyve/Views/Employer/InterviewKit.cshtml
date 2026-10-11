@@ -204,7 +204,7 @@
                     <span class="ivf-tag @(Model.ScriptApproved ? "ivf-tag--ok" : "")">@(Model.ScriptApproved ? "Đã duyệt" : "Chưa duyệt")</span>
                 }
             </div>
-            <p class="ivf-muted">Mỗi lời thoại nên ngắn, vừa một clip. Khi dùng giọng TTS, video được kéo dài hoặc cắt cho khớp lời đọc. Cần duyệt kịch bản trước khi tạo video tự động.</p>
+            <p class="ivf-muted">Mỗi lời thoại cần vừa thời lượng clip để người phỏng vấn nói đủ nội dung. Chế độ khớp môi tạo lời nói cùng video; chế độ giọng đọc riêng lặp hoặc cắt hình và chưa khớp môi từng từ. Cần duyệt kịch bản trước khi xem chi phí và tạo video.</p>
             <div class="ivf-row">
                 <button type="button" class="a-btn a-btn--secondary a-btn--sm" data-write-script><i data-lucide="wand-sparkles"></i> @(Model.Script.Count == 0 ? "Viết kịch bản" : "Viết lại kịch bản")</button>
                 <span class="ivf-muted" data-script-status role="status"></span>

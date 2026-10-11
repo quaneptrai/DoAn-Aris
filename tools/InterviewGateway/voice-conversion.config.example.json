@@ -1,0 +1,11 @@
+{
+  "modelDir": "../../.local/voice-conversion/checkpoints_v2/converter",
+  "device": "auto",
+  "maxDurationDriftMs": 80,
+  "voices": {
+    "ruby_wav_clean": {
+      "name": "Ruby",
+      "referencePath": "../../.local/voice-conversion/references/ruby-authorised.wav"
+    }
+  }
+}

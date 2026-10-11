@@ -94,7 +94,7 @@ public sealed partial class EmployerInterviewFlowController(
             Form = form,
             CanRenderVideo = engine.CanRenderVideo,
             CanRenderAvatar = avatars.CanRender,
-            CanSpeak = speech.CanSpeak,
+            CanSpeak = speech.CanSpeak, CanFitSpeech = speech.CanFitSpeech,
             AvatarDataUrl = InterviewAvatarEngine.DefaultUrl
         });
     }
@@ -142,6 +142,12 @@ public sealed partial class EmployerInterviewFlowController(
             : null;
         error ??= ModelState.IsValid ? form.Production.Validate() : "Một số tham số không hợp lệ. Kiểm tra giá trị đã nhập.";
         if (error == null && form.Production.NarrationMode == "tts" && !speech.CanSpeak) error = "Giọng đọc TTS chưa được bật trên hệ thống.";
+        if (error == null && form.Production.RequiresSpeechFit && !speech.CanFitSpeech) error = "Chế độ khớp môi + giọng đọc TTS chưa sẵn sàng. Vui lòng liên hệ quản trị viên.";
+        if (error == null && form.Production.RequiresVoiceConversion)
+        {
+            try { await speech.EnsureVoiceConversionAsync(form.Production.VoiceId, cancellationToken); }
+            catch (InterviewEngineException e) { error = e.Message; }
+        }
         if (error == null && form.Questions.Any(q => !double.IsFinite(q.Weight) || q.Weight <= 0 || q.Weight > 1000)) error = "Trọng số câu phải lớn hơn 0 và không quá 1.000.";
         if (error == null && form.Questions.Select(q => q.Code?.Trim()).Where(c => !string.IsNullOrEmpty(c)).GroupBy(c => c).Any(g => g.Count() > 1)) error = "Mã câu hỏi bị trùng.";
         if (error == null && form.Questions.Any(q => (q.Code?.Length ?? 0) > 80 || (q.PointWeights?.Length ?? 0) > 2000 || (q.Question?.Length ?? 0) > 2000 || (q.AnswerKey?.Length ?? 0) > 4000 || (q.KeyPoints?.Length ?? 0) > 2000)) error = "Nội dung câu hỏi/đáp án hoặc trọng số quá dài.";
@@ -162,7 +168,7 @@ public sealed partial class EmployerInterviewFlowController(
         if (error != null)
         {
             if (kit == null)
-                return View("~/Views/Employer/InterviewKit.cshtml", new InterviewKitEditViewModel { CompanyName = business.CompanyName, Form = form, CanRenderVideo = engine.CanRenderVideo, CanRenderAvatar = avatars.CanRender, CanSpeak = speech.CanSpeak, AvatarDataUrl = form.RemoveAvatar ? null : InterviewAvatarEngine.DefaultUrl, Error = error });
+                return View("~/Views/Employer/InterviewKit.cshtml", new InterviewKitEditViewModel { CompanyName = business.CompanyName, Form = form, CanRenderVideo = engine.CanRenderVideo, CanRenderAvatar = avatars.CanRender, CanSpeak = speech.CanSpeak, CanFitSpeech = speech.CanFitSpeech, AvatarDataUrl = form.RemoveAvatar ? null : InterviewAvatarEngine.DefaultUrl, Error = error });
             return await EditViewAsync(business, kit, form, error, cancellationToken);
         }
 
@@ -765,7 +771,7 @@ public sealed partial class EmployerInterviewFlowController(
             ScriptApproved = kit.ScriptApprovedAtUtc != null,
             CanRenderVideo = engine.CanRenderVideo,
             CanRenderAvatar = avatars.CanRender,
-            CanSpeak = speech.CanSpeak,
+            CanSpeak = speech.CanSpeak, CanFitSpeech = speech.CanFitSpeech,
             RunningAvatarJobId = jobs.RunningAvatar(kit.Id)?.Id,
             RunningBatchId = jobs.RunningBatch(kit.Id)?.Id,
             RunningVideoJobId = jobs.RunningVideo(kit.Id)?.Id,

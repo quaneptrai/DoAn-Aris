@@ -1,6 +1,6 @@
 # Aris interview gateway
 
-Aris on IIS calls one HTTPS endpoint and a dedicated gateway key. This process replaces that key with the local provider keys and runs FFmpeg on the Windows PC. No dependency packages are required; Node 22+ and FFmpeg are needed. The key and local service settings must never be shipped to the browser or committed.
+Aris on IIS calls one HTTPS endpoint and a dedicated gateway key. This process replaces that key with the local provider keys and runs FFmpeg on the Windows PC. Node 22+ and FFmpeg are needed; optional local voice conversion also needs its Python runtime and model files. The key and local service settings must never be shipped to the browser or committed.
 
 ## Local setup
 
@@ -45,11 +45,44 @@ Use the public gateway root with `/gw/llm`, `/gw/video`, `/gw/tts` and `/gw/medi
 
 ```powershell
 node --test tools/InterviewGateway/gateway.test.mjs
+node --test tools/InterviewGateway/voice-conversion.test.mjs
 node tests/InterviewFlowTests/fake-services.mjs
 powershell -NoProfile -File tests/InterviewFlowTests/run-gateway-e2e.ps1
 ```
 
 Run the fake-services command in a separate terminal. The E2E runner uses a fresh ephemeral database for each suite on port 5030, starts its own gateway on 5311 with a fresh test ledger, checks readiness and cleans only its own processes. It tests flow, credit selection, stop, browser interactions and per-account allowance. Build Aris to `.local/gateway-continuation-build` first (or pass `-AppDll`). No paid API or shared database is involved.
+
+## Local voice conversion for a speaking clip
+
+`GET /media/voice-conversion/health` returns `{ready, voices:[{id,name}]}`. It advertises only configured references that the worker can read and encode using installed checkpoints. `POST /media/convert-voice` accepts multipart `video` and a target `voice` id from that list, and returns `video/mp4`. Both routes require the gateway key, share `mediaConcurrency`, and never call an upstream service. Missing libraries, models or references remain unavailable so Aris can reject the mode before spending renderer credits.
+
+The video must already contain the desired spoken dialogue with synchronized lips. The gateway extracts its audio, changes tone locally, checks the audio sample duration, normalizes to about -14 LUFS, and remuxes the original encoded video with `-c:v copy`. It never loops the video or changes speech speed. Duration drift above `maxDurationDriftMs` (default and maximum 80 ms) is rejected. Only smaller codec rounding can be padded or trimmed at the end. A matching total duration does not establish word-by-word synchronization: watch a trial clip and check terms before generating a full kit.
+
+Provision a separate Python environment with PyTorch appropriate to the host, NumPy, SoundFile, Librosa, and the official [OpenVoice source](https://github.com/myshell-ai/OpenVoice/tree/74a1d147b17a8c3092dd5430504bd83ef6c7eb23). The official API imports text helpers even for direct tone conversion, so install `inflect`, `unidecode`, `eng_to_ipa`, `pypinyin`, `jieba`, and `cn2an` as needed by that revision. This worker uses `ToneColorConverter.extract_se` and `.convert` with watermark disabled; it does not need Whisper/VAD, MeloTTS or a voice-service key. The pinned upstream constructor forwards the optional watermark flag to a base constructor that rejects it, so the local adapter initializes the same base model directly and disables the optional watermark model; extraction and conversion methods remain unchanged. It does not install packages or download models automatically.
+
+Place the official V2 converter's `config.json` and `checkpoint.pth` in the private model directory. The [published converter checkpoint](https://huggingface.co/myshell-ai/OpenVoiceV2/blob/f36e7edfe1684461a8343844af60babc2efbb727/converter/checkpoint.pth) has SHA-256 `9652c27e92b6b2a91632590ac9962ef7ae2b712e5c5b7f4c34ec55ee2b37ab9e`. Keep a clean, authorised Ruby reference WAV on this machine and set its path in a private copy of `voice-conversion.config.example.json`. A similarly named public sample can represent a different voice; use the actual intended Ruby reference. References are read locally and never uploaded. Keep references, model files, environment and local configuration out of commits.
+
+Set the optional `voiceConversion` block in gateway configuration: `pythonPath`, `workerPath`, `configPath`, `timeoutSeconds` (1–1800; default 180), and `maxDurationDriftMs` (0–80; default 80). Remove the block if conversion is not installed. All file paths are resolved against the gateway configuration file; paths inside the worker JSON are relative to that JSON. Worker JSON contains `modelDir`, `device` (`auto`, `cuda`, or `cpu`), `maxDurationDriftMs`, and `voices` keyed by allowlisted voice id with `name` and `referencePath`. `auto` uses CUDA if available and otherwise CPU. No GPU is needed on the ASP.NET hosting server.
+
+Check installation without generating media or spending credits:
+
+```powershell
+& '<private-venv>/Scripts/python.exe' tools/InterviewGateway/voice_conversion_worker.py --health --config '<private-worker-config.json>'
+```
+
+An unavailable check returns `{"ready":false,"voices":[]}`. Worker failures and timeouts expose only generic messages; source paths, references and model details are absent from HTTP responses. Timed-out or disconnected conversion processes are killed, and temporary source/output files are cleaned. RTX 2050 4 GB performance and the voice match must be measured on the installed runtime; readiness is not a quality guarantee.
+
+For the tested Windows CPU setup, `install-local-voice.ps1` downloads pinned public source, checkpoint and 19 locked dependency artifacts into a dedicated local directory, checks their digests, and installs into a separate virtual environment. It requires an existing Windows x64 Python 3.11 with PyTorch and numerical dependencies (the script checks them first); it does not change system packages. Pass the actual authorised reference file, which is read locally. No download request contains that audio:
+
+```powershell
+powershell -NoProfile -File tools/InterviewGateway/install-local-voice.ps1 -RuntimeRoot .local/voice-conversion -ReferencePath '<authorised-Ruby.wav>' -Python '<Python311/python.exe>' -Device cpu
+```
+
+The installer prints a server-only `voiceConversion` block for the gateway after readiness passes. Merge it into private gateway configuration and restart that gateway. In the local CPU validation, authenticated gateway readiness took 14.5 seconds; converting a 6.270-second public source using the intended local Ruby reference took 17.2 seconds and changed audio duration by 0.612 ms. Keep the server health timeout above this startup cost. These checks establish installation and timing, while the final speaking clip still needs a visual and voice review.
+
+## Fitting a TTS line onto lip-synced speech
+
+`POST /media/fit-voice` accepts multipart `video` (a clip whose own speech drives the lips) and `audio` (the TTS line), and returns `video/mp4`. Speech phrases are detected with `silencedetect` on both; the TTS is trimmed, tempo-adjusted (0.5–2×, pitch kept) and placed on the native phrases, then normalised to −14 LUFS. Video packets are copied and the audio keeps the original sample count, so sound cannot drift from the picture. A clip without speech, or a fit outside the tempo range, is refused (`422 speech_fit_failed`). Pure timing logic lives in `speech-fit.mjs`; run `node --test speech-fit.test.mjs`.
 
 ## Public connectivity failures
 

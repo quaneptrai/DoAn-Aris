@@ -16,13 +16,15 @@
     <p class="ivf-muted">Chế độ luân phiên lần lượt trừ credit của từng tài khoản cho mỗi video; credit vẫn thuộc tài khoản gốc. Bấm Lưu tham số để áp dụng. Video nào cũng cần duyệt chi phí trước khi tạo.</p>
     <div class="ivf-fields">
         <label class="a-field"><span class="a-label">Hình ảnh</span><select class="a-input" name="Production.VisualMode" data-visual-mode>
-            <option value="independent" selected="@(settings.VisualMode == "independent")">Tạo riêng từng clip</option>
-            <option value="expressions" selected="@(settings.VisualMode == "expressions")" disabled="@(!Model.CanSpeak)">5 biểu cảm: nói, nghe, suy nghĩ, cười, nhíu mày</option>
+            <option value="independent" selected="@(settings.VisualMode == "independent")">Tạo riêng từng clip và biểu cảm theo trạng thái</option>
+            <option value="expressions" selected="@(settings.VisualMode == "expressions")" disabled="@(!Model.CanSpeak)">Dùng lại 5 video biểu cảm với giọng đọc riêng</option>
             <option value="shared" selected="@(settings.VisualMode == "shared")" disabled="@(!Model.CanSpeak)">Một video gốc xuyên suốt</option>
         </select></label>
         <label class="a-field"><span class="a-label">Giọng đọc</span><select class="a-input" name="Production.NarrationMode" data-narration-mode>
-            <option value="native" selected="@(settings.NarrationMode == "native")">Giọng do model video tự tạo (mỗi clip có thể khác)</option>
-            <option value="tts" selected="@(settings.NarrationMode == "tts")" disabled="@(!Model.CanSpeak)">Một giọng TTS dùng chung cho mọi video</option>
+            <option value="native" selected="@(settings.NarrationMode == "native")">Khớp môi với giọng tạo cùng video (giọng có thể khác)</option>
+            <option value="native-converted" selected="@(settings.NarrationMode == "native-converted")" data-conversion-option disabled>Khớp môi + một giọng xuyên suốt</option>
+            <option value="native-tts" selected="@(settings.NarrationMode == "native-tts")" disabled="@(!Model.CanFitSpeech)">Khớp môi + giữ giọng đọc TTS đã chọn</option>
+            <option value="tts" selected="@(settings.NarrationMode == "tts")" disabled="@(!Model.CanSpeak)">Một giọng đọc riêng (chưa khớp môi từng từ)</option>
         </select></label>
         <label class="a-field"><span class="a-label">Chất lượng video</span><select class="a-input" name="Production.Quality">
             <option value="fast" selected="@(settings.Quality == "fast")">Nhanh, tiết kiệm</option>
@@ -31,23 +33,26 @@
         </select></label>
         <label class="a-field"><span class="a-label">Số lần ứng viên được trả lời bổ sung</span><input class="a-input" name="Production.MaxSupplements" value="@settings.MaxSupplements" type="number" min="0" max="3" /></label>
     </div>
-    <p class="ivf-muted" data-narration-status role="status">@(settings.NarrationMode == "native" ? "Mỗi clip có giọng do model video tạo riêng, nên giọng có thể khác nhau giữa các video. Chọn một giọng TTS dùng chung để mọi câu có cùng giọng, tốc độ và cao độ." : "Mọi clip có lời dùng cùng giọng, tốc độ và cao độ đã lưu. Thay đổi chỉ áp dụng cho các clip ghép TTS sau khi bạn lưu; video đã có giữ nguyên âm thanh.")</p>
-    @if (!Model.CanSpeak) { <p class="ivf-muted" data-tts-unavailable role="status">Hệ thống chưa bật TTS nên chưa thể dùng một giọng chung cho mọi video.</p> }
-    <p class="ivf-muted">Chế độ "Một video gốc" giữ nguyên bối cảnh qua mọi câu. Chế độ này và "5 biểu cảm" đều dùng giọng TTS: hình được lặp hoặc cắt cho vừa lời đọc, âm lượng được chuẩn hóa. Khẩu hình có thể chưa khớp từng chữ.</p>
+    <p class="ivf-muted" data-narration-status role="status">@(settings.NarrationMode switch { "native-converted" => "Tạo lời nói cùng khẩu hình rồi đổi sang giọng đã chọn, giữ nhịp nói. Mỗi trạng thái có video và biểu cảm riêng. Cần kiểm tra video hoàn tất để đánh giá khẩu hình và giọng.", "native" => "Lời nói và khẩu hình được tạo cùng video. Mỗi trạng thái có biểu cảm riêng; giọng có thể khác giữa các clip.", "native-tts" => "Video tạo lời nói cùng khẩu hình; giọng đọc TTS đã chọn thay vào đúng những đoạn miệng cử động. Mọi clip cùng một giọng, cách đọc thuật ngữ và âm lượng; thời lượng video giữ nguyên nên tiếng không lệch hình.", _ => "Mọi clip có lời dùng một giọng đọc riêng; khẩu hình chưa khớp từng từ." })</p>
+    <p class="ivf-muted" data-conversion-status role="status">Đang kiểm tra chế độ khớp môi với một giọng xuyên suốt…</p>
+    @if (!Model.CanSpeak) { <p class="ivf-muted" data-tts-unavailable role="status">Hệ thống chưa bật giọng đọc riêng.</p> }
+    <p class="ivf-muted">Nghe, suy nghĩ, hài lòng và cần khích lệ được tạo thành các video riêng ở chế độ tạo từng clip. "Một video gốc" dùng cùng hình cho mọi trạng thái; các chế độ dùng lại hình ghép giọng đọc riêng và chưa khớp môi từng từ.</p>
+    <p class="ivf-muted">Lưu tham số cần duyệt lại kịch bản. Video đã có chỉ đổi khẩu hình, giọng và biểu cảm khi bạn tạo lại, sau khi xem và duyệt chi phí.</p>
     <div data-voice-controls>
         <div class="ivf-fields">
             <label class="a-field"><span class="a-label">Tìm giọng</span><input class="a-input" type="search" data-voice-search placeholder="Tên hoặc mã giọng…" /></label>
             <div class="ivf-row"><label class="a-field"><span class="a-label">Giới tính</span><select class="a-input" data-voice-gender><option value="">Tất cả</option><option value="female">Nữ</option><option value="male">Nam</option></select></label>
                 <label class="a-field"><span class="a-label">Vùng</span><select class="a-input" data-voice-region><option value="">Tất cả</option><option value="north">Bắc</option><option value="central">Trung</option><option value="south">Nam</option><option value="global">Song ngữ</option><option value="other">Khác</option></select></label></div>
             <label class="a-field ivf-span-2"><span class="a-label">Giọng đã chọn</span><select class="a-input" name="Production.VoiceId" data-voice-select><option value="@settings.VoiceId">@(string.IsNullOrEmpty(settings.VoiceId) ? "Chọn giọng…" : settings.VoiceId)</option></select></label>
-            <label class="a-field"><span class="a-label">Tốc độ (0,25–4)</span><input class="a-input" name="Production.Speed" type="number" step="0.05" min="0.25" max="4" value="@settings.Speed.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></label>
-            <label class="a-field"><span class="a-label">Cao độ (0,8–1,2)</span><input class="a-input" name="Production.Pitch" type="number" step="0.05" min="0.8" max="1.2" value="@settings.Pitch.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></label>
+            <label class="a-field" data-tts-timing data-tts-speed><span class="a-label">Tốc độ (0,25–4)</span><input class="a-input" name="Production.Speed" type="number" step="0.05" min="0.25" max="4" value="@settings.Speed.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></label>
+            <label class="a-field" data-tts-timing><span class="a-label">Cao độ (0,8–1,2)</span><input class="a-input" name="Production.Pitch" type="number" step="0.05" min="0.8" max="1.2" value="@settings.Pitch.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></label>
         </div>
         <label class="a-field"><span class="a-label">Cách đọc thuật ngữ (tùy chọn)</span><textarea class="a-input" name="Production.PronunciationOverrides" maxlength="4000" rows="4" placeholder="Mỗi dòng: thuật ngữ = lời đọc&#10;Ví dụ: DMA = đi em ây">@settings.PronunciationOverrides</textarea></label>
         <p class="ivf-muted">Chỉ đổi cách đọc khi tạo giọng nói; câu hỏi, kịch bản và đáp án hiển thị vẫn giữ nguyên. Tối đa 50 mục. Với từ tiếng Anh như volatile, hãy thử giọng song ngữ hoặc nhập cách đọc mong muốn. Phát âm còn tùy vào giọng đã chọn.</p>
-        <label class="a-field"><span class="a-label">Câu nghe thử (không tạo video)</span><textarea class="a-input" data-voice-sample-text maxlength="2400" rows="2">Xin chào, chúng ta trao đổi về volatile và DMA.</textarea></label>
-        <div class="ivf-row"><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-load-voices disabled="@(!Model.CanSpeak)">Tải danh sách giọng</button><button class="a-btn a-btn--ghost a-btn--sm" type="button" data-sample-voice disabled="@(!Model.CanSpeak)">Nghe thử</button><audio controls data-voice-sample hidden></audio></div>
-        <details><summary>Nhân bản giọng từ mẫu âm thanh</summary>
+        <label class="a-field" data-tts-only><span class="a-label">Câu nghe thử (không tạo video)</span><textarea class="a-input" data-voice-sample-text maxlength="2400" rows="2">Xin chào, chúng ta trao đổi về volatile và DMA.</textarea></label>
+        <div class="ivf-row"><button class="a-btn a-btn--secondary a-btn--sm" type="button" data-load-voices disabled="@(!Model.CanSpeak)">Tải danh sách giọng</button><button class="a-btn a-btn--ghost a-btn--sm" type="button" data-sample-voice data-tts-only disabled="@(!Model.CanSpeak)">Nghe thử</button><audio controls data-voice-sample data-tts-only hidden></audio></div>
+        <p class="ivf-muted" data-conversion-help hidden>Chỉ các giọng có mẫu đã được quản trị viên chuẩn bị trên máy xử lý mới dùng được. Giữ nguyên nhịp và tốc độ của video; không tạo giọng đọc mới hoặc gửi mẫu âm thanh từ trang này.</p>
+        <details data-tts-only><summary>Nhân bản giọng từ mẫu âm thanh</summary>
             <label class="a-field"><span class="a-label">Tên giọng mới</span><input class="a-input" maxlength="80" data-clone-name /></label>
             <label class="a-field"><span class="a-label">Âm thanh mẫu (tối đa 10 MB)</span><input class="a-input" type="file" accept="audio/*,.webm" data-clone-file /></label>
             <label class="a-field"><span class="a-label">Lời đọc trong mẫu (tùy chọn)</span><textarea class="a-input" maxlength="2000" data-clone-text></textarea></label>

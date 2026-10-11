@@ -27,6 +27,13 @@ public sealed partial class EmployerInterviewFlowController
         try { return Json(new { ok = true, voices = await speech.VoicesAsync(token) }); }
         catch (InterviewEngineException e) { return Json(new { ok = false, error = e.Message }); }
     }
+    [HttpGet("ConversionVoices")]
+    public async Task<IActionResult> ConversionVoices(CancellationToken token)
+    {
+        if (await BusinessAsync(token) == null) return Forbid();
+        try { return Json(new { ok = true, voices = await speech.ConversionVoicesAsync(token) }); }
+        catch (InterviewEngineException) { return Json(new { ok = false, error = "Chế độ khớp môi với một giọng xuyên suốt chưa sẵn sàng. Vui lòng liên hệ quản trị viên." }); }
+    }
     public sealed class VoiceSampleRequest
     {
         public string VoiceId { get; set; } = "";

@@ -9,6 +9,7 @@ using ArisSkyve.Domain.Entities;
 using ArisSkyve.Infrastructure.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection;
 
 var checks = 0;
 void Check(string description, bool condition)
@@ -127,6 +128,99 @@ media.Status = HttpStatusCode.BadGateway;
 try { await remote.EnsureMixerAsync(CancellationToken.None); throw new InvalidOperationException("remote outage not reported"); }
 catch (InterviewEngineException e) { Check("an unreachable media machine is reported without its address", e.Message.Contains("tạm thời không phản hồi") && !e.Message.Contains("gateway.invalid")); }
 
+// Native speech conversion replaces only timbre, never the saved question or a TTS voice-over.
+var converted = new InterviewProductionSettings { NarrationMode = "native-converted", VoiceId = "ruby_wav_clean", PronunciationOverrides = "volatile = vola-tile\nC = see" };
+Check("native conversion requires independent visuals and an explicit target voice", converted.Validate() is null && converted.UsesNativeSpeech && converted.UsesSelectedVoice);
+Check("native conversion rejects reusable video, missing voice and altered timing",
+    new InterviewProductionSettings { NarrationMode = "native-converted", VisualMode = "shared", VoiceId = "ruby_wav_clean" }.Validate() is not null &&
+    new InterviewProductionSettings { NarrationMode = "native-converted" }.Validate() is not null &&
+    new InterviewProductionSettings { NarrationMode = "native-converted", VoiceId = "ruby_wav_clean", Speed = 1.2 }.Validate() is not null);
+kit.SettingsJson = InterviewJson.Write(converted);
+var originalLine = "Từ khóa volatile trong C dùng để làm gì trong lập trình nhúng?";
+var questionClip = InterviewEngine.Clip(kit, "question", 1, originalLine);
+Check("native prompt changes pronunciation input while preserving the original script line",
+    questionClip.Line == originalLine && questionClip.Prompt.Contains("vola-tile trong see") && questionClip.Prompt.Contains("môi và hàm khớp") &&
+    questionBefore == InterviewJson.Write(kit.Questions) && scriptBefore == kit.ScriptJson);
+var silentClips = InterviewKitVideo.SilentKinds.Select(kind => InterviewEngine.Clip(kit, kind, null, "must not be spoken")).ToArray();
+Check("listening, thinking, pass and fail have separate silent expressions", silentClips.Length == 4 && silentClips.Select(c => c.Prompt).Distinct().Count() == 4 && silentClips.All(c => c.Line == "" && c.Prompt.Contains("miệng khép")));
+kit.ScriptJson = InterviewJson.Write(new[] { questionClip }.Concat(silentClips));
+Check("native conversion targets only independent public slots", InterviewVideoProduction.Targets(kit, true).Count == 5 && InterviewVideoProduction.Targets(kit, true).All(c => !InterviewKitVideo.BaseKinds.Contains(c.Kind)));
+
+media.Status = HttpStatusCode.OK;
+media.ConversionReady = true;
+var conversionVoices = await remote.ConversionVoicesAsync(CancellationToken.None);
+Check("conversion catalog comes from the authenticated media machine", conversionVoices.Count == 1 && conversionVoices[0].Id == "ruby_wav_clean" && media.Calls[^1].Path == "/gw/media/voice-conversion/health" && media.Calls[^1].Auth == "Bearer media-key");
+var beforeConversions = media.Calls.Count;
+foreach (var bytes in new byte[][] { [1, 2], [3, 4], [5, 6] }) await remote.ConvertVoiceAsync(bytes, "ruby_wav_clean", CancellationToken.None);
+var conversions = media.Calls.Skip(beforeConversions).Where(c => c.Path.EndsWith("/convert-voice")).ToList();
+Check("all native clips select the same conversion voice without synthesizing TTS", conversions.Count == 3 && conversions.All(c => c.VoiceId == "ruby_wav_clean" && c.Parts.SequenceEqual(["video", "voice"])) && !media.Calls.Skip(beforeConversions).Any(c => c.Path.Contains("audio/speech")));
+beforeConversions = media.Calls.Count;
+await Reject("unknown conversion voice is rejected before uploading video", () => remote.ConvertVoiceAsync([1], "unknown", CancellationToken.None));
+Check("unknown voice submits no conversion request", media.Calls.Skip(beforeConversions).All(c => !c.Path.EndsWith("/convert-voice")));
+media.ConversionReady = false;
+var generationRecorder = new RecordingHandler();
+var generationOptions = new InterviewEngineOptions { Video = new() { BaseUrl = "https://generation.invalid/v1" } };
+var generationEngine = new InterviewEngine(new RecordingFactory(generationRecorder), new FixedOptions(generationOptions), NullLogger<InterviewEngine>.Instance);
+using var scopes = new ServiceCollection().BuildServiceProvider();
+var production = new InterviewVideoProduction(generationEngine, remote, scopes.GetRequiredService<IServiceScopeFactory>(), NullLogger<InterviewVideoProduction>.Instance);
+await Reject("unavailable converter blocks quote before any video provider request", () => production.QuoteAsync(kit, questionClip, CancellationToken.None));
+await Reject("unavailable converter blocks render before consuming a paid quote", () => production.RenderAsync(kit, questionClip, "unused", CancellationToken.None));
+Check("failed conversion preflight leaves generation untouched", generationRecorder.Requests.Count == 0);
+Check("unconfigured conversion is unavailable without sending an HTTP request", (await service.ConversionVoicesAsync(CancellationToken.None)).Count == 0);
+var longClip = InterviewEngine.Clip(kit, "question", 1, string.Join(' ', Enumerable.Repeat("word", 34)));
+await Reject("native-converted rejects speech longer than the model before requesting a quote", () => generationEngine.QuoteVideoAsync(kit, longClip, CancellationToken.None));
+Check("overlong native speech makes no video provider request", generationRecorder.Requests.Count == 0);
+var videoQuotes = new VideoQuoteHandler();
+var nativeOptions = new InterviewEngineOptions { Video = new() { BaseUrl = "https://generation.invalid/v1", Model = "omni-1.1-flash-8s-landscape", ModelWithImage = "omni-1.1-flash-8s-landscape", NativeModelWithImage = "veo-3.1-fast-i2v-6s-landscape" } };
+var nativeEngine = new InterviewEngine(new QuoteFactory(videoQuotes), new FixedOptions(nativeOptions), NullLogger<InterviewEngine>.Instance);
+converted.Quality = "balanced"; kit.SettingsJson = InterviewJson.Write(converted); kit.AvatarImage = [1];
+var eightSeconds = InterviewEngine.Clip(kit, "question", 1, string.Join(' ', Enumerable.Repeat("word", 20)));
+await nativeEngine.QuoteVideoAsync(kit, eightSeconds, CancellationToken.None);
+// The renderer has no 8-second Lite/Fast image model; only Quality offers 8 seconds with an image.
+Check("longer native speech with an image uses the existing eight-second Quality model", videoQuotes.Requests.Single().GetProperty("model").GetString() == "veo-3.1-quality-i2v-8s-landscape");
+converted.PronunciationOverrides = "short=" + string.Join(' ', Enumerable.Repeat("word", 30)); kit.SettingsJson = InterviewJson.Write(converted);
+var expandedNative = InterviewEngine.Clip(kit, "question", 1, "short");
+await Reject("native duration checks use pronunciation-expanded text", () => nativeEngine.QuoteVideoAsync(kit, expandedNative, CancellationToken.None));
+Check("expanded overlong pronunciation makes no additional video provider request", videoQuotes.Requests.Count == 1);
+
+// native-tts: the video speaks for lip timing; the kit's TTS voice replaces it on the media machine.
+var fittedSettings = new InterviewProductionSettings { NarrationMode = "native-tts", VoiceId = "ruby_wav_clean", Pitch = 1.1, PronunciationOverrides = "volatile = vola-tile" };
+Check("native-tts uses native speech timing with the selected TTS voice; pitch stays adjustable",
+    fittedSettings.Validate() is null && fittedSettings.UsesNativeSpeech && fittedSettings.UsesSelectedVoice && fittedSettings.RequiresSpeechFit && !fittedSettings.RequiresVoiceConversion);
+Check("native-tts rejects reusable video, a missing voice and a speed the video timing would override",
+    new InterviewProductionSettings { NarrationMode = "native-tts", VisualMode = "expressions", VoiceId = "ruby_wav_clean" }.Validate() is not null &&
+    new InterviewProductionSettings { NarrationMode = "native-tts" }.Validate() is not null &&
+    new InterviewProductionSettings { NarrationMode = "native-tts", VoiceId = "ruby_wav_clean", Speed = 1.3 }.Validate() is not null);
+var fitMedia = new MediaHandler();
+var fitConfig = new InterviewEngineOptions { Tts = new() { BaseUrl = "https://speech.invalid/v1", Model = "fixed-multilingual-model" }, Media = new() { BaseUrl = "https://gateway.invalid/gw/media", ApiKey = "media-key" } };
+var fitSpeech = new InterviewSpeech(new MediaFactory(fitMedia), new FixedOptions(fitConfig), NullLogger<InterviewSpeech>.Instance);
+Check("fitting needs both a TTS voice and the media machine", fitSpeech.CanFitSpeech && !remote.CanFitSpeech && !service.CanFitSpeech);
+var fittedBytes = await fitSpeech.FitSpeechAsync([1, 2], Encoding.ASCII.GetBytes("RIFF0000WAVEvoice"), CancellationToken.None);
+Check("fit-voice sends the paid video and the TTS line to the authenticated media machine",
+    fitMedia.Calls[^1].Path == "/gw/media/fit-voice" && fitMedia.Calls[^1].Parts.SequenceEqual(["video", "audio"]) && fitMedia.Calls[^1].Auth == "Bearer media-key" && Encoding.ASCII.GetString(fittedBytes) == "mixed:/gw/media/fit-voice");
+kit.SettingsJson = InterviewJson.Write(fittedSettings);
+var fitClip = InterviewEngine.Clip(kit, "question", 1, originalLine);
+Check("native-tts prompt asks the video to speak the line (with pronunciations) for lip timing", fitClip.Line == originalLine && fitClip.Prompt.Contains("vola-tile") && fitClip.Prompt.Contains("môi và hàm khớp"));
+var unfittable = new InterviewVideoProduction(generationEngine, remote, scopes.GetRequiredService<IServiceScopeFactory>(), NullLogger<InterviewVideoProduction>.Instance);
+var generationBefore = generationRecorder.Requests.Count;
+await Reject("native-tts without a TTS voice blocks the quote before any video provider request", () => unfittable.QuoteAsync(kit, fitClip, CancellationToken.None));
+Check("unavailable fitting leaves generation untouched", generationRecorder.Requests.Count == generationBefore);
+var fitProduction = new InterviewVideoProduction(nativeEngine, fitSpeech, scopes.GetRequiredService<IServiceScopeFactory>(), NullLogger<InterviewVideoProduction>.Instance);
+var fitQuote = await fitProduction.QuoteAsync(kit, fitClip, CancellationToken.None);
+var providerCalls = videoQuotes.Requests.Count;
+fitMedia.SpeechStatus = HttpStatusCode.InternalServerError;
+await Reject("a TTS failure stops native-tts before the paid render", () => fitProduction.RenderAsync(kit, fitClip, fitQuote.Id, CancellationToken.None));
+Check("the voice is synthesized first, so the paid video is never requested when TTS fails", videoQuotes.Requests.Count == providerCalls && fitMedia.Calls[^1].Path.EndsWith("/audio/speech"));
+fitMedia.SpeechStatus = HttpStatusCode.OK;
+var paidRender = new InterviewVideoProduction(new PaidRenderEngine(), fitSpeech, scopes.GetRequiredService<IServiceScopeFactory>(), NullLogger<InterviewVideoProduction>.Instance);
+var fittedClip = await paidRender.RenderAsync(kit, fitClip, "paid-quote", CancellationToken.None);
+Check("a successful fit returns the fitted clip", Encoding.ASCII.GetString(fittedClip) == "mixed:/gw/media/fit-voice");
+fitMedia.FitStatus = HttpStatusCode.UnprocessableEntity;
+var keptClip = await paidRender.RenderAsync(kit, fitClip, "paid-quote", CancellationToken.None);
+Check("a refused fit keeps the paid clip with the same TTS voice as a plain voice-over",
+    Encoding.ASCII.GetString(keptClip) == "mixed:/gw/media/mix" && fitMedia.Calls[^2].Path.EndsWith("/fit-voice") && fitMedia.Calls[^1].Parts.SequenceEqual(["video", "audio"]));
+fitMedia.FitStatus = HttpStatusCode.OK;
+
 // Mixing runs the local FFmpeg only. A short line with sharp peaks used to keep its quiet level (loudnorm under 3 s).
 var ffmpeg = Environment.GetEnvironmentVariable("INTERVIEW_FFMPEG") ?? Path.GetFullPath(".local/interview-tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe");
 if (File.Exists(ffmpeg))
@@ -179,16 +273,54 @@ sealed class RecordingHandler : HttpMessageHandler
 
 sealed class MediaHandler : HttpMessageHandler
 {
-    public sealed record Call(string Path, string? Auth, List<string> Parts);
+    public sealed record Call(string Path, string? Auth, List<string> Parts, string? VoiceId);
     public List<Call> Calls { get; } = [];
     public HttpStatusCode Status { get; set; } = HttpStatusCode.OK;
+    public bool ConversionReady { get; set; }
+    public HttpStatusCode SpeechStatus { get; set; } = HttpStatusCode.OK;
+    public HttpStatusCode FitStatus { get; set; } = HttpStatusCode.OK;
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
     {
         var parts = request.Content is MultipartFormDataContent form ? form.Select(p => p.Headers.ContentDisposition?.Name?.Trim('"') ?? "").ToList() : [];
         if (request.Content != null) await request.Content.ReadAsByteArrayAsync(token);
-        Calls.Add(new(request.RequestUri!.AbsolutePath, request.Headers.Authorization?.ToString(), parts));
+        var voicePart = request.Content is MultipartFormDataContent multipart ? multipart.FirstOrDefault(p => p.Headers.ContentDisposition?.Name?.Trim('"') == "voice") : null;
+        Calls.Add(new(request.RequestUri!.AbsolutePath, request.Headers.Authorization?.ToString(), parts, voicePart == null ? null : await voicePart.ReadAsStringAsync(token)));
+        if (request.RequestUri.AbsolutePath.EndsWith("/fit-voice") && FitStatus != HttpStatusCode.OK)
+            return new(FitStatus) { Content = new StringContent("{}") };
+        if (request.RequestUri.AbsolutePath.EndsWith("/audio/speech"))
+            return new(SpeechStatus) { Content = new ByteArrayContent(Encoding.ASCII.GetBytes("RIFF0000WAVEtts-line")) };
+        if (request.RequestUri.AbsolutePath.EndsWith("/voice-conversion/health"))
+            return new(Status) { Content = new StringContent(JsonSerializer.Serialize(new { ready = ConversionReady, voices = new[] { new { id = "ruby_wav_clean", name = "Ruby" } } }), Encoding.UTF8, "application/json") };
         return new(Status) { Content = new ByteArrayContent(Encoding.ASCII.GetBytes("mixed:" + request.RequestUri.AbsolutePath)) };
     }
+}
+
+/// <summary>Stands in for a renderer whose quote was already approved and paid.</summary>
+sealed class PaidRenderEngine : IInterviewEngine
+{
+    public bool CanRenderVideo => true;
+    public Task<byte[]> RenderVideoAsync(string quoteId, CancellationToken cancellationToken) => Task.FromResult(Encoding.ASCII.GetBytes("paid-video"));
+    public Task<IReadOnlyList<InterviewCreditAccount>> CreditAccountsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+    public Task<InterviewCreditAllowance?> AllowanceAsync(int userId, CancellationToken token) => throw new NotSupportedException();
+    public Task<List<InterviewScriptClip>> WriteScriptAsync(InterviewKit kit, string companyName, CancellationToken cancellationToken) => throw new NotSupportedException();
+    public Task<InterviewAnswerResult> GradeAsync(InterviewKitQuestion question, string transcript, int passPercent, CancellationToken cancellationToken) => throw new NotSupportedException();
+    public Task<InterviewVideoQuote> QuoteVideoAsync(InterviewKit kit, InterviewScriptClip clip, CancellationToken cancellationToken) => throw new NotSupportedException();
+}
+
+sealed class VideoQuoteHandler : HttpMessageHandler
+{
+    public List<JsonElement> Requests { get; } = [];
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
+    {
+        using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+        Requests.Add(json.RootElement.Clone());
+        return new(HttpStatusCode.OK) { Content = new StringContent("{\"approval_token\":\"fake-provider-quote\",\"estimated_credits\":20}", Encoding.UTF8, "application/json") };
+    }
+}
+sealed class QuoteFactory(VideoQuoteHandler handler) : IHttpClientFactory
+{
+    private readonly HttpClient client = new(handler, disposeHandler: false);
+    public HttpClient CreateClient(string name) => client;
 }
 
 sealed class MediaFactory(MediaHandler handler) : IHttpClientFactory

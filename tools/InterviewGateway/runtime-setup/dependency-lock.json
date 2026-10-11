@@ -1,0 +1,229 @@
+[
+  {
+    "name": "Unidecode",
+    "version": "1.4.0",
+    "artifact": "Unidecode-1.4.0-py3-none-any.whl",
+    "sha256": "c3c7606c27503ad8d501270406e345ddb480a7b5f38827eafe4fa82a137f0021",
+    "requires": []
+  },
+  {
+    "name": "soundfile",
+    "version": "0.13.1",
+    "artifact": "soundfile-0.13.1-py2.py3-none-win_amd64.whl",
+    "sha256": "1e70a05a0626524a69e9f0f4dd2ec174b4e9567f4d8b6c11d38b5c289be36ee9",
+    "requires": [
+      "cffi>=1.0",
+      "numpy"
+    ]
+  },
+  {
+    "name": "inflect",
+    "version": "7.5.0",
+    "artifact": "inflect-7.5.0-py3-none-any.whl",
+    "sha256": "2aea70e5e70c35d8350b8097396ec155ffd68def678c7ff97f51aa69c1d92344",
+    "requires": [
+      "more_itertools>=8.5.0",
+      "typeguard>=4.0.1",
+      "typing_extensions; python_version < \"3.9\"",
+      "pytest!=8.1.*,>=6; extra == \"test\"",
+      "pygments; extra == \"test\"",
+      "sphinx>=3.5; extra == \"doc\"",
+      "jaraco.packaging>=9.3; extra == \"doc\"",
+      "rst.linker>=1.9; extra == \"doc\"",
+      "furo; extra == \"doc\"",
+      "sphinx-lint; extra == \"doc\"",
+      "jaraco.tidelift>=1.4; extra == \"doc\"",
+      "pytest-checkdocs>=2.4; extra == \"check\"",
+      "pytest-ruff>=0.2.1; sys_platform != \"cygwin\" and extra == \"check\"",
+      "pytest-cov; extra == \"cover\"",
+      "pytest-enabler>=2.2; extra == \"enabler\"",
+      "pytest-mypy; extra == \"type\""
+    ]
+  },
+  {
+    "name": "librosa",
+    "version": "0.11.0",
+    "artifact": "librosa-0.11.0-py3-none-any.whl",
+    "sha256": "0b6415c4fd68bff4c29288abe67c6d80b587e0e1e2cfb0aad23e4559504a7fa1",
+    "requires": [
+      "audioread>=2.1.9",
+      "numba>=0.51.0",
+      "numpy>=1.22.3",
+      "scipy>=1.6.0",
+      "scikit-learn>=1.1.0",
+      "joblib>=1.0",
+      "decorator>=4.3.0",
+      "soundfile>=0.12.1",
+      "pooch>=1.1",
+      "soxr>=0.3.2",
+      "typing_extensions>=4.1.1",
+      "lazy_loader>=0.1",
+      "msgpack>=1.0",
+      "standard-aifc; python_version >= \"3.13\"",
+      "standard-sunau; python_version >= \"3.13\"",
+      "numpydoc; extra == \"docs\"",
+      "sphinx!=1.3.1; extra == \"docs\"",
+      "sphinx_rtd_theme>=1.2.0; extra == \"docs\"",
+      "numba>=0.51; extra == \"docs\"",
+      "matplotlib>=3.5.0; extra == \"docs\"",
+      "sphinx-multiversion>=0.2.3; extra == \"docs\"",
+      "sphinx-gallery>=0.7; extra == \"docs\"",
+      "mir_eval>=0.5; extra == \"docs\"",
+      "ipython>=7.0; extra == \"docs\"",
+      "sphinxcontrib-svg2pdfconverter; extra == \"docs\"",
+      "sphinxcontrib-googleanalytics>=0.4; extra == \"docs\"",
+      "presets; extra == \"docs\"",
+      "sphinx-copybutton>=0.5.2; extra == \"docs\"",
+      "matplotlib>=3.5.0; extra == \"tests\"",
+      "packaging>=20.0; extra == \"tests\"",
+      "pytest-mpl; extra == \"tests\"",
+      "pytest-cov; extra == \"tests\"",
+      "pytest; extra == \"tests\"",
+      "samplerate; extra == \"tests\"",
+      "resampy>=0.2.2; extra == \"tests\"",
+      "types-decorator; extra == \"tests\"",
+      "matplotlib>=3.5.0; extra == \"display\""
+    ]
+  },
+  {
+    "name": "audioread",
+    "version": "3.1.0",
+    "artifact": "audioread-3.1.0-py3-none-any.whl",
+    "sha256": "b30d1df6c5d3de5dcef0fb0e256f6ea17bdcf5f979408df0297d8a408e2971b4",
+    "requires": [
+      "pygobject<4.0.0,>=3.54.2; extra == \"gi\"",
+      "pymad[mad]<0.12.0,>=0.11.3; extra == \"mad\"",
+      "pytest>=8.4.2; extra == \"test\"",
+      "pytest-cov>=7.0.0; extra == \"test\"",
+      "standard-aifc; python_version >= \"3.13\"",
+      "standard-sunau; python_version >= \"3.13\""
+    ]
+  },
+  {
+    "name": "cn2an",
+    "version": "0.5.24",
+    "artifact": "cn2an-0.5.24-py3-none-any.whl",
+    "sha256": "3d57d862a56133070ba6a737b8095bfc94716b41b7684e7a98d2d5b049495db7",
+    "requires": [
+      "proces>=0.1.7"
+    ]
+  },
+  {
+    "name": "eng-to-ipa",
+    "version": "0.0.2",
+    "artifact": "eng_to_ipa-0.0.2.tar.gz",
+    "sha256": "0e4fac8370b0ffeaf696193e971b3ff9bd3762e4d153c6d0d280147887e008b1",
+    "requires": []
+  },
+  {
+    "name": "pypinyin",
+    "version": "0.55.0",
+    "artifact": "pypinyin-0.55.0-py2.py3-none-any.whl",
+    "sha256": "d53b1e8ad2cdb815fb2cb604ed3123372f5a28c6f447571244aca36fc62a286f",
+    "requires": [
+      "argparse; python_version < \"2.7\"",
+      "enum34; python_version < \"3.4\"",
+      "typing; python_version < \"3.5\""
+    ]
+  },
+  {
+    "name": "decorator",
+    "version": "5.3.1",
+    "artifact": "decorator-5.3.1-py3-none-any.whl",
+    "sha256": "f47fe6fdbd2edd623ecfe36875d37aba411624e2670dd395dddae1358689bb3c",
+    "requires": []
+  },
+  {
+    "name": "pooch",
+    "version": "1.9.0",
+    "artifact": "pooch-1.9.0-py3-none-any.whl",
+    "sha256": "f265597baa9f760d25ceb29d0beb8186c243d6607b0f60b83ecf14078dbc703b",
+    "requires": [
+      "platformdirs>=2.5.0",
+      "packaging>=20.0",
+      "requests>=2.19.0",
+      "tqdm<5.0.0,>=4.41.0; extra == \"progress\"",
+      "paramiko>=2.7.0; extra == \"sftp\"",
+      "xxhash>=1.4.3; extra == \"xxhash\"",
+      "pytest-httpserver; extra == \"test\"",
+      "pytest-localftpserver; extra == \"test\""
+    ]
+  },
+  {
+    "name": "soxr",
+    "version": "1.1.0",
+    "artifact": "soxr-1.1.0-cp311-cp311-win_amd64.whl",
+    "sha256": "ae30c48ac795378cf23ba3c7c640b8ff794af714ac388b9fd6b31a40b39e6e86",
+    "requires": [
+      "numpy",
+      "sphinx; extra == \"docs\"",
+      "sphinx-book-theme; extra == \"docs\"",
+      "myst-parser; extra == \"docs\"",
+      "linkify-it-py; extra == \"docs\"",
+      "pytest; extra == \"test\""
+    ]
+  },
+  {
+    "name": "msgpack",
+    "version": "1.2.3",
+    "artifact": "msgpack-1.2.3-cp311-cp311-win_amd64.whl",
+    "sha256": "30e1522e4173230dca4d9ad896f038f73c0da6c1edd42f4dbad88ac583cf5d46",
+    "requires": []
+  },
+  {
+    "name": "more-itertools",
+    "version": "11.1.0",
+    "artifact": "more_itertools-11.1.0-py3-none-any.whl",
+    "sha256": "4b65538ae22f6fed0ce4874efd317463a7489796a0939fa66824dd542125a192",
+    "requires": []
+  },
+  {
+    "name": "numba",
+    "version": "0.68.0",
+    "artifact": "numba-0.68.0-cp311-cp311-win_amd64.whl",
+    "sha256": "d36f7c6a07c27fa175f5a4683083c6a830f7791fbda592a8676ce47a444965f7",
+    "requires": [
+      "llvmlite<0.51,>=0.50.0dev0",
+      "numpy<2.6,>=1.22"
+    ]
+  },
+  {
+    "name": "typeguard",
+    "version": "4.6.0",
+    "artifact": "typeguard-4.6.0-py3-none-any.whl",
+    "sha256": "79878165bb86f2cf5d41d159a0ff1792a796cf496882d2fe1b1c6c7049b9cdd7",
+    "requires": [
+      "typing_extensions>=4.14.0"
+    ]
+  },
+  {
+    "name": "llvmlite",
+    "version": "0.50.0",
+    "artifact": "llvmlite-0.50.0-cp311-cp311-win_amd64.whl",
+    "sha256": "ffe46ef508df226e54b5fe1f7bf11122e5297bcdbb3902cc5b670a429d56ff47",
+    "requires": []
+  },
+  {
+    "name": "platformdirs",
+    "version": "4.13.0",
+    "artifact": "platformdirs-4.13.0-py3-none-any.whl",
+    "sha256": "3dbcf4cd708f21cf876c4eaa90e58412bc4f033d87143f41b1493ff77c25b7e1",
+    "requires": []
+  },
+  {
+    "name": "proces",
+    "version": "0.1.7",
+    "artifact": "proces-0.1.7-py3-none-any.whl",
+    "sha256": "308325bbc96877263f06e57e5e9c760c4b42cc722887ad60be6b18fc37d68762",
+    "requires": []
+  },
+  {
+    "name": "wheel",
+    "version": "0.48.0",
+    "artifact": "wheel-0.48.0-py3-none-any.whl",
+    "sha256": "3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab",
+    "requires": [
+      "packaging>=24.0"
+    ]
+  }
+]
